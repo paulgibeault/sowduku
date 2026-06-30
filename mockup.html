@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sowdoku — visual direction</title>
+<style>
+  /* --font-scale is the Arcade launcher hook; rem text scales with it for free */
+  :root { font-size: calc(100% * var(--font-scale, 1)); }
+
+  :root {
+    --bg:        #f4eee1;  /* warm off-white */
+    --panel:     #fbf7ee;
+    --ink:       #514b42;  /* soft charcoal */
+    --ink-soft:  #8a8175;
+    --line:      #e7dcc8;
+    --thud:      rgba(70,62,52,.14);
+    --heart:     #c98b86;
+    --heart-off: #e3d8c8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background:
+      radial-gradient(120% 80% at 50% -10%, #fbf6ea 0%, var(--bg) 60%);
+    color: var(--ink);
+    font-family: "Inter", "Helvetica Neue", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 1.5rem;
+  }
+
+  .frame { width: min(40rem, 100%); }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+  .title {
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-weight: 600;
+    font-size: 2.6rem;
+    letter-spacing: .01em;
+    margin: 0;
+    line-height: 1;
+  }
+  .title .pig { font-style: normal; }
+  .tagline {
+    font-size: .95rem;
+    color: var(--ink-soft);
+    margin: .55rem 0 0;
+    max-width: 26rem;
+    line-height: 1.5;
+  }
+
+  .hearts { display: flex; gap: .35rem; padding-bottom: .3rem; }
+  .hearts svg { width: 1.35rem; height: 1.35rem; }
+
+  .chip-row { display: flex; gap: .6rem; margin: 1.6rem 0 1rem; align-items: center; }
+  .chip {
+    font-size: .8rem;
+    letter-spacing: .04em;
+    text-transform: lowercase;
+    color: var(--ink-soft);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: .32rem .8rem;
+  }
+  .chip strong { color: var(--ink); font-weight: 600; }
+
+  /* board */
+  .board-wrap {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 1.4rem;
+    padding: 1.6rem;
+    box-shadow: 0 1px 0 #fff inset, 0 18px 40px -28px rgba(70,62,52,.35);
+  }
+  .board {
+    display: grid;
+    gap: 0;
+    border-radius: .7rem;
+    overflow: hidden;
+  }
+  .cell {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: filter .15s ease;
+  }
+  .cell:hover { filter: brightness(.97); }
+  .cell svg.pig { width: 74%; height: 74%; }
+  .cell.placed svg.pig {
+    filter: drop-shadow(0 3px 0 var(--thud));
+    animation: thud .25s ease;
+  }
+  @keyframes thud {
+    0% { transform: translateY(-14%) scale(.9); }
+    60% { transform: translateY(2%) scale(1.02); }
+    100% { transform: translateY(0) scale(1); }
+  }
+  /* hoof-print "not here" marker */
+  .marker { display: flex; gap: 2px; opacity: .5; }
+  .marker i {
+    width: .32rem; height: .42rem; border-radius: 50% 50% 45% 45%;
+    background: var(--ink-soft);
+    transform: rotate(0deg);
+  }
+  .marker i:nth-child(1) { transform: translateY(2px) rotate(-12deg); }
+  .marker i:nth-child(3) { transform: translateY(2px) rotate(12deg); }
+
+  footer {
+    margin-top: 1.6rem;
+    font-family: Georgia, serif;
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: .95rem;
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  .legend { margin-top: 1rem; font-size: .78rem; color: var(--ink-soft); text-align: center; }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <header>
+      <div>
+        <h1 class="title">Sowdoku <span class="pig">🐖</span></h1>
+        <p class="tagline">Give every little piggy its own patch of mud — one per row, column, and color, and never two touching.</p>
+      </div>
+      <div class="hearts" id="hearts"></div>
+    </header>
+
+    <div class="chip-row">
+      <span class="chip">today’s field · <strong id="size">8×8</strong></span>
+      <span class="chip"><strong id="band">meadow</strong></span>
+      <span class="chip"><strong id="left">5</strong> piggies left</span>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+    </div>
+
+    <footer>“…a cup of coffee going cold because you’re one piggy away from a perfect field.”</footer>
+    <div class="legend">Mockup — colors, type, hearts, the wooden-thud piggy &amp; hoof-print markers. Board is a live, uniquely-solvable puzzle from the engine.</div>
+  </div>
+
+<script src="sowdoku.js"></script>
+<script>
+  // soft watercolor pastels — earthy, muted, never neon
+  const PALETTE = [
+    "#cdd6bb", // sage
+    "#e6cdb8", // clay
+    "#e3c2cb", // dusty rose
+    "#c3d0d8", // sky-grey
+    "#ecdcae", // butter
+    "#d3cadf", // lilac
+    "#cad9c6", // moss
+    "#e9d3bd", // sand
+    "#dcb9a6", // terracotta
+  ];
+
+  // a minimal, dozing line-art piggy
+  function pigSVG() {
+    return `
+    <svg class="pig" viewBox="0 0 64 64" fill="none" stroke="#6c6358" stroke-width="2.4"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M14 30c0-9 8-15 18-15s18 6 18 15c0 10-8 17-18 17S14 40 14 30Z" fill="#fff8f4"/>
+      <path d="M16 20c-3-4-2-8 1-8 2 0 5 3 6 7" fill="#fdeede"/>
+      <path d="M48 20c3-4 2-8-1-8-2 0-5 3-6 7" fill="#fdeede"/>
+      <ellipse cx="32" cy="33" rx="9" ry="7" fill="#fbe1d8"/>
+      <path d="M29 33h.2M35 33h.2" stroke-width="3.2"/>
+      <path d="M23 26c1.6 1.4 3.6 1.4 5 0" />
+      <path d="M36 26c1.6 1.4 3.6 1.4 5 0" />
+    </svg>`;
+  }
+
+  function markerEl() {
+    const m = document.createElement("div");
+    m.className = "marker";
+    m.innerHTML = "<i></i><i></i><i></i>";
+    return m;
+  }
+
+  // hearts
+  function heart(filled) {
+    return `<svg viewBox="0 0 24 24" fill="${filled ? 'var(--heart)' : 'var(--heart-off)'}"
+      ><path d="M12 21s-7.5-4.6-10-9.2C.3 8.3 2 4.5 5.6 4.5c2 0 3.4 1.2 4.4 2.7C11 5.7 12.4 4.5 14.4 4.5 18 4.5 19.7 8.3 22 11.8 19.5 16.4 12 21 12 21Z"/></svg>`;
+  }
+  document.getElementById("hearts").innerHTML =
+    heart(true) + heart(true) + heart(true) + heart(false) + heart(false);
+
+  // ---- generate a live puzzle and render ----
+  const SIZE = 8;
+  const SEED = 20260629; // "one field a day" — date-seeded
+  const puzzle = Sowdoku.generate({ size: SIZE, difficulty: "meadow", seed: SEED })
+              || Sowdoku.generate({ size: SIZE, seed: SEED });
+  const n = puzzle.size, region = puzzle.regions, solution = puzzle.solution;
+
+  document.getElementById("size").textContent = `${n}×${n}`;
+  document.getElementById("band").textContent = puzzle.difficulty;
+
+  // a cozy in-progress snapshot: first 4 rows solved, two hoof-print notes
+  const placed = new Set();
+  for (let r = 0; r < 4; r++) placed.add(r + "," + solution[r]);
+  const markers = new Set(["5,1", "6,6"]);
+  document.getElementById("left").textContent = n - placed.size;
+
+  const board = document.getElementById("board");
+  board.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+  board.style.width = "100%";
+
+  const sameRegion = (r1, c1, r2, c2) =>
+    r2 >= 0 && r2 < n && c2 >= 0 && c2 < n && region[r1][c1] === region[r2][c2];
+
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.style.background = PALETTE[region[r][c] % PALETTE.length];
+
+      // thick charcoal edge where the region changes (or board edge); hairline within
+      const thick = "1.8px solid rgba(81,75,66,.55)";
+      const thin = "1px solid rgba(255,255,255,.35)";
+      cell.style.borderTop = sameRegion(r, c, r - 1, c) ? thin : thick;
+      cell.style.borderLeft = sameRegion(r, c, r, c - 1) ? thin : thick;
+      cell.style.borderRight = sameRegion(r, c, r, c + 1) ? thin : thick;
+      cell.style.borderBottom = sameRegion(r, c, r + 1, c) ? thin : thick;
+
+      const key = r + "," + c;
+      if (placed.has(key)) {
+        cell.classList.add("placed");
+        cell.innerHTML = pigSVG();
+      } else if (markers.has(key)) {
+        cell.appendChild(markerEl());
+      }
+      board.appendChild(cell);
+    }
+  }
+</script>
+</body>
+</html>

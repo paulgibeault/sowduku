@@ -1,0 +1,8 @@
+# external reference doc (lives in the paulgibeault.github.io repo; symlinked locally)
+ARCADE_PLATFORM.md
+
+# local render/verification artifact
+game.png
+
+# os / editor cruft
+.DS_Store
