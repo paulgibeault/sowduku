@@ -103,21 +103,21 @@ Sowdoku drops into the launcher with one script tag and lights up extras when
 framed — while playing perfectly well standalone.
 
 ```html
-<script src="https://paulgibeault.github.io/arcade-sdk.js"></script>
-<script>Arcade.init({ gameId: 'sowdoku' });</script>
+<script src="/arcade-sdk.js"></script>
+<script>Arcade.init({ gameId: 'sowduku' });</script>
 ```
 
 ### Storage — progress that follows you
 
-All persistent state lives under the `arcade.v1.sowdoku.*` namespace, so it rides
+All persistent state lives under the `arcade.v1.sowduku.*` namespace, so it rides
 along in the launcher's cross-device save file for free:
 
 | Key                             | Holds                                                         |
 | ------------------------------- | ------------------------------------------------------------- |
-| `arcade.v1.sowdoku.inProgress`  | The current puzzle + your placements/markers (resume anytime) |
-| `arcade.v1.sowdoku.stats`       | Puzzles solved, best times, gentle personal bests             |
-| `arcade.v1.sowdoku.daily`       | Which "One Field a Day" layouts you've finished               |
-| `arcade.v1.sowdoku.prefs`       | Sound on/off, marker style, default board size                |
+| `arcade.v1.sowduku.inProgress`  | The current puzzle + your placements/markers (resume anytime) |
+| `arcade.v1.sowduku.stats`       | Puzzles solved, best times, gentle personal bests             |
+| `arcade.v1.sowduku.daily`       | Which "One Field a Day" layouts you've finished               |
+| `arcade.v1.sowduku.prefs`       | Sound on/off, marker style, default board size                |
 
 ```js
 Arcade.state.set('inProgress', JSON.stringify(board));   // autosave each move
@@ -132,8 +132,12 @@ relaunch restores the exact field you left, piggy for piggy.
 The SDK injects the launcher's font scale into `:root`, so every rem-sized number
 and label grows or shrinks with the launcher's accessibility setting — no extra
 code. We keep the board sized in rem so the puzzle scales gracefully for
-low-vision play. Theme reads from `Arcade.global.get('theme')` and we honor it;
-standalone, we fall back to system preference.
+low-vision play.
+
+Sowdoku **opts out of the dark theme** on purpose: the warm, sunlit palette is
+the game (the same stance `cozy-solitaire` takes). The launcher's `data-theme`
+still lands on `<html>`, we just don't key any CSS off it. Reduced-motion is
+honored — the wooden-thud animation is the only motion, and it's already gentle.
 
 ### Multiplayer — quiet by design
 
@@ -162,7 +166,7 @@ appear, and nothing about solo play changes.
 
 ### Save / load
 
-Nothing special required: all state is `arcade.v1.sowdoku.*`, so the launcher's
+Nothing special required: all state is `arcade.v1.sowduku.*`, so the launcher's
 fault-tolerant export bundles it and its checksummed import restores it. Carry a
 half-solved field from laptop to phone and pick up at the exact piggy.
 
@@ -187,7 +191,7 @@ half-solved field from laptop to phone and pick up at the exact piggy.
    irregular pens; difficulty rated by deduction depth.
 2. **Board UI.** Tap-cycle placement, hoof-print markers, hearts, watercolor
    pens, the dozing-piggy art set, haptics + sound.
-3. **Persistence.** `Arcade.init`, autosave to `arcade.v1.sowdoku.*`,
+3. **Persistence.** `Arcade.init`, autosave to `arcade.v1.sowduku.*`,
    resume-on-launch, `onStateReplaced`.
 4. **Daily + stats.** Date-seeded layouts, gentle personal bests.
 5. **Multiplayer (framed-only).** Shared Field first (async, low-risk), then Two

@@ -4,6 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sowdoku</title>
+<!-- Paul's Arcade SDK: same-origin storage, settings, lifecycle. Root-relative
+     so it resolves both in production and the local dev harness. -->
+<script src="/arcade-sdk.js"></script>
+<script>if (window.Arcade) Arcade.init({ gameId: "sowduku" });</script>
 <style>
   :root { font-size: calc(100% * var(--font-scale, 1)); }
   :root {
@@ -107,13 +111,21 @@
 (function () {
   "use strict";
 
-  // ---- Arcade platform bridge (works standalone via plain localStorage) ----
+  // ---- Arcade platform bridge ----
+  // Arcade.init() ran in <head>. The SDK gives same-origin storage, settings,
+  // and lifecycle when framed or served over http; it degrades gracefully to
+  // plain localStorage when absent (e.g. opened straight from file://).
   var A = window.Arcade;
-  if (A && A.init) { try { A.init({ gameId: "sowdoku" }); } catch (e) {} }
-  var store = {
-    get: function (k) { return A && A.state ? A.state.get(k) : localStorage.getItem("arcade.v1.sowdoku." + k); },
-    set: function (k, v) { A && A.state ? A.state.set(k, v) : localStorage.setItem("arcade.v1.sowdoku." + k, v); }
-  };
+  var SKEY = "arcade.v1.sowduku.inProgress";
+  function saveState(obj) {
+    if (A && A.state) A.state.set("inProgress", obj);         // SDK handles JSON
+    else localStorage.setItem(SKEY, JSON.stringify(obj));
+  }
+  function loadState() {
+    if (A && A.state) return A.state.get("inProgress") || null;
+    var raw = localStorage.getItem(SKEY);
+    return raw ? JSON.parse(raw) : null;
+  }
 
   var PALETTE = ["#cdd6bb","#e6cdb8","#e3c2cb","#c3d0d8","#ecdcae","#d3cadf","#cad9c6","#e9d3bd","#dcb9a6"];
   var MAX_HEARTS = 5;
@@ -158,19 +170,17 @@
 
   // ---- persistence ----
   function persist() {
-    store.set("inProgress", JSON.stringify({
+    saveState({
       seed: game.puzzle.seed, size: game.puzzle.size, mode: game.mode,
       regions: game.puzzle.regions, solution: game.puzzle.solution,
       difficulty: game.puzzle.difficulty,
       piggies: Array.from(game.piggies), markers: Array.from(game.markers),
       hearts: game.hearts, slow: game.slow
-    }));
+    });
   }
   function restore() {
-    var raw = store.get("inProgress");
-    if (!raw) return false;
     try {
-      var s = JSON.parse(raw);
+      var s = loadState();
       if (!s || !s.regions || !s.solution) return false;
       game = {
         puzzle: { size: s.size, regions: s.regions, solution: s.solution, difficulty: s.difficulty, seed: s.seed },
