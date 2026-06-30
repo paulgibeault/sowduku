@@ -238,6 +238,8 @@
     if (Sowdoku.isLegalPlacement(game.puzzle.size, game.puzzle.regions, game.piggies, r, c)) {
       game.piggies.add(k); game.fences.delete(k); haptic(8);
       if (Sowdoku.isSolved(game.puzzle.size, game.puzzle.regions, game.piggies)) game.solved = true;
+    } else if (assistOn()) {
+      haptic(4);                  // board already hatches this as impossible — gentle no-op, no heart
     } else {
       if (!game.slow) game.hearts = Math.max(0, game.hearts - 1);
       haptic([10, 40, 10]); flashBad(r, c);
