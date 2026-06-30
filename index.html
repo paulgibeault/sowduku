@@ -63,8 +63,26 @@
       repeating-linear-gradient(45deg, transparent 0 6px, rgba(110,100,84,.12) 6px 9px),
       rgba(245,239,227,.55); }
 
-  .controls { display: flex; gap: .6rem; margin-top: 1rem; align-items: center; flex-wrap: wrap; }
+  .controls { position: relative; display: flex; gap: .6rem; margin-top: 1rem; align-items: center; flex-wrap: wrap; }
   .controls .spacer { flex: 1; }
+
+  /* the ⚙ popover folds the secondary controls (field mode, size, slow, assist)
+     out of the main row so only the two everyday actions stay on show. */
+  .menu { position: absolute; bottom: calc(100% + .55rem); left: 0; z-index: 30;
+    min-width: 16rem; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 1rem; padding: .35rem .9rem;
+    box-shadow: 0 1px 0 #fff inset, 0 16px 38px -22px rgba(70,62,52,.45); }
+  .menu[hidden] { display: none; }
+  .menu .row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .6rem 0; }
+  .menu .row + .row { border-top: 1px solid var(--line); }
+  .menu .lab { font-size: .85rem; color: var(--ink); }
+  .seg { display: flex; gap: .3rem; }
+  .seg button { font: inherit; font-size: .76rem; letter-spacing: .02em; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink-soft);
+    border-radius: 999px; padding: .26rem .62rem; min-width: 2rem; }
+  .seg button:hover { color: var(--ink); border-color: #d8ccb5; }
+  .seg button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
+  #menuBtn.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
   .hint { font-size: .78rem; color: var(--ink-soft); margin: .85rem 0 0; text-align: center; line-height: 1.5; }
   .hint b { color: var(--ink); font-weight: 600; }
 
@@ -86,15 +104,13 @@
     <header>
       <div>
         <h1 class="title">Sowdoku 🐖</h1>
-        <p class="tagline">One piggy per row, column &amp; color — and never two touching.</p>
+        <p class="tagline">One piggy per row, column &amp; color,<br /> and never two touching.</p>
       </div>
       <div class="hearts" id="hearts"></div>
     </header>
 
     <div class="chip-row">
-      <span class="chip" id="modeChip">today’s field</span>
-      <span class="chip"><strong id="sizeChip">8×8</strong></span>
-      <span class="chip"><strong id="bandChip">meadow</strong></span>
+      <span class="chip" id="fieldChip">today’s field · 8×8 · meadow</span>
       <span class="chip"><strong id="leftChip">8</strong> left</span>
     </div>
 
@@ -109,16 +125,35 @@
 
     <div class="controls">
       <button class="chip" id="newBtn">new field</button>
-      <button class="chip" id="sizeBtn">size: 8</button>
-      <button class="chip" id="slowBtn">slow mode</button>
-      <button class="chip" id="assistBtn">assist: gated</button>
+      <button class="chip" id="menuBtn" aria-haspopup="true" aria-expanded="false">⚙ field &amp; play</button>
       <span class="spacer"></span>
       <button class="chip" id="clearBtn">clear</button>
+
+      <div class="menu" id="menu" hidden role="menu" aria-label="Field & play settings">
+        <div class="row"><span class="lab">field</span>
+          <div class="seg" id="modeSeg">
+            <button data-mode="daily">daily</button>
+            <button data-mode="stroll">amble</button>
+          </div></div>
+        <div class="row"><span class="lab">size</span>
+          <div class="seg" id="sizeSeg">
+            <button data-size="6">6</button><button data-size="7">7</button>
+            <button data-size="8">8</button><button data-size="9">9</button>
+          </div></div>
+        <div class="row"><span class="lab">slow mode</span>
+          <div class="seg"><button id="slowToggle" data-toggle>off</button></div></div>
+        <div class="row"><span class="lab">assist</span>
+          <div class="seg" id="assistSeg">
+            <button data-assist="auto">auto</button>
+            <button data-assist="gated">gated</button>
+            <button data-assist="manual">manual</button>
+          </div></div>
+      </div>
     </div>
 
     <p class="hint"><b>Tap</b> to settle a piggy · <b>long-press</b> or <b>right-click</b> to fence off a patch · <b>drag</b> to fence a run</p>
 
-    <footer>“…a cup of coffee going cold because you’re one piggy away from a perfect field.”</footer>
+    <footer id="saying">“…a cup of coffee going cold because you’re one piggy away from a perfect field.”</footer>
   </div>
 
 <script src="sowdoku.js"></script>
@@ -338,14 +373,17 @@
   // ---- render ----
   function render() {
     var p = game.puzzle, n = p.size, reg = p.regions;
-    document.getElementById("sizeChip").textContent = n + "×" + n;
-    document.getElementById("bandChip").textContent = p.difficulty || "—";
+    var modeLabel = game.mode === "daily" ? "today’s field" : "the amble";
+    document.getElementById("fieldChip").textContent = modeLabel + " · " + n + "×" + n + " · " + (p.difficulty || "—");
     document.getElementById("leftChip").textContent = n - game.piggies.size;
-    document.getElementById("modeChip").textContent = game.mode === "daily" ? "today’s field" : "the amble";
-    document.getElementById("sizeBtn").textContent = "size: " + n;
-    document.getElementById("slowBtn").classList.toggle("on", game.slow);
-    document.getElementById("assistBtn").textContent = "assist: " + game.assist;
-    document.getElementById("assistBtn").classList.toggle("on", game.assist !== "manual");
+
+    // reflect current state inside the ⚙ menu
+    segOn("modeSeg", "mode", game.mode);
+    segOn("sizeSeg", "size", String(n));
+    segOn("assistSeg", "assist", game.assist);
+    var slowT = document.getElementById("slowToggle");
+    slowT.textContent = game.slow ? "on" : "off";
+    slowT.classList.toggle("on", game.slow);
 
     // hearts (hidden in slow mode)
     var he = document.getElementById("hearts");
@@ -399,24 +437,154 @@
   }
 
   // ---- controls ----
-  var SIZES = [6, 7, 8, 9];
+  // mark the active button within a segmented control by data-<attr> value
+  function segOn(segId, attr, val) {
+    var seg = document.getElementById(segId); if (!seg) return;
+    var btns = seg.querySelectorAll("button");
+    for (var i = 0; i < btns.length; i++) btns[i].classList.toggle("on", btns[i].dataset[attr] === val);
+  }
+
   document.getElementById("newBtn").onclick = function () { startNew(); };
-  document.getElementById("sizeBtn").onclick = function () {
-    var i = SIZES.indexOf(game.puzzle.size); var next = SIZES[(i + 1) % SIZES.length];
-    (game.mode === "daily" ? startDaily : startNew)(next);
-  };
-  document.getElementById("slowBtn").onclick = function () {
-    game.slow = !game.slow; if (game.slow) game.hearts = MAX_HEARTS; persist(); render();
-  };
-  document.getElementById("assistBtn").onclick = function () {
-    var i = ASSIST_MODES.indexOf(game.assist);
-    game.assist = ASSIST_MODES[(i + 1) % ASSIST_MODES.length];
-    saveAssist(game.assist); persist(); render();
-  };
   document.getElementById("clearBtn").onclick = function () {
     game.piggies.clear(); game.fences.clear(); game.solved = false;
     if (!game.slow) game.hearts = MAX_HEARTS; persist(); render();
   };
+
+  // ⚙ menu: open/close + the folded-away controls
+  var menu = document.getElementById("menu"), menuBtn = document.getElementById("menuBtn");
+  function openMenu(open) {
+    menu.hidden = !open;
+    menuBtn.classList.toggle("on", open);
+    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  menuBtn.onclick = function (e) { e.stopPropagation(); openMenu(menu.hidden); };
+  document.addEventListener("click", function (e) {
+    if (!menu.hidden && !menu.contains(e.target) && e.target !== menuBtn) openMenu(false);
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") openMenu(false); });
+
+  // field mode (daily / amble) — keeps the current size
+  document.getElementById("modeSeg").onclick = function (e) {
+    var b = e.target.closest("button[data-mode]"); if (!b) return;
+    (b.dataset.mode === "daily" ? startDaily : startNew)(game.puzzle.size);
+  };
+  document.getElementById("sizeSeg").onclick = function (e) {
+    var b = e.target.closest("button[data-size]"); if (!b) return;
+    (game.mode === "daily" ? startDaily : startNew)(+b.dataset.size);
+  };
+  document.getElementById("slowToggle").onclick = function () {
+    game.slow = !game.slow; if (game.slow) game.hearts = MAX_HEARTS; persist(); render();
+  };
+  document.getElementById("assistSeg").onclick = function (e) {
+    var b = e.target.closest("button[data-assist]"); if (!b) return;
+    game.assist = b.dataset.assist; saveAssist(game.assist); persist(); render();
+  };
+
+  // ---- a cozy little saying, picked fresh on each load ----
+  var SAYINGS = [
+    "…a cup of coffee going cold because you’re one piggy away from a perfect field.",
+    "The kind of quiet only a well-tended pasture knows.",
+    "Somewhere a piggy is deciding exactly where to settle.",
+    "Every fence tells a small, stubborn truth.",
+    "…the soft thud of a piggy finding its patch.",
+    "No two piggies ever did get along that close.",
+    "A field is just a puzzle the pasture hasn’t solved yet.",
+    "Mind the corners; that’s where the trouble naps.",
+    "…morning fog lifting off a field nobody’s spoiled yet.",
+    "One per row, one per color, and all the time in the world.",
+    "The barn is warm and the logic is gentle.",
+    "There’s no rush — the piggies aren’t going anywhere.",
+    "…a puzzle that asks for patience, not speed.",
+    "Some patches are meant to stay empty.",
+    "The best moves are the ones you almost didn’t make.",
+    "A little snuffle, a little thought, a little click.",
+    "…the satisfying hush after the last piggy settles.",
+    "Fences are just polite suggestions to a determined piggy.",
+    "Count twice, settle once.",
+    "The meadow keeps its secrets close.",
+    "…sun on your back and a row left to fill.",
+    "Where there’s room, there’s a reason there isn’t.",
+    "A perfect field is mostly knowing where not to look.",
+    "The piggies prefer their privacy.",
+    "…an afternoon that smells faintly of clover.",
+    "Wrong moves are just the field clearing its throat.",
+    "Every color wants exactly one houseguest.",
+    "Slow down; the pasture rewards the unhurried.",
+    "…the quiet pride of a fence well placed.",
+    "There’s a tidy joy in a row that finally behaves.",
+    "No piggy likes a crowded corner.",
+    "The field is honest if you let it be.",
+    "…a breeze through the gate you left open.",
+    "Solving is just listening to what the field already knows.",
+    "Mud on the boots, peace in the mind.",
+    "The last piggy always takes the longest to convince.",
+    "…a lazy hour and a half-filled meadow.",
+    "Give each piggy its patch and the rest sorts itself.",
+    "Patience is the only tool that never rusts.",
+    "…the gentle logic of a sleepy farm.",
+    "Some fences you build just to think out loud.",
+    "The hilltop keeps the stubborn puzzles.",
+    "…warm light and a row that won’t quite close.",
+    "A piggy settled right makes the whole field exhale.",
+    "Wander the rows; the answer’s usually been there.",
+    "No hurry, no harm, just hooves and rows.",
+    "…the smell of hay and the pleasure of a clean column.",
+    "Every empty patch is a question the field is asking.",
+    "The good fields are the ones you almost gave up on.",
+    "Mind your colors and the rows will mind themselves.",
+    "…a porch, a puzzle, and nowhere to be.",
+    "Two piggies touching is just one too friendly.",
+    "The pasture forgives every wrong guess.",
+    "…dusk settling soft over a nearly-perfect field.",
+    "A fence here saves a heart there.",
+    "Let the obvious piggies go first; they earn the rest.",
+    "…the small triumph of an empty column filled.",
+    "There’s wisdom in the patch you leave alone.",
+    "The field is never in a hurry, so why are you?",
+    "…a kettle on and a meadow half-tended.",
+    "Each color is a little kingdom with room for one.",
+    "The quiet ones are usually the trickiest patches.",
+    "…a long exhale as the last fence falls into place.",
+    "Good fences keep good piggies thinking.",
+    "The meadow’s easy; it’s the corners that test you.",
+    "…morning light deciding which patch to warm first.",
+    "A solved field is a small, soft kind of victory.",
+    "Don’t crowd the piggies and they won’t crowd you.",
+    "…the comfortable ache of a puzzle nearly done.",
+    "The field knows; it’s just waiting on you.",
+    "One column at a time, one piggy at peace.",
+    "…a rocking chair and a field full of maybes.",
+    "The fence you doubt is usually the right one.",
+    "Every piggy deserves a patch of its own.",
+    "…the slow pleasure of ruling a patch out.",
+    "Crowded corners make for lonely piggies.",
+    "The meadow hums when the rows agree.",
+    "…a quiet field and a quieter mind.",
+    "Settle the sure ones; the field will whisper the rest.",
+    "There’s no losing here, only longer afternoons.",
+    "…hay dust drifting through a half-light barn.",
+    "A row that fits is a small note of music.",
+    "The piggies know their patches; we just catch up.",
+    "…the hush of a field that’s finally made sense.",
+    "Leave room to breathe and the puzzle breathes back.",
+    "The best fence is the one you didn’t need.",
+    "…an unhurried hour spent learning a field’s mind.",
+    "Some columns ask twice before they answer.",
+    "The pasture keeps no grudge for a wrong move.",
+    "…warm coffee, cool morning, one patch left.",
+    "A piggy in its place is a worry put to rest.",
+    "The field’s not stubborn; it’s just thorough.",
+    "…the soft click of everything fitting at last.",
+    "Every color, one guest; every row, one rule.",
+    "Look for the lonely patch; it’s usually the answer.",
+    "…a sleepy farm and a puzzle in no rush.",
+    "The quiet after a solved field is the whole reward.",
+    "Fences are how a field thinks aloud.",
+    "…one more piggy, one more peaceful row.",
+    "Tend the field gently; it remembers kindness."
+  ];
+  document.getElementById("saying").textContent =
+    "“" + SAYINGS[Math.floor(Math.random() * SAYINGS.length)] + "”";
 
   // ---- boot: resume in-progress field, else today's ----
   if (!restore()) startDaily(8);
