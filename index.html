@@ -41,7 +41,8 @@
 
   .board-wrap { position: relative; background: var(--panel); border: 1px solid var(--line);
     border-radius: 1.4rem; padding: 1.5rem; box-shadow: 0 1px 0 #fff inset, 0 18px 40px -28px rgba(70,62,52,.35); }
-  .board { display: grid; border-radius: .7rem; overflow: hidden; width: 100%; touch-action: manipulation; }
+  .board { display: grid; border-radius: .7rem; overflow: hidden; width: 100%;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .cell { position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: filter .15s ease; }
   .cell:hover { filter: brightness(.97); }
   .cell svg.pig { width: 74%; height: 74%; }
@@ -53,8 +54,15 @@
   .marker i { width: .32rem; height: .42rem; border-radius: 50% 50% 45% 45%; background: var(--ink-soft); }
   .marker i:nth-child(1){ transform: translateY(2px) rotate(-12deg);} .marker i:nth-child(3){ transform: translateY(2px) rotate(12deg);}
 
+  /* auto-shaded "impossible" cells: a faint hatch — distinct from the deliberate
+     hoof-print of a manual fence. The board's facts vs. your own hypotheses. */
+  .cell.shade::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(45deg, transparent 0 5px, rgba(81,75,66,.07) 5px 7px); }
+
   .controls { display: flex; gap: .6rem; margin-top: 1rem; align-items: center; flex-wrap: wrap; }
   .controls .spacer { flex: 1; }
+  .hint { font-size: .78rem; color: var(--ink-soft); margin: .85rem 0 0; text-align: center; line-height: 1.5; }
+  .hint b { color: var(--ink); font-weight: 600; }
 
   /* solved + out-of-hearts overlays */
   .veil { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
@@ -74,7 +82,7 @@
     <header>
       <div>
         <h1 class="title">Sowdoku 🐖</h1>
-        <p class="tagline">One piggy per row, column &amp; color — and never two touching. Tap to settle a piggy; tap again for a hoof-print note.</p>
+        <p class="tagline">One piggy per row, column &amp; color — and never two touching.</p>
       </div>
       <div class="hearts" id="hearts"></div>
     </header>
@@ -99,9 +107,12 @@
       <button class="chip" id="newBtn">new field</button>
       <button class="chip" id="sizeBtn">size: 8</button>
       <button class="chip" id="slowBtn">slow mode</button>
+      <button class="chip" id="assistBtn">assist: gated</button>
       <span class="spacer"></span>
       <button class="chip" id="clearBtn">clear</button>
     </div>
+
+    <p class="hint"><b>Tap</b> to settle a piggy · <b>long-press</b> or <b>right-click</b> to fence off a patch · <b>drag</b> to fence a run</p>
 
     <footer>“…a cup of coffee going cold because you’re one piggy away from a perfect field.”</footer>
   </div>
@@ -150,12 +161,26 @@
     return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   }
 
-  var game = null; // { puzzle, piggies:Set, markers:Set, hearts, slow, solved }
+  // assist mode is a player preference (persists across puzzles), separate from
+  // the per-field in-progress save: 'auto' | 'manual' | 'gated'.
+  var ASSIST_KEY = "arcade.v1.sowduku.assist";
+  var ASSIST_MODES = ["auto", "gated", "manual"];
+  function loadAssist() {
+    var v = (A && A.state) ? A.state.get("assist") : localStorage.getItem(ASSIST_KEY);
+    return ASSIST_MODES.indexOf(v) >= 0 ? v : "gated";
+  }
+  function saveAssist(v) {
+    if (A && A.state) A.state.set("assist", v);
+    else localStorage.setItem(ASSIST_KEY, v);
+  }
+
+  var game = null; // { puzzle, piggies:Set, fences:Set, hearts, slow, assist, mode, solved }
 
   function freshGame(opts) {
     var puzzle = Sowdoku.generate(opts) || Sowdoku.generate({ size: opts.size, seed: opts.seed });
-    return { puzzle: puzzle, piggies: new Set(), markers: new Set(),
-             hearts: MAX_HEARTS, slow: false, mode: opts.mode || "daily" };
+    return { puzzle: puzzle, piggies: new Set(), fences: new Set(),
+             hearts: MAX_HEARTS, slow: false, assist: loadAssist(),
+             mode: opts.mode || "daily", solved: false };
   }
 
   function startDaily(size) {
@@ -174,8 +199,8 @@
       seed: game.puzzle.seed, size: game.puzzle.size, mode: game.mode,
       regions: game.puzzle.regions, solution: game.puzzle.solution,
       difficulty: game.puzzle.difficulty,
-      piggies: Array.from(game.piggies), markers: Array.from(game.markers),
-      hearts: game.hearts, slow: game.slow
+      piggies: Array.from(game.piggies), fences: Array.from(game.fences),
+      hearts: game.hearts, slow: game.slow, solved: !!game.solved
     });
   }
   function restore() {
@@ -184,8 +209,10 @@
       if (!s || !s.regions || !s.solution) return false;
       game = {
         puzzle: { size: s.size, regions: s.regions, solution: s.solution, difficulty: s.difficulty, seed: s.seed },
-        piggies: new Set(s.piggies || []), markers: new Set(s.markers || []),
-        hearts: s.hearts != null ? s.hearts : MAX_HEARTS, slow: !!s.slow, mode: s.mode || "daily"
+        piggies: new Set(s.piggies || []),
+        fences: new Set(s.fences || s.markers || []),   // migrate the old "markers" field
+        hearts: s.hearts != null ? s.hearts : MAX_HEARTS,
+        slow: !!s.slow, solved: !!s.solved, assist: loadAssist(), mode: s.mode || "daily"
       };
       return true;
     } catch (e) { return false; }
@@ -194,34 +221,115 @@
   // re-read after a launcher import
   if (A && A.onStateReplaced) A.onStateReplaced(function () { if (!restore()) startDaily(8); render(); });
 
-  // ---- interaction ----
-  function tap(r, c) {
-    if (game.solved) return;
-    var key = r + "," + c;
-    if (game.piggies.has(key)) {            // piggy -> hoof-print note
-      game.piggies.delete(key); game.markers.add(key);
-    } else if (game.markers.has(key)) {     // note -> empty
-      game.markers.delete(key);
-    } else {                                // empty -> try to settle a piggy
-      if (Sowdoku.isLegalPlacement(game.puzzle.size, game.puzzle.regions, game.piggies, r, c)) {
-        game.piggies.add(key);
-        if (Sowdoku.isSolved(game.puzzle.size, game.puzzle.regions, game.piggies)) game.solved = true;
-      } else {
-        if (!game.slow) game.hearts = Math.max(0, game.hearts - 1);
-        flashBad(r, c);
-      }
+  // ---- helpers ----
+  var key = function (r, c) { return r + "," + c; };
+  function haptic(pattern) { if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) {} } }
+
+  // is the auto-shading of impossible cells active right now?
+  function assistOn() {
+    if (game.assist === "manual") return false;
+    if (game.assist === "auto") return true;
+    return game.puzzle.difficulty !== "hilltop"; // gated: on for sunbeam/meadow, off for hilltop
+  }
+
+  // ---- mutations ----
+  function placePiggy(r, c) {
+    var k = key(r, c);
+    if (Sowdoku.isLegalPlacement(game.puzzle.size, game.puzzle.regions, game.piggies, r, c)) {
+      game.piggies.add(k); game.fences.delete(k); haptic(8);
+      if (Sowdoku.isSolved(game.puzzle.size, game.puzzle.regions, game.piggies)) game.solved = true;
+    } else {
+      if (!game.slow) game.hearts = Math.max(0, game.hearts - 1);
+      haptic([10, 40, 10]); flashBad(r, c);
     }
-    persist(); render();
+  }
+  function setFence(r, c, on) {
+    var k = key(r, c);
+    if (game.piggies.has(k)) return;          // never fence a settled piggy
+    if (on) game.fences.add(k); else game.fences.delete(k);
   }
 
   var badCell = null;
   function flashBad(r, c) {
-    badCell = r + "," + c;
+    badCell = key(r, c);
     setTimeout(function () { badCell = null; render(); }, 420);
   }
 
-  // ---- render ----
+  // ---- pointer interaction ----
+  // tap = settle/lift a piggy · long-press (or right-click) = fence a patch ·
+  // drag = paint fences across a run. One unified pointer session handles all three.
   var board = document.getElementById("board");
+  var LONG_MS = 420, MOVE_PX = 8;
+  var ps = null; // active pointer session
+
+  function cellAt(x, y) {
+    var el = document.elementFromPoint(x, y);
+    var cell = el && el.closest ? el.closest(".cell") : null;
+    return cell ? { r: +cell.dataset.r, c: +cell.dataset.c } : null;
+  }
+  function locked() { return game.solved || (!game.slow && game.hearts === 0); }
+
+  board.addEventListener("pointerdown", function (e) {
+    if (locked()) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return; // right-click handled by contextmenu
+    var cell = e.target.closest && e.target.closest(".cell"); if (!cell) return;
+    try { board.setPointerCapture(e.pointerId); } catch (x) {}
+    ps = { id: e.pointerId, r: +cell.dataset.r, c: +cell.dataset.c, x: e.clientX, y: e.clientY,
+           dragged: false, longFired: false, mode: null, painted: new Set(), timer: null };
+    ps.timer = setTimeout(function () {
+      if (ps && !ps.dragged) {                  // held in place -> fence this cell
+        ps.longFired = true;
+        setFence(ps.r, ps.c, !game.fences.has(key(ps.r, ps.c)));
+        haptic(6); persist(); render();
+      }
+    }, LONG_MS);
+  });
+
+  board.addEventListener("pointermove", function (e) {
+    if (!ps || e.pointerId !== ps.id || ps.longFired) return;
+    if (!ps.dragged) {
+      var here = cellAt(e.clientX, e.clientY);
+      var moved = Math.abs(e.clientX - ps.x) > MOVE_PX || Math.abs(e.clientY - ps.y) > MOVE_PX;
+      var leftStart = here && (here.r !== ps.r || here.c !== ps.c);
+      if (!moved && !leftStart) return;
+      ps.dragged = true; clearTimeout(ps.timer);
+      ps.mode = game.fences.has(key(ps.r, ps.c)) ? "off" : "on"; // paint direction set by start cell
+      paintAt(ps.r, ps.c);
+    }
+    var cur = cellAt(e.clientX, e.clientY);
+    if (cur) paintAt(cur.r, cur.c);
+  });
+
+  function paintAt(r, c) {
+    var k = key(r, c);
+    if (ps.painted.has(k)) return; ps.painted.add(k);
+    if (game.piggies.has(k)) return;            // drag never disturbs a piggy
+    setFence(r, c, ps.mode === "on");
+    haptic(3); render();
+  }
+
+  function endPointer(e) {
+    if (!ps || (e && e.pointerId !== ps.id)) return;
+    clearTimeout(ps.timer);
+    try { board.releasePointerCapture(ps.id); } catch (x) {}
+    if (!ps.dragged && !ps.longFired) {         // a clean tap -> toggle piggy
+      if (game.piggies.has(key(ps.r, ps.c))) game.piggies.delete(key(ps.r, ps.c));
+      else placePiggy(ps.r, ps.c);
+    }
+    ps = null; persist(); render();
+  }
+  board.addEventListener("pointerup", endPointer);
+  board.addEventListener("pointercancel", endPointer);
+
+  board.addEventListener("contextmenu", function (e) {
+    e.preventDefault();                          // right-click = fence (no browser menu)
+    if (locked()) return;
+    var cell = e.target.closest && e.target.closest(".cell"); if (!cell) return;
+    var r = +cell.dataset.r, c = +cell.dataset.c;
+    setFence(r, c, !game.fences.has(key(r, c))); haptic(6); persist(); render();
+  });
+
+  // ---- render ----
   function render() {
     var p = game.puzzle, n = p.size, reg = p.regions;
     document.getElementById("sizeChip").textContent = n + "×" + n;
@@ -230,6 +338,8 @@
     document.getElementById("modeChip").textContent = game.mode === "daily" ? "today’s field" : "the amble";
     document.getElementById("sizeBtn").textContent = "size: " + n;
     document.getElementById("slowBtn").classList.toggle("on", game.slow);
+    document.getElementById("assistBtn").textContent = "assist: " + game.assist;
+    document.getElementById("assistBtn").classList.toggle("on", game.assist !== "manual");
 
     // hearts (hidden in slow mode)
     var he = document.getElementById("hearts");
@@ -238,6 +348,8 @@
     for (var i = 0; i < MAX_HEARTS; i++) h += heartSVG(i < game.hearts);
     he.innerHTML = h;
 
+    var shade = assistOn() && game.piggies.size > 0;
+
     board.style.gridTemplateColumns = "repeat(" + n + ", 1fr)";
     var same = function (r1, c1, r2, c2) { return r2 >= 0 && r2 < n && c2 >= 0 && c2 < n && reg[r1][c1] === reg[r2][c2]; };
     var thick = "1.8px solid rgba(81,75,66,.55)", thin = "1px solid rgba(255,255,255,.35)";
@@ -245,17 +357,17 @@
     for (var r = 0; r < n; r++) {
       for (var c = 0; c < n; c++) {
         var cell = document.createElement("div");
-        cell.className = "cell";
+        cell.className = "cell"; cell.dataset.r = r; cell.dataset.c = c;
         cell.style.background = PALETTE[reg[r][c] % PALETTE.length];
         cell.style.borderTop = same(r, c, r - 1, c) ? thin : thick;
         cell.style.borderLeft = same(r, c, r, c - 1) ? thin : thick;
         cell.style.borderRight = same(r, c, r, c + 1) ? thin : thick;
         cell.style.borderBottom = same(r, c, r + 1, c) ? thin : thick;
-        var key = r + "," + c;
-        if (game.piggies.has(key)) { cell.classList.add("placed"); cell.innerHTML = pigSVG(); }
-        else if (game.markers.has(key)) { cell.innerHTML = '<div class="marker"><i></i><i></i><i></i></div>'; }
-        if (key === badCell) cell.classList.add("bad");
-        (function (rr, cc) { cell.addEventListener("click", function () { tap(rr, cc); }); })(r, c);
+        var k = key(r, c);
+        if (game.piggies.has(k)) { cell.classList.add("placed"); cell.innerHTML = pigSVG(); }
+        else if (game.fences.has(k)) { cell.innerHTML = '<div class="marker"><i></i><i></i><i></i></div>'; }
+        else if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) { cell.classList.add("shade"); }
+        if (k === badCell) cell.classList.add("bad");
         board.appendChild(cell);
       }
     }
@@ -273,7 +385,7 @@
       document.getElementById("veilTitle").textContent = "The field got a little crowded.";
       document.getElementById("veilText").textContent = "No harm done. Shall we settle the piggies again from the start?";
       var b2 = document.getElementById("veilBtn"); b2.textContent = "fresh start";
-      b2.onclick = function () { game.piggies.clear(); game.markers.clear(); game.hearts = MAX_HEARTS; game.solved = false; persist(); render(); };
+      b2.onclick = function () { game.piggies.clear(); game.fences.clear(); game.hearts = MAX_HEARTS; game.solved = false; persist(); render(); };
       v.classList.add("show");
     } else {
       v.classList.remove("show");
@@ -290,8 +402,13 @@
   document.getElementById("slowBtn").onclick = function () {
     game.slow = !game.slow; if (game.slow) game.hearts = MAX_HEARTS; persist(); render();
   };
+  document.getElementById("assistBtn").onclick = function () {
+    var i = ASSIST_MODES.indexOf(game.assist);
+    game.assist = ASSIST_MODES[(i + 1) % ASSIST_MODES.length];
+    saveAssist(game.assist); persist(); render();
+  };
   document.getElementById("clearBtn").onclick = function () {
-    game.piggies.clear(); game.markers.clear(); game.solved = false;
+    game.piggies.clear(); game.fences.clear(); game.solved = false;
     if (!game.slow) game.hearts = MAX_HEARTS; persist(); render();
   };
 

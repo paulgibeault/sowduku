@@ -40,14 +40,28 @@ again.
 
 ### How a turn feels
 
-- **Tap once** — a piggy flops into that square (a soft haptic click, a wooden
-  *thud*).
-- **Tap again** — a small hoof-print marker, your "definitely-not-here" note.
-- **Tap a third time** — the square clears.
+Two gestures, cleanly separated so ruling-out never risks a heart:
 
-Markers are first-class. Half the pleasure of a cozy puzzle is the slow
+- **Tap** — a piggy flops into that square (a soft haptic click, a wooden
+  *thud*); tap it again to lift it.
+- **Long-press** (or **right-click** on desktop) — fences off a patch with a
+  little hoof-print, your "definitely-not-here" note.
+- **Drag** — paints fences across a whole run at once, for when a region is
+  solved and the rest of its row is obviously out.
+
+Fences are first-class. Half the pleasure of a cozy puzzle is the slow
 *narrowing down*, and Sowdoku treats your scratch work as lovingly as your
 answers.
+
+**Assist** (a player setting, cycled from the toolbar) decides how much the
+board helps with the bookkeeping:
+
+- **auto** — placing a piggy softly hatches every now-impossible cell (its row,
+  column, pen, and the eight it touches), distinct from your own hoof-print
+  fences. The board's facts vs. your hypotheses.
+- **manual** — you fence everything yourself; most aligned with rigorous play.
+- **gated** — auto on Sunbeam and Meadow, off by Hilltop. The game teaches the
+  technique, then takes the training wheels off.
 
 ### Gentle failure
 
