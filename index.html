@@ -54,10 +54,14 @@
   .marker i { width: .32rem; height: .42rem; border-radius: 50% 50% 45% 45%; background: var(--ink-soft); }
   .marker i:nth-child(1){ transform: translateY(2px) rotate(-12deg);} .marker i:nth-child(3){ transform: translateY(2px) rotate(12deg);}
 
-  /* auto-shaded "impossible" cells: a faint hatch — distinct from the deliberate
-     hoof-print of a manual fence. The board's facts vs. your own hypotheses. */
+  /* auto-shaded "impossible" cells recede toward parchment so the open cells —
+     where a piggy can still go — clearly pop. The faint hatch keeps the "ruled
+     out" read; a manual hoof-print fence stays fully visible and distinct. */
+  .cell.shade { filter: saturate(.5) brightness(1.02); }
   .cell.shade::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: repeating-linear-gradient(45deg, transparent 0 5px, rgba(81,75,66,.07) 5px 7px); }
+    background:
+      repeating-linear-gradient(45deg, transparent 0 6px, rgba(110,100,84,.12) 6px 9px),
+      rgba(245,239,227,.55); }
 
   .controls { display: flex; gap: .6rem; margin-top: 1rem; align-items: center; flex-wrap: wrap; }
   .controls .spacer { flex: 1; }
