@@ -50,13 +50,14 @@
   .cell.bad { animation: nope .4s ease; }
   @keyframes thud { 0%{transform:translateY(-14%) scale(.9);} 60%{transform:translateY(2%) scale(1.02);} 100%{transform:translateY(0) scale(1);} }
   @keyframes nope { 0%,100%{box-shadow:none;} 30%{box-shadow:inset 0 0 0 99px rgba(207,138,126,.35);} }
-  .marker { display: flex; gap: 2px; opacity: .5; }
-  .marker i { width: .32rem; height: .42rem; border-radius: 50% 50% 45% 45%; background: var(--ink-soft); }
-  .marker i:nth-child(1){ transform: translateY(2px) rotate(-12deg);} .marker i:nth-child(3){ transform: translateY(2px) rotate(12deg);}
+  .hoofprint { display: flex; gap: 2px; opacity: .5; }
+  .hoofprint i { width: .32rem; height: .42rem; border-radius: 50% 50% 45% 45%; background: var(--ink-soft); }
+  .hoofprint i:nth-child(1){ transform: translateY(2px) rotate(-12deg);} .hoofprint i:nth-child(3){ transform: translateY(2px) rotate(12deg);}
 
   /* auto-shaded "impossible" cells recede toward parchment so the open cells —
      where a piggy can still go — clearly pop. The faint hatch keeps the "ruled
-     out" read; a manual hoof-print fence stays fully visible and distinct. */
+     out" read, and it overrides a manual hoofprint so a cell the field knows is
+     impossible reads as ruled-out even where you'd left a mark. */
   .cell.shade { filter: saturate(.5) brightness(1.02); }
   .cell.shade::after { content: ""; position: absolute; inset: 0; pointer-events: none;
     background:
@@ -151,7 +152,7 @@
       </div>
     </div>
 
-    <p class="hint"><b>Tap</b> to settle a piggy · <b>long-press</b> or <b>right-click</b> to fence off a patch · <b>drag</b> to fence a run</p>
+    <p class="hint"><b>Tap</b> to settle a piggy · <b>long-press</b> or <b>right-click</b> to mark a hoofprint · <b>drag</b> to track a run</p>
 
     <footer id="saying">“…a cup of coffee going cold because you’re one piggy away from a perfect field.”</footer>
   </div>
@@ -213,11 +214,11 @@
     else localStorage.setItem(ASSIST_KEY, v);
   }
 
-  var game = null; // { puzzle, piggies:Set, fences:Set, hearts, slow, assist, mode, solved }
+  var game = null; // { puzzle, piggies:Set, hoofprints:Set, hearts, slow, assist, mode, solved }
 
   function freshGame(opts) {
     var puzzle = Sowdoku.generate(opts) || Sowdoku.generate({ size: opts.size, seed: opts.seed });
-    return { puzzle: puzzle, piggies: new Set(), fences: new Set(),
+    return { puzzle: puzzle, piggies: new Set(), hoofprints: new Set(),
              hearts: MAX_HEARTS, slow: false, assist: loadAssist(),
              mode: opts.mode || "daily", solved: false };
   }
@@ -238,7 +239,7 @@
       seed: game.puzzle.seed, size: game.puzzle.size, mode: game.mode,
       regions: game.puzzle.regions, solution: game.puzzle.solution,
       difficulty: game.puzzle.difficulty,
-      piggies: Array.from(game.piggies), fences: Array.from(game.fences),
+      piggies: Array.from(game.piggies), hoofprints: Array.from(game.hoofprints),
       hearts: game.hearts, slow: game.slow, solved: !!game.solved
     });
   }
@@ -249,7 +250,7 @@
       game = {
         puzzle: { size: s.size, regions: s.regions, solution: s.solution, difficulty: s.difficulty, seed: s.seed },
         piggies: new Set(s.piggies || []),
-        fences: new Set(s.fences || s.markers || []),   // migrate the old "markers" field
+        hoofprints: new Set(s.hoofprints || s.fences || s.markers || []),   // migrate older "fences"/"markers" fields
         hearts: s.hearts != null ? s.hearts : MAX_HEARTS,
         slow: !!s.slow, solved: !!s.solved, assist: loadAssist(), mode: s.mode || "daily"
       };
@@ -275,7 +276,7 @@
   function placePiggy(r, c) {
     var k = key(r, c);
     if (Sowdoku.isLegalPlacement(game.puzzle.size, game.puzzle.regions, game.piggies, r, c)) {
-      game.piggies.add(k); game.fences.delete(k); haptic(8);
+      game.piggies.add(k); game.hoofprints.delete(k); haptic(8);
       if (Sowdoku.isSolved(game.puzzle.size, game.puzzle.regions, game.piggies)) game.solved = true;
     } else if (assistOn()) {
       haptic(4);                  // board already hatches this as impossible — gentle no-op, no heart
@@ -284,10 +285,10 @@
       haptic([10, 40, 10]); flashBad(r, c);
     }
   }
-  function setFence(r, c, on) {
+  function setHoofprint(r, c, on) {
     var k = key(r, c);
-    if (game.piggies.has(k)) return;          // never fence a settled piggy
-    if (on) game.fences.add(k); else game.fences.delete(k);
+    if (game.piggies.has(k)) return;          // never mark over a settled piggy
+    if (on) game.hoofprints.add(k); else game.hoofprints.delete(k);
   }
 
   var badCell = null;
@@ -297,8 +298,8 @@
   }
 
   // ---- pointer interaction ----
-  // tap = settle/lift a piggy · long-press (or right-click) = fence a patch ·
-  // drag = paint fences across a run. One unified pointer session handles all three.
+  // tap = settle/lift a piggy · long-press (or right-click) = mark a hoofprint ·
+  // drag = paint hoofprints across a run. One unified pointer session handles all three.
   var board = document.getElementById("board");
   var LONG_MS = 420, MOVE_PX = 8;
   var ps = null; // active pointer session
@@ -318,9 +319,9 @@
     ps = { id: e.pointerId, r: +cell.dataset.r, c: +cell.dataset.c, x: e.clientX, y: e.clientY,
            dragged: false, longFired: false, mode: null, painted: new Set(), timer: null };
     ps.timer = setTimeout(function () {
-      if (ps && !ps.dragged) {                  // held in place -> fence this cell
+      if (ps && !ps.dragged) {                  // held in place -> mark this cell
         ps.longFired = true;
-        setFence(ps.r, ps.c, !game.fences.has(key(ps.r, ps.c)));
+        setHoofprint(ps.r, ps.c, !game.hoofprints.has(key(ps.r, ps.c)));
         haptic(6); persist(); render();
       }
     }, LONG_MS);
@@ -334,7 +335,7 @@
       var leftStart = here && (here.r !== ps.r || here.c !== ps.c);
       if (!moved && !leftStart) return;
       ps.dragged = true; clearTimeout(ps.timer);
-      ps.mode = game.fences.has(key(ps.r, ps.c)) ? "off" : "on"; // paint direction set by start cell
+      ps.mode = game.hoofprints.has(key(ps.r, ps.c)) ? "off" : "on"; // paint direction set by start cell
       paintAt(ps.r, ps.c);
     }
     var cur = cellAt(e.clientX, e.clientY);
@@ -345,7 +346,7 @@
     var k = key(r, c);
     if (ps.painted.has(k)) return; ps.painted.add(k);
     if (game.piggies.has(k)) return;            // drag never disturbs a piggy
-    setFence(r, c, ps.mode === "on");
+    setHoofprint(r, c, ps.mode === "on");
     haptic(3); render();
   }
 
@@ -363,11 +364,11 @@
   board.addEventListener("pointercancel", endPointer);
 
   board.addEventListener("contextmenu", function (e) {
-    e.preventDefault();                          // right-click = fence (no browser menu)
+    e.preventDefault();                          // right-click = mark a hoofprint (no browser menu)
     if (locked()) return;
     var cell = e.target.closest && e.target.closest(".cell"); if (!cell) return;
     var r = +cell.dataset.r, c = +cell.dataset.c;
-    setFence(r, c, !game.fences.has(key(r, c))); haptic(6); persist(); render();
+    setHoofprint(r, c, !game.hoofprints.has(key(r, c))); haptic(6); persist(); render();
   });
 
   // ---- render ----
@@ -409,8 +410,8 @@
         cell.style.borderBottom = same(r, c, r + 1, c) ? thin : thick;
         var k = key(r, c);
         if (game.piggies.has(k)) { cell.classList.add("placed"); cell.innerHTML = pigSVG(); }
-        else if (game.fences.has(k)) { cell.innerHTML = '<div class="marker"><i></i><i></i><i></i></div>'; }
-        else if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) { cell.classList.add("shade"); }
+        else if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) { cell.classList.add("shade"); } // ruled-out overrides a manual hoofprint
+        else if (game.hoofprints.has(k)) { cell.innerHTML = '<div class="hoofprint"><i></i><i></i><i></i></div>'; }
         if (k === badCell) cell.classList.add("bad");
         board.appendChild(cell);
       }
@@ -429,7 +430,7 @@
       document.getElementById("veilTitle").textContent = "The field got a little crowded.";
       document.getElementById("veilText").textContent = "No harm done. Shall we settle the piggies again from the start?";
       var b2 = document.getElementById("veilBtn"); b2.textContent = "fresh start";
-      b2.onclick = function () { game.piggies.clear(); game.fences.clear(); game.hearts = MAX_HEARTS; game.solved = false; persist(); render(); };
+      b2.onclick = function () { game.piggies.clear(); game.hoofprints.clear(); game.hearts = MAX_HEARTS; game.solved = false; persist(); render(); };
       v.classList.add("show");
     } else {
       v.classList.remove("show");
@@ -446,7 +447,7 @@
 
   document.getElementById("newBtn").onclick = function () { startNew(); };
   document.getElementById("clearBtn").onclick = function () {
-    game.piggies.clear(); game.fences.clear(); game.solved = false;
+    game.piggies.clear(); game.hoofprints.clear(); game.solved = false;
     if (!game.slow) game.hearts = MAX_HEARTS; persist(); render();
   };
 
@@ -485,7 +486,7 @@
     "…a cup of coffee going cold because you’re one piggy away from a perfect field.",
     "The kind of quiet only a well-tended pasture knows.",
     "Somewhere a piggy is deciding exactly where to settle.",
-    "Every fence tells a small, stubborn truth.",
+    "Every hoofprint tells a small, stubborn truth.",
     "…the soft thud of a piggy finding its patch.",
     "No two piggies ever did get along that close.",
     "A field is just a puzzle the pasture hasn’t solved yet.",
@@ -499,7 +500,7 @@
     "The best moves are the ones you almost didn’t make.",
     "A little snuffle, a little thought, a little click.",
     "…the satisfying hush after the last piggy settles.",
-    "Fences are just polite suggestions to a determined piggy.",
+    "Hoofprints are just polite suggestions to a determined piggy.",
     "Count twice, settle once.",
     "The meadow keeps its secrets close.",
     "…sun on your back and a row left to fill.",
@@ -510,7 +511,7 @@
     "Wrong moves are just the field clearing its throat.",
     "Every color wants exactly one houseguest.",
     "Slow down; the pasture rewards the unhurried.",
-    "…the quiet pride of a fence well placed.",
+    "…the quiet pride of a hoofprint well placed.",
     "There’s a tidy joy in a row that finally behaves.",
     "No piggy likes a crowded corner.",
     "The field is honest if you let it be.",
@@ -522,7 +523,7 @@
     "Give each piggy its patch and the rest sorts itself.",
     "Patience is the only tool that never rusts.",
     "…the gentle logic of a sleepy farm.",
-    "Some fences you build just to think out loud.",
+    "Some hoofprints you leave just to think out loud.",
     "The hilltop keeps the stubborn puzzles.",
     "…warm light and a row that won’t quite close.",
     "A piggy settled right makes the whole field exhale.",
@@ -536,7 +537,7 @@
     "Two piggies touching is just one too friendly.",
     "The pasture forgives every wrong guess.",
     "…dusk settling soft over a nearly-perfect field.",
-    "A fence here saves a heart there.",
+    "A hoofprint here saves a heart there.",
     "Let the obvious piggies go first; they earn the rest.",
     "…the small triumph of an empty column filled.",
     "There’s wisdom in the patch you leave alone.",
@@ -544,8 +545,8 @@
     "…a kettle on and a meadow half-tended.",
     "Each color is a little kingdom with room for one.",
     "The quiet ones are usually the trickiest patches.",
-    "…a long exhale as the last fence falls into place.",
-    "Good fences keep good piggies thinking.",
+    "…a long exhale as the last hoofprint settles into place.",
+    "Well-placed hoofprints keep good piggies thinking.",
     "The meadow’s easy; it’s the corners that test you.",
     "…morning light deciding which patch to warm first.",
     "A solved field is a small, soft kind of victory.",
@@ -554,7 +555,7 @@
     "The field knows; it’s just waiting on you.",
     "One column at a time, one piggy at peace.",
     "…a rocking chair and a field full of maybes.",
-    "The fence you doubt is usually the right one.",
+    "The hoofprint you doubt is usually the right one.",
     "Every piggy deserves a patch of its own.",
     "…the slow pleasure of ruling a patch out.",
     "Crowded corners make for lonely piggies.",
@@ -567,7 +568,7 @@
     "The piggies know their patches; we just catch up.",
     "…the hush of a field that’s finally made sense.",
     "Leave room to breathe and the puzzle breathes back.",
-    "The best fence is the one you didn’t need.",
+    "The best hoofprint is the one you didn’t need.",
     "…an unhurried hour spent learning a field’s mind.",
     "Some columns ask twice before they answer.",
     "The pasture keeps no grudge for a wrong move.",
@@ -579,7 +580,7 @@
     "Look for the lonely patch; it’s usually the answer.",
     "…a sleepy farm and a puzzle in no rush.",
     "The quiet after a solved field is the whole reward.",
-    "Fences are how a field thinks aloud.",
+    "Hoofprints are how a field thinks aloud.",
     "…one more piggy, one more peaceful row.",
     "Tend the field gently; it remembers kindness."
   ];
