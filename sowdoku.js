@@ -251,6 +251,38 @@
       return false;
     }
 
+    // find (don't place) the next forced single: a row/col/region with exactly
+    // one candidate. Returns { r, c, why } or null.
+    function forcedSingle(s) {
+      for (let r = 0; r < n; r++) if (!rowPlaced(s, r)) { const cs = rowCands(s, r); if (cs.length === 1) return { r: cs[0][0], c: cs[0][1], why: 'row' }; }
+      for (let c = 0; c < n; c++) if (!colPlaced(s, c)) { const cs = colCands(s, c); if (cs.length === 1) return { r: cs[0][0], c: cs[0][1], why: 'column' }; }
+      for (let id = 0; id < n; id++) if (!regPlaced(s, id)) { const cs = regCands(s, id); if (cs.length === 1) return { r: cs[0][0], c: cs[0][1], why: 'pen' }; }
+      return null;
+    }
+
+    // build solver state from the piggies the player has already settled
+    function stateFromPiggies(piggies) {
+      const s = freshState(n);
+      for (const p of normalizePiggies(piggies)) if (inBounds(n, p.r, p.c)) place(s, p.r, p.c);
+      return s;
+    }
+
+    // the next logically-forced piggy given the current placements. Runs L1,
+    // falling back to L2 confinement to unlock one. Returns { r, c, why, level }
+    // or null when only a deeper (L3) leap remains. `error:'contradiction'` if
+    // the current placements have painted the field into a corner.
+    function hint(piggies) {
+      const s = stateFromPiggies(piggies);
+      let usedL2 = false;
+      for (;;) {
+        if (contradiction(s)) return { error: 'contradiction' };
+        const f = forcedSingle(s);
+        if (f) return { r: f.r, c: f.c, why: f.why, level: usedL2 ? 2 : 1 };
+        if (level2(s)) { usedL2 = true; continue; }
+        return null;
+      }
+    }
+
     // Solve with techniques up to maxLevel; report which levels were needed.
     function solve(maxLevel) {
       const s = freshState(n);
@@ -266,7 +298,7 @@
       return { solved: s.placedCount === n, counts, usedMax };
     }
 
-    return { solve };
+    return { solve, hint };
   }
 
   // map a logic profile to a cozy difficulty band
@@ -279,6 +311,25 @@
     const r3 = solver.solve(3);
     if (r3.solved) return { band: 'hilltop', minLevel: 3, counts: r3.counts };
     return { band: 'unfair', minLevel: 4, counts: r3.counts }; // needs deeper search
+  }
+
+  // a-priori human-effort estimate (1..100) from the solver's logic profile.
+  // The band sets the floor; L2 confinements and (especially) L3 contradictions
+  // add grind; bigger boards ask a little more scanning. This is the "what the
+  // field asks of you" number, before anyone has actually played it.
+  function humanScore(size, profile, band) {
+    const p = profile || {};
+    const base = { sunbeam: 12, meadow: 38, hilltop: 66, unfair: 88 }[band];
+    const floor = base != null ? base : 38;
+    const depth = (p.l2 || 0) * 2 + (p.l3 || 0) * 9;
+    const sizeAdj = (size - 6) * 4;
+    const raw = floor + depth + sizeAdj;
+    return Math.max(1, Math.min(100, Math.round(raw)));
+  }
+
+  // the next logically-forced piggy given current placements (see makeSolver.hint)
+  function hint(n, region, piggies) {
+    return makeSolver(n, region).hint(piggies || []);
   }
 
   // ---- top-level generation ----
@@ -341,6 +392,7 @@
   const Sowdoku = {
     makeRng, generateSolution, growRegions, countSolutions,
     makeSolver, rate, generate, isLegalPlacement, isSolved,
+    humanScore, hint,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Sowdoku;

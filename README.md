@@ -98,16 +98,55 @@ Drawn straight from the house style — **calm clarity**.
 
 ## Modes
 
+Every mode is reachable from the **＋ create** sheet — pick a mode, size, and
+mood, watch the live preview, and settle in. Each slants the same gentle
+deduction a different way:
+
 - **The Amble** — an endless supply of hand-warm, unique puzzles. Pick a board
   size, pick a difficulty (*Sunbeam → Meadow → Hilltop*), and wander.
 - **One Field a Day** — a single shared daily layout for everyone, seeded by the
   date. No streak-shaming, no push notifications begging you back. It's there if
   you want it; the field doesn't mind if you skip a day.
-- **Slow Mode** — no hearts, no failure, infinite markers. For when you want the
-  ritual without the stakes.
+- **The Ladder** — a gentle climb. Begin on a small Sunbeam field; each field you
+  tend nudges the next a notch harder, up through 9×9 Hilltops. Your best rung is
+  quietly remembered. Stop whenever; the ladder waits.
+- **Misty Morning** — the pens hide in fog, drawn only in outline. A pen's colour
+  settles in the moment its piggy does. Same fair puzzle, read entirely from the
+  fences — a slower, more spatial kind of seeing.
+- **The Wallow** — one heart, no assist, the knottier Hilltop fields. For a
+  focused, deliberate sit where every placement is yours to stand behind.
+- **Slow Mode** — a toggle over any field: no hearts, no failure, infinite
+  markers. For when you want the ritual without the stakes.
+
+A **gentle hint** ("peek", in the ⚙ menu) glows the next logically-forced piggy —
+never a guess, just the field pointing at the deduction you already had the
+pieces for.
 
 Difficulty is shaped by *pen geometry and deduction depth*, never by hidden
 timers or trick layouts. A hard puzzle rewards patience; it doesn't punish you.
+
+### Every field has a code
+
+A field is fully determined by its **size · difficulty · seed**, printed as a
+compact code like `8m-3k7f2a` (🌱 chip, top of the board — tap to copy). Paste a
+code back into the create sheet's *seed* box to conjure the exact same field,
+piggy for piggy. Codes are the unit of sharing, replay, and curation.
+
+### History & difficulty curation
+
+Every field you touch is logged to a quiet **🕘 history** — outcome, play time,
+slips, and hoofprints, with *no visible timer* to rush you. Each record carries
+two difficulty reads:
+
+- **"looks like"** — the solver's *a-priori* effort score, from the deduction
+  depth the field demands (singles → confinements → contradictions).
+- **"played like"** — the *empirical* score, derived from how the field actually
+  played for you (time-per-pen and slip rate).
+
+When the two disagree, the card says so — *"played tougher than it looks"* or
+*"gentler than it looks"* — which is exactly the signal for **curation**: star
+(☆) the fields worth keeping, and the curated list becomes a hand-picked set of
+layouts whose real-world difficulty you've verified, not just guessed.
 
 ---
 
@@ -128,10 +167,11 @@ along in the launcher's cross-device save file for free:
 
 | Key                             | Holds                                                         |
 | ------------------------------- | ------------------------------------------------------------- |
-| `arcade.v1.sowduku.inProgress`  | The current puzzle + your placements/markers (resume anytime) |
-| `arcade.v1.sowduku.stats`       | Puzzles solved, best times, gentle personal bests             |
-| `arcade.v1.sowduku.daily`       | Which "One Field a Day" layouts you've finished               |
-| `arcade.v1.sowduku.prefs`       | Sound on/off, marker style, default board size                |
+| `arcade.v1.sowduku.inProgress`  | The current field + placements/markers/metrics (resume anytime) |
+| `arcade.v1.sowduku.history`     | Rolling log of tended fields (up to 300) with per-game metrics  |
+| `arcade.v1.sowduku.stats`       | Lifetime tallies: fields played/solved, slips, best ladder rung |
+| `arcade.v1.sowduku.curated`     | Hand-picked fields (by board code) worth keeping and replaying  |
+| `arcade.v1.sowduku.assist`      | Assist preference (auto / gated / manual), persists across fields |
 
 ```js
 Arcade.state.set('inProgress', JSON.stringify(board));   // autosave each move

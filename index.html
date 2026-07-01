@@ -14,6 +14,7 @@
     --bg: #f4eee1; --panel: #fbf7ee; --ink: #514b42; --ink-soft: #8a8175;
     --line: #e7dcc8; --thud: rgba(70,62,52,.14);
     --heart: #c98b86; --heart-off: #e3d8c8; --bad: #cf8a7e;
+    --fog: #e7dfcf;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; }
@@ -38,12 +39,16 @@
   button.chip { cursor: pointer; }
   button.chip:hover { color: var(--ink); border-color: #d8ccb5; }
   button.chip.on { background: #efe6d3; color: var(--ink); }
+  .codechip { font-family: ui-monospace,"SF Mono",Menlo,monospace; letter-spacing: .02em; cursor: pointer; }
+  .codechip:hover { color: var(--ink); border-color: #d8ccb5; }
+  .codechip::before { content: "🌱 "; }
+  .climbchip[hidden] { display: none; }
 
   .board-wrap { position: relative; background: var(--panel); border: 1px solid var(--line);
     border-radius: 1.4rem; padding: 1.5rem; box-shadow: 0 1px 0 #fff inset, 0 18px 40px -28px rgba(70,62,52,.35); }
   .board { display: grid; border-radius: .7rem; overflow: hidden; width: 100%;
     touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-  .cell { position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: filter .15s ease; }
+  .cell { position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: filter .15s ease, background .3s ease; }
   .cell:hover { filter: brightness(.97); }
   .cell svg.pig { width: 74%; height: 74%; }
   .cell.placed svg.pig { filter: drop-shadow(0 3px 0 var(--thud)); animation: thud .25s ease; }
@@ -64,11 +69,20 @@
       repeating-linear-gradient(45deg, transparent 0 6px, rgba(110,100,84,.12) 6px 9px),
       rgba(245,239,227,.55); }
 
-  .controls { position: relative; display: flex; gap: .6rem; margin-top: 1rem; align-items: center; flex-wrap: wrap; }
+  /* misty-morning fog: a pen keeps its colour hidden until its piggy settles */
+  .cell.fog { color: transparent; }
+  .cell.fog::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(115deg, rgba(255,255,255,.35) 0 8px, rgba(231,223,207,.35) 8px 18px); }
+
+  /* a gentle "peek" — the next forced piggy, glowing softly for a moment */
+  .cell.peek::after { content: ""; position: absolute; inset: 2px; border-radius: .3rem; pointer-events: none;
+    box-shadow: inset 0 0 0 3px rgba(201,139,134,.85); animation: peekpulse 1.1s ease infinite; }
+  @keyframes peekpulse { 0%,100%{opacity:.35;} 50%{opacity:1;} }
+
+  .controls { position: relative; display: flex; gap: .5rem; margin-top: 1rem; align-items: center; flex-wrap: wrap; }
   .controls .spacer { flex: 1; }
 
-  /* the ⚙ popover folds the secondary controls (field mode, size, slow, assist)
-     out of the main row so only the two everyday actions stay on show. */
+  /* the ⚙ popover folds the play controls (slow, assist, hint) out of the main row. */
   .menu { position: absolute; bottom: calc(100% + .55rem); left: 0; z-index: 30;
     min-width: 16rem; background: var(--panel); border: 1px solid var(--line);
     border-radius: 1rem; padding: .35rem .9rem;
@@ -83,6 +97,7 @@
     border-radius: 999px; padding: .26rem .62rem; min-width: 2rem; }
   .seg button:hover { color: var(--ink); border-color: #d8ccb5; }
   .seg button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
+  .seg.wrap { flex-wrap: wrap; justify-content: flex-end; }
   #menuBtn.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
   .hint { font-size: .78rem; color: var(--ink-soft); margin: .85rem 0 0; text-align: center; line-height: 1.5; }
   .hint b { color: var(--ink); font-weight: 600; }
@@ -94,10 +109,83 @@
   .veil .card { max-width: 22rem; }
   .veil h2 { font-family: Georgia,serif; font-weight: 600; font-size: 1.6rem; margin: 0 0 .5rem; }
   .veil p { color: var(--ink-soft); margin: 0 0 1.2rem; line-height: 1.5; }
+  .veil .vbtns { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
   .veil button { font: inherit; cursor: pointer; border: 1px solid #d8ccb5; background: #efe6d3;
     color: var(--ink); border-radius: 999px; padding: .5rem 1.2rem; }
+  .veil button.soft { background: transparent; color: var(--ink-soft); }
   footer { margin-top: 1.4rem; font-family: Georgia,serif; font-style: italic; color: var(--ink-soft);
     font-size: .92rem; text-align: center; line-height: 1.5; }
+
+  /* ---- sheets (create a field · history) ---- */
+  .sheet-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+    background: rgba(70,62,52,.28); padding: 1.25rem; }
+  .sheet-backdrop[hidden] { display: none; }
+  .sheet { width: min(30rem, 100%); max-height: 90vh; overflow: auto; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 1.2rem; padding: 1.4rem 1.5rem;
+    box-shadow: 0 1px 0 #fff inset, 0 24px 60px -24px rgba(70,62,52,.5); }
+  .sheet h2 { font-family: Georgia,serif; font-weight: 600; font-size: 1.4rem; margin: 0 0 1rem; }
+  .orow { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .5rem 0; }
+  .orow[hidden] { display: none; }
+  .orow .lab { font-size: .85rem; color: var(--ink); }
+  .modeNote { font-size: .8rem; color: var(--ink-soft); margin: .1rem 0 .4rem; line-height: 1.45; min-height: 2.2rem; }
+  .seedbox { display: flex; gap: .35rem; align-items: center; }
+  .seedbox input { font: inherit; font-size: .82rem; width: 9.5rem; padding: .32rem .55rem; border: 1px solid var(--line);
+    border-radius: .6rem; background: var(--bg); color: var(--ink); }
+  .seedbox input:focus { outline: none; border-color: #c9b89b; }
+  .seedbox input.bad { border-color: var(--bad); }
+  .seedbox button { font-size: .95rem; border: 1px solid var(--line); background: var(--bg); border-radius: .6rem; cursor: pointer; padding: .26rem .5rem; }
+  .seedbox button:hover { border-color: #d8ccb5; }
+  .preview { display: flex; gap: 1rem; align-items: center; margin: .7rem 0 1rem; padding: .9rem; background: var(--bg);
+    border: 1px solid var(--line); border-radius: .9rem; }
+  .miniboard { display: grid; width: 7.5rem; height: 7.5rem; flex: 0 0 auto; border-radius: .45rem; overflow: hidden; }
+  .miniboard div { width: 100%; height: 100%; }
+  .pmeta { flex: 1; min-width: 0; }
+  .pcode { font-family: ui-monospace,Menlo,monospace; font-size: .9rem; color: var(--ink); }
+  .pband { font-size: .85rem; color: var(--ink-soft); margin: .15rem 0 .5rem; text-transform: capitalize; }
+  .bar { height: .5rem; border-radius: 999px; background: var(--heart-off); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 999px; }
+  .pbar i { background: linear-gradient(90deg,#cdd6bb,#e6cdb8,#e3c2cb); }
+  .phint { font-size: .72rem; color: var(--ink-soft); margin-top: .5rem; }
+  .sheet-actions { display: flex; gap: .6rem; justify-content: flex-end; margin-top: .4rem; }
+  .sheet-actions .primary, .sheet-actions .ghost { font: inherit; cursor: pointer; border-radius: 999px; padding: .5rem 1.1rem; border: 1px solid #d8ccb5; }
+  .primary { background: #efe6d3; color: var(--ink); }
+  .ghost { background: transparent; color: var(--ink-soft); border-color: var(--line); }
+  .primary:hover { border-color: #c9b89b; } .ghost:hover { color: var(--ink); border-color: #d8ccb5; }
+
+  .sheet-tabs { display: flex; gap: .4rem; margin-bottom: .8rem; }
+  .sheet-tabs button { font: inherit; font-size: .82rem; cursor: pointer; border: 1px solid var(--line); background: var(--bg);
+    color: var(--ink-soft); border-radius: 999px; padding: .3rem .8rem; }
+  .sheet-tabs button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
+  .stats { font-size: .82rem; color: var(--ink-soft); margin-bottom: .8rem; line-height: 1.55; }
+  .stats b { color: var(--ink); font-weight: 600; }
+  .hlist { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1rem; }
+  .hcard { border: 1px solid var(--line); border-radius: .8rem; padding: .7rem .85rem; background: var(--bg); }
+  .hcard .top { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+  .hcode { font-family: ui-monospace,Menlo,monospace; font-size: .85rem; color: var(--ink); }
+  .htags { font-size: .74rem; color: var(--ink-soft); text-transform: capitalize; }
+  .houtcome { font-size: .8rem; color: var(--ink); margin: .35rem 0 .5rem; }
+  .houtcome.miss { color: var(--ink-soft); }
+  .hbars { display: flex; flex-direction: column; gap: .3rem; margin-bottom: .5rem; }
+  .hbar-row { display: flex; align-items: center; gap: .5rem; font-size: .68rem; color: var(--ink-soft); }
+  .hbar-row span:first-child { width: 4.6rem; flex: 0 0 auto; }
+  .hbar-row .bar { flex: 1; }
+  .hbar-row .bar i.a { background: #b8c8d1; }
+  .hbar-row .bar i.e { background: #e3c2cb; }
+  .hflag { font-size: .72rem; color: #b07d5f; margin: 0 0 .45rem; }
+  .hacts { display: flex; gap: .4rem; }
+  .hacts button { font: inherit; font-size: .74rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); border-radius: 999px; padding: .28rem .7rem; }
+  .hacts button:hover { color: var(--ink); border-color: #d8ccb5; }
+  .hacts button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
+  .hempty { color: var(--ink-soft); font-size: .85rem; text-align: center; padding: 1.6rem 0; line-height: 1.5; }
+
+  .toast { position: fixed; left: 50%; bottom: 2rem; transform: translateX(-50%) translateY(1rem); z-index: 60;
+    background: var(--ink); color: #fbf7ee; font-size: .82rem; padding: .5rem .95rem; border-radius: 999px;
+    opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
+  .toast.show { opacity: .95; transform: translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cell.placed svg.pig, .cell.bad, .cell.peek::after { animation: none; }
+  }
 </style>
 </head>
 <body>
@@ -112,6 +200,8 @@
 
     <div class="chip-row">
       <span class="chip" id="fieldChip">today’s field · 8×8 · meadow</span>
+      <button class="chip codechip" id="codeChip" title="copy this field’s code">8m-0</button>
+      <span class="chip climbchip" id="climbChip" hidden>rung 1/8</span>
       <span class="chip"><strong id="leftChip">8</strong> left</span>
     </div>
 
@@ -120,27 +210,19 @@
       <div class="veil" id="veil"><div class="card">
         <h2 id="veilTitle"></h2>
         <p id="veilText"></p>
-        <button id="veilBtn"></button>
+        <div class="vbtns" id="veilBtns"></div>
       </div></div>
     </div>
 
     <div class="controls">
       <button class="chip" id="newBtn">new field</button>
-      <button class="chip" id="menuBtn" aria-haspopup="true" aria-expanded="false">⚙ field &amp; play</button>
+      <button class="chip" id="createBtn">＋ create</button>
+      <button class="chip" id="historyBtn">🕘 history</button>
+      <button class="chip" id="menuBtn" aria-haspopup="true" aria-expanded="false">⚙ play</button>
       <span class="spacer"></span>
       <button class="chip" id="clearBtn">clear</button>
 
-      <div class="menu" id="menu" hidden role="menu" aria-label="Field & play settings">
-        <div class="row"><span class="lab">field</span>
-          <div class="seg" id="modeSeg">
-            <button data-mode="daily">daily</button>
-            <button data-mode="stroll">amble</button>
-          </div></div>
-        <div class="row"><span class="lab">size</span>
-          <div class="seg" id="sizeSeg">
-            <button data-size="6">6</button><button data-size="7">7</button>
-            <button data-size="8">8</button><button data-size="9">9</button>
-          </div></div>
+      <div class="menu" id="menu" hidden role="menu" aria-label="Play settings">
         <div class="row"><span class="lab">slow mode</span>
           <div class="seg"><button id="slowToggle" data-toggle>off</button></div></div>
         <div class="row"><span class="lab">assist</span>
@@ -149,6 +231,8 @@
             <button data-assist="gated">gated</button>
             <button data-assist="manual">manual</button>
           </div></div>
+        <div class="row"><span class="lab">a gentle hint</span>
+          <div class="seg"><button id="peekBtn">peek</button></div></div>
       </div>
     </div>
 
@@ -156,6 +240,69 @@
 
     <footer id="saying">“…a cup of coffee going cold because you’re one piggy away from a perfect field.”</footer>
   </div>
+
+  <!-- Create a field -->
+  <div class="sheet-backdrop" id="createBack" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Tend a new field">
+      <h2>Tend a new field</h2>
+      <div class="orow"><span class="lab">mode</span>
+        <div class="seg wrap" id="cMode">
+          <button data-mode="amble">amble</button>
+          <button data-mode="daily">daily</button>
+          <button data-mode="ladder">ladder</button>
+          <button data-mode="fog">misty</button>
+          <button data-mode="wallow">wallow</button>
+        </div></div>
+      <p class="modeNote" id="cModeNote"></p>
+      <div class="orow" id="cSizeRow"><span class="lab">size</span>
+        <div class="seg" id="cSize">
+          <button data-size="6">6</button><button data-size="7">7</button>
+          <button data-size="8">8</button><button data-size="9">9</button>
+        </div></div>
+      <div class="orow" id="cDiffRow"><span class="lab">difficulty</span>
+        <div class="seg" id="cDiff">
+          <button data-diff="sunbeam">sunbeam</button>
+          <button data-diff="meadow">meadow</button>
+          <button data-diff="hilltop">hilltop</button>
+        </div></div>
+      <div class="orow" id="cSeedRow"><span class="lab">seed</span>
+        <div class="seedbox">
+          <input id="cSeed" placeholder="code or number" autocomplete="off" spellcheck="false" />
+          <button id="cDice" title="random field">🎲</button>
+        </div></div>
+      <div class="preview">
+        <div class="miniboard" id="cPreview"></div>
+        <div class="pmeta">
+          <div class="pcode" id="cCode">—</div>
+          <div class="pband" id="cBand">—</div>
+          <div class="bar pbar"><i id="cBar" style="width:0"></i></div>
+          <div class="phint" id="cProfile">—</div>
+        </div>
+      </div>
+      <div class="sheet-actions">
+        <button class="ghost" id="cCancel">cancel</button>
+        <button class="primary" id="cTend">tend this field</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History & curated -->
+  <div class="sheet-backdrop" id="histBack" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Field history">
+      <div class="sheet-tabs" id="hTabs">
+        <button data-tab="recent" class="on">recent</button>
+        <button data-tab="curated">curated</button>
+      </div>
+      <div class="stats" id="hStats"></div>
+      <div class="hlist" id="hList"></div>
+      <div class="sheet-actions">
+        <button class="ghost" id="hClear">clear history</button>
+        <button class="primary" id="hClose">close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
 
 <script src="sowdoku.js"></script>
 <script>
@@ -165,21 +312,67 @@
   // ---- Arcade platform bridge ----
   // Arcade.init() ran in <head>. The SDK gives same-origin storage, settings,
   // and lifecycle when framed or served over http; it degrades gracefully to
-  // plain localStorage when absent (e.g. opened straight from file://).
+  // plain localStorage when absent (e.g. opened straight from file://). All
+  // persistent state rides under the arcade.v1.sowduku.* namespace so it lands
+  // in the launcher's cross-device save bundle for free.
   var A = window.Arcade;
-  var SKEY = "arcade.v1.sowduku.inProgress";
-  function saveState(obj) {
-    if (A && A.state) A.state.set("inProgress", obj);         // SDK handles JSON
-    else localStorage.setItem(SKEY, JSON.stringify(obj));
+  var NS = "arcade.v1.sowduku.";
+  function sget(key) {
+    if (A && A.state) { var v = A.state.get(key); return v == null ? null : v; }
+    var raw = localStorage.getItem(NS + key);
+    if (raw == null) return null;
+    try { return JSON.parse(raw); }
+    catch (e) { return raw; } // tolerate legacy plain-string values (e.g. old `assist`)
   }
-  function loadState() {
-    if (A && A.state) return A.state.get("inProgress") || null;
-    var raw = localStorage.getItem(SKEY);
-    return raw ? JSON.parse(raw) : null;
+  function sset(key, val) {
+    if (A && A.state) A.state.set(key, val);
+    else localStorage.setItem(NS + key, JSON.stringify(val));
   }
 
   var PALETTE = ["#cdd6bb","#e6cdb8","#e3c2cb","#c3d0d8","#ecdcae","#d3cadf","#cad9c6","#e9d3bd","#dcb9a6"];
   var MAX_HEARTS = 5;
+
+  // ---- game modes: each slants play a different, cozy way ----
+  var MODES = {
+    amble:  { label: "the amble",     hearts: 5,
+              note: "An endless meadow of fresh, unique fields. Pick a size and a mood, and wander." },
+    daily:  { label: "today’s field", hearts: 5,
+              note: "One shared field, seeded by today’s date. No streaks to keep — it’s here if you want it." },
+    ladder: { label: "the ladder",    hearts: 5,
+              note: "A gentle climb — each solved field nudges the next one a notch harder." },
+    fog:    { label: "misty morning", hearts: 5, fog: true,
+              note: "The pens hide in morning fog; a pen’s colour settles in only once its piggy does." },
+    wallow: { label: "the wallow",    hearts: 1, assist: "manual", bias: "hilltop",
+              note: "One heart, no hand-holding, the knottier fields. For a focused, unhurried sit." },
+  };
+  function modeCfg(m) { return MODES[m] || MODES.amble; }
+
+  // the ladder's rungs: gentle at the foot, knottier toward the top
+  var LADDER = [
+    { size: 6, difficulty: "sunbeam" }, { size: 6, difficulty: "meadow"  },
+    { size: 7, difficulty: "meadow"  }, { size: 7, difficulty: "hilltop" },
+    { size: 8, difficulty: "meadow"  }, { size: 8, difficulty: "hilltop" },
+    { size: 9, difficulty: "meadow"  }, { size: 9, difficulty: "hilltop" },
+  ];
+  function ladderRung(rung) { return LADDER[Math.max(0, Math.min(rung, LADDER.length - 1))]; }
+
+  // ---- board identity: a compact, shareable code (size · band · seed) ----
+  // A field is fully determined by { size, requested difficulty, seed }, so the
+  // code round-trips to the exact same board — the unit of curation and replay.
+  var BAND_CHAR = { sunbeam: "s", meadow: "m", hilltop: "h" };
+  var CHAR_BAND = { s: "sunbeam", m: "meadow", h: "hilltop" };
+  function boardCode(size, reqDiff, seed) {
+    return size + (BAND_CHAR[reqDiff] || "m") + "-" + ((seed >>> 0).toString(36));
+  }
+  function parseCode(str) {
+    if (str == null) return null;
+    str = String(str).trim().toLowerCase();
+    if (!str) return null;
+    var m = /^([6-9])([smh])-([0-9a-z]+)$/.exec(str);
+    if (m) return { size: +m[1], difficulty: CHAR_BAND[m[2]], seed: parseInt(m[3], 36) >>> 0 };
+    if (/^\d+$/.test(str)) return { seed: (+str) >>> 0 };  // bare number = seed only
+    return null;
+  }
 
   function pigSVG() {
     return '<svg class="pig" viewBox="0 0 64 64" fill="none" stroke="#6c6358" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
@@ -200,59 +393,104 @@
     var d = new Date();
     return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   }
+  function randomSeed() { return (dailySeed() * 131 + Math.floor(Math.random() * 1e6)) >>> 0; }
 
-  // assist mode is a player preference (persists across puzzles), separate from
-  // the per-field in-progress save: 'auto' | 'manual' | 'gated'.
-  var ASSIST_KEY = "arcade.v1.sowduku.assist";
+  // assist is a player preference (persists across puzzles): 'auto'|'gated'|'manual'
   var ASSIST_MODES = ["auto", "gated", "manual"];
   function loadAssist() {
-    var v = (A && A.state) ? A.state.get("assist") : localStorage.getItem(ASSIST_KEY);
+    var v = sget("assist");
     return ASSIST_MODES.indexOf(v) >= 0 ? v : "gated";
   }
-  function saveAssist(v) {
-    if (A && A.state) A.state.set("assist", v);
-    else localStorage.setItem(ASSIST_KEY, v);
+  function saveAssist(v) { sset("assist", v); }
+
+  // ---- generation with a small retry so we never hand back a null puzzle ----
+  function makeBoard(size, reqDiff, seed) {
+    for (var i = 0; i < 6; i++) {
+      var s = (seed + i * 0x9e3779b1) >>> 0;
+      var p = Sowdoku.generate({ size: size, difficulty: reqDiff, seed: s })
+           || Sowdoku.generate({ size: size, seed: s });
+      if (p) { p.reqSeed = seed; return p; }
+    }
+    return Sowdoku.generate({ size: size, seed: seed }); // last-ditch
   }
 
-  var game = null; // { puzzle, piggies:Set, hoofprints:Set, hearts, slow, assist, mode, solved }
+  var game = null; // see beginGame() for shape
 
-  function freshGame(opts) {
-    var puzzle = Sowdoku.generate(opts) || Sowdoku.generate({ size: opts.size, seed: opts.seed });
-    return { puzzle: puzzle, piggies: new Set(), hoofprints: new Set(),
-             hearts: MAX_HEARTS, slow: false, assist: loadAssist(),
-             mode: opts.mode || "daily", solved: false };
+  // ---- per-game metrics (quiet: no visible timer, honouring the brand) ----
+  function newMetrics() {
+    return { startedAt: Date.now(), firstMoveAt: 0, playMs: 0,
+             moves: 0, placements: 0, mistakes: 0, hoofprints: 0, clears: 0, hints: 0 };
   }
+  function touchMove() { if (game && game.metrics && !game.metrics.firstMoveAt) game.metrics.firstMoveAt = Date.now(); }
 
-  function startDaily(size) {
-    game = freshGame({ size: size || 8, difficulty: "meadow", seed: dailySeed(), mode: "daily" });
+  // ---- start a field (any mode) ----
+  function beginGame(opts) {
+    finalizeGame(false);                     // record the outgoing field if it was played
+    var cfg = modeCfg(opts.mode);
+    var size = opts.size || 8;
+    var reqDiff = opts.difficulty || "meadow";
+    var seed = (opts.seed != null ? opts.seed : (opts.mode === "daily" ? dailySeed() : randomSeed())) >>> 0;
+    var puzzle = makeBoard(size, reqDiff, seed);
+    game = {
+      puzzle: puzzle, mode: opts.mode || "amble", reqDifficulty: reqDiff,
+      code: boardCode(size, reqDiff, seed),
+      piggies: new Set(), hoofprints: new Set(), revealed: new Set(),
+      hearts: cfg.hearts, maxHearts: cfg.hearts,
+      slow: false, assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
+      solved: false, recorded: false, ladderRung: opts.ladderRung || 0,
+      metrics: newMetrics(),
+    };
+    lastTick = Date.now();
+    closeMenu();
     persist(); render();
   }
-  function startNew(size) {
-    var seed = (dailySeed() * 131 + Math.floor(Math.random() * 1e6)) >>> 0;
-    game = freshGame({ size: size || game.puzzle.size, difficulty: "meadow", seed: seed, mode: "stroll" });
-    persist(); render();
+  function startDaily(size)      { beginGame({ mode: "daily",  size: size || 8, difficulty: "meadow", seed: dailySeed() }); }
+  function startAmble(size, dif) { beginGame({ mode: "amble",  size: size || curSize(), difficulty: dif || curReqDiff(), seed: randomSeed() }); }
+  function startLadder(rung) {
+    rung = rung || 0; var lc = ladderRung(rung);
+    beginGame({ mode: "ladder", size: lc.size, difficulty: lc.difficulty, seed: randomSeed(), ladderRung: rung });
   }
+  function replayBoard(d) {
+    beginGame({ mode: d.mode || "amble", size: d.size, difficulty: d.reqDifficulty || d.difficulty || "meadow",
+                seed: d.seed, ladderRung: d.ladderRung || 0 });
+  }
+  function curSize()    { return (game && game.puzzle && game.puzzle.size) || 8; }
+  function curReqDiff() { return (game && game.reqDifficulty) || "meadow"; }
 
-  // ---- persistence ----
+  // ---- persistence (in-progress field) ----
   function persist() {
-    saveState({
-      seed: game.puzzle.seed, size: game.puzzle.size, mode: game.mode,
+    if (!game) return;
+    sset("inProgress", {
+      seed: game.puzzle.reqSeed != null ? game.puzzle.reqSeed : game.puzzle.seed,
+      size: game.puzzle.size, mode: game.mode, reqDifficulty: game.reqDifficulty, code: game.code,
       regions: game.puzzle.regions, solution: game.puzzle.solution,
-      difficulty: game.puzzle.difficulty,
+      difficulty: game.puzzle.difficulty, profile: game.puzzle.profile,
       piggies: Array.from(game.piggies), hoofprints: Array.from(game.hoofprints),
-      hearts: game.hearts, slow: game.slow, solved: !!game.solved
+      revealed: Array.from(game.revealed),
+      hearts: game.hearts, maxHearts: game.maxHearts, slow: game.slow,
+      solved: !!game.solved, recorded: !!game.recorded,
+      ladderRung: game.ladderRung || 0, metrics: game.metrics,
     });
   }
   function restore() {
     try {
-      var s = loadState();
+      var s = sget("inProgress");
       if (!s || !s.regions || !s.solution) return false;
+      var mode = s.mode === "stroll" ? "amble" : (s.mode || "daily");   // migrate old "stroll"
+      var cfg = modeCfg(mode);
       game = {
-        puzzle: { size: s.size, regions: s.regions, solution: s.solution, difficulty: s.difficulty, seed: s.seed },
+        puzzle: { size: s.size, regions: s.regions, solution: s.solution,
+                  difficulty: s.difficulty, profile: s.profile, seed: s.seed, reqSeed: s.seed },
+        mode: mode, reqDifficulty: s.reqDifficulty || "meadow",
+        code: s.code || boardCode(s.size, s.reqDifficulty || "meadow", s.seed || 0),
         piggies: new Set(s.piggies || []),
-        hoofprints: new Set(s.hoofprints || s.fences || s.markers || []),   // migrate older "fences"/"markers" fields
-        hearts: s.hearts != null ? s.hearts : MAX_HEARTS,
-        slow: !!s.slow, solved: !!s.solved, assist: loadAssist(), mode: s.mode || "daily"
+        hoofprints: new Set(s.hoofprints || s.fences || s.markers || []),   // migrate older field names
+        revealed: new Set(s.revealed || []),
+        hearts: s.hearts != null ? s.hearts : (s.maxHearts || cfg.hearts),
+        maxHearts: s.maxHearts || cfg.hearts || MAX_HEARTS,
+        slow: !!s.slow, solved: !!s.solved, recorded: !!s.recorded,
+        assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
+        ladderRung: s.ladderRung || 0, metrics: s.metrics || newMetrics(),
       };
       return true;
     } catch (e) { return false; }
@@ -260,6 +498,73 @@
 
   // re-read after a launcher import
   if (A && A.onStateReplaced) A.onStateReplaced(function () { if (!restore()) startDaily(8); render(); });
+
+  // ---- history + stats + curated boards ----
+  function getHistory() { return sget("history") || []; }
+  function getCurated() { return sget("curated") || []; }
+  function getStats()   { return sget("stats") || { played: 0, solved: 0, mistakes: 0, playMs: 0, bestLadder: 0 }; }
+
+  // a solved field's *empirical* difficulty from how it actually played — the
+  // human counterpoint to the solver's a-priori humanScore. Time-per-pen and
+  // slip rate dominate; a bigger board asks a touch more. null when unsolved.
+  function empiricalScore(rec) {
+    if (!rec.solved || !rec.playMs) return null;
+    var perCell = (rec.playMs / 1000) / rec.size;
+    var t = Math.min(1, perCell / 18);                       // ~18s per pen tops it out
+    var mrate = Math.min(1, rec.mistakes / Math.max(1, rec.size));
+    var raw = (t * 0.72 + mrate * 0.28) * 100 + (rec.size - 6) * 3;
+    return Math.max(1, Math.min(100, Math.round(raw)));
+  }
+
+  function buildRecord(solved) {
+    var p = game.puzzle, m = game.metrics, profile = p.profile || {};
+    var rec = {
+      code: game.code, seed: p.reqSeed != null ? p.reqSeed : p.seed, size: p.size, mode: game.mode,
+      reqDifficulty: game.reqDifficulty, band: p.difficulty, profile: profile,
+      startedAt: m.startedAt, endedAt: Date.now(), playMs: m.playMs,
+      moves: m.moves, placements: m.placements, mistakes: m.mistakes,
+      hoofprints: m.hoofprints, clears: m.clears, hints: m.hints,
+      assist: game.lockedAssist ? game.assist : loadAssist(), slow: game.slow,
+      solved: !!solved, placed: game.piggies.size, ladderRung: game.ladderRung || 0,
+      heartsLeft: game.slow ? null : game.hearts,
+      aScore: Sowdoku.humanScore(p.size, profile, p.difficulty),
+    };
+    rec.eScore = empiricalScore(rec);
+    rec.id = rec.code + "@" + rec.endedAt;
+    return rec;
+  }
+
+  // record the current field into history (once). Only fields the player
+  // actually touched are kept, so history stays meaningful, not cluttered.
+  function finalizeGame(solvedFlag) {
+    if (!game || !game.metrics || game.recorded || !game.metrics.firstMoveAt) return;
+    flushTick();
+    var solved = solvedFlag != null ? solvedFlag : !!game.solved;
+    var rec = buildRecord(solved);
+    game.recorded = true;
+
+    var h = getHistory(); h.unshift(rec); if (h.length > 300) h.length = 300; sset("history", h);
+
+    var st = getStats();
+    st.played++; if (rec.solved) st.solved++;
+    st.mistakes += rec.mistakes; st.playMs += rec.playMs;
+    if (rec.mode === "ladder" && rec.solved) st.bestLadder = Math.max(st.bestLadder || 0, rec.ladderRung + 1);
+    sset("stats", st);
+  }
+
+  function onSolved() { flushTick(); finalizeGame(true); }
+
+  // ---- quiet play-time accrual (visible only in history, never as a timer) ----
+  var lastTick = Date.now(), tickN = 0;
+  function flushTick() {
+    var now = Date.now(), dt = now - lastTick; lastTick = now;
+    if (game && game.metrics && game.metrics.firstMoveAt && !game.solved && !game.recorded &&
+        document.visibilityState === "visible" && dt > 0 && dt < 8000) {
+      game.metrics.playMs += dt;
+    }
+  }
+  setInterval(function () { flushTick(); if (game && !game.recorded && (++tickN % 6 === 0)) persist(); }, 1000);
+  document.addEventListener("visibilitychange", function () { lastTick = Date.now(); });
 
   // ---- helpers ----
   var key = function (r, c) { return r + "," + c; };
@@ -275,12 +580,16 @@
   // ---- mutations ----
   function placePiggy(r, c) {
     var k = key(r, c);
+    touchMove(); game.metrics.moves++;
     if (Sowdoku.isLegalPlacement(game.puzzle.size, game.puzzle.regions, game.piggies, r, c)) {
-      game.piggies.add(k); game.hoofprints.delete(k); haptic(8);
-      if (Sowdoku.isSolved(game.puzzle.size, game.puzzle.regions, game.piggies)) game.solved = true;
+      game.piggies.add(k); game.hoofprints.delete(k); game.metrics.placements++;
+      game.revealed.add(game.puzzle.regions[r][c]);   // misty-morning: this pen's colour settles in
+      haptic(8);
+      if (Sowdoku.isSolved(game.puzzle.size, game.puzzle.regions, game.piggies)) { game.solved = true; onSolved(); }
     } else if (assistOn()) {
       haptic(4);                  // board already hatches this as impossible — gentle no-op, no heart
     } else {
+      game.metrics.mistakes++;
       if (!game.slow) game.hearts = Math.max(0, game.hearts - 1);
       haptic([10, 40, 10]); flashBad(r, c);
     }
@@ -288,13 +597,32 @@
   function setHoofprint(r, c, on) {
     var k = key(r, c);
     if (game.piggies.has(k)) return;          // never mark over a settled piggy
-    if (on) game.hoofprints.add(k); else game.hoofprints.delete(k);
+    if (on) { if (!game.hoofprints.has(k)) game.metrics.hoofprints++; game.hoofprints.add(k); }
+    else game.hoofprints.delete(k);
   }
 
-  var badCell = null;
+  var badCell = null, hintCell = null, hintTimer = null;
   function flashBad(r, c) {
     badCell = key(r, c);
     setTimeout(function () { badCell = null; render(); }, 420);
+  }
+
+  // a gentle hint: glow the next logically-forced piggy for a moment
+  function peek() {
+    if (locked()) return;
+    var h = Sowdoku.hint(game.puzzle.size, game.puzzle.regions, game.piggies);
+    if (h && h.r != null) {
+      touchMove(); game.metrics.hints++;
+      hintCell = key(h.r, h.c);
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(function () { hintCell = null; render(); }, 2400);
+      persist(); render();
+      toast(h.level >= 2 ? "one pen’s hemmed in" : "a pen with just one spot left");
+    } else if (h && h.error) {
+      toast("this field’s tangled — try lifting a piggy");
+    } else {
+      toast("no gentle next step — this one needs a leap");
+    }
   }
 
   // ---- pointer interaction ----
@@ -373,14 +701,16 @@
 
   // ---- render ----
   function render() {
-    var p = game.puzzle, n = p.size, reg = p.regions;
-    var modeLabel = game.mode === "daily" ? "today’s field" : "the amble";
-    document.getElementById("fieldChip").textContent = modeLabel + " · " + n + "×" + n + " · " + (p.difficulty || "—");
+    var p = game.puzzle, n = p.size, reg = p.regions, fog = !!modeCfg(game.mode).fog;
+    document.getElementById("fieldChip").textContent = modeCfg(game.mode).label + " · " + n + "×" + n + " · " + (p.difficulty || "—");
     document.getElementById("leftChip").textContent = n - game.piggies.size;
+    document.getElementById("codeChip").textContent = game.code;
+
+    var climb = document.getElementById("climbChip");
+    if (game.mode === "ladder") { climb.hidden = false; climb.textContent = "rung " + ((game.ladderRung || 0) + 1) + "/" + LADDER.length; }
+    else climb.hidden = true;
 
     // reflect current state inside the ⚙ menu
-    segOn("modeSeg", "mode", game.mode);
-    segOn("sizeSeg", "size", String(n));
     segOn("assistSeg", "assist", game.assist);
     var slowT = document.getElementById("slowToggle");
     slowT.textContent = game.slow ? "on" : "off";
@@ -390,7 +720,7 @@
     var he = document.getElementById("hearts");
     he.style.visibility = game.slow ? "hidden" : "visible";
     var h = "";
-    for (var i = 0; i < MAX_HEARTS; i++) h += heartSVG(i < game.hearts);
+    for (var i = 0; i < game.maxHearts; i++) h += heartSVG(i < game.hearts);
     he.innerHTML = h;
 
     var shade = assistOn() && game.piggies.size > 0;
@@ -403,7 +733,11 @@
       for (var c = 0; c < n; c++) {
         var cell = document.createElement("div");
         cell.className = "cell"; cell.dataset.r = r; cell.dataset.c = c;
-        cell.style.background = PALETTE[reg[r][c] % PALETTE.length];
+        var id = reg[r][c];
+        // misty morning: a pen shows only fog until its piggy has settled
+        var hidden = fog && !game.revealed.has(id);
+        cell.style.background = hidden ? "var(--fog)" : PALETTE[id % PALETTE.length];
+        if (hidden) cell.classList.add("fog");
         cell.style.borderTop = same(r, c, r - 1, c) ? thin : thick;
         cell.style.borderLeft = same(r, c, r, c - 1) ? thin : thick;
         cell.style.borderRight = same(r, c, r, c + 1) ? thin : thick;
@@ -413,6 +747,7 @@
         else if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) { cell.classList.add("shade"); } // ruled-out overrides a manual hoofprint
         else if (game.hoofprints.has(k)) { cell.innerHTML = '<div class="hoofprint"><i></i><i></i><i></i></div>'; }
         if (k === badCell) cell.classList.add("bad");
+        if (k === hintCell) cell.classList.add("peek");
         board.appendChild(cell);
       }
     }
@@ -420,66 +755,314 @@
   }
 
   function renderVeil() {
-    var v = document.getElementById("veil");
+    var v = document.getElementById("veil"), btns = document.getElementById("veilBtns");
     if (game.solved) {
       document.getElementById("veilTitle").textContent = "A perfect field.";
-      document.getElementById("veilText").textContent = "Every piggy has its patch. Nothing to do now but enjoy the quiet snuffle.";
-      var b = document.getElementById("veilBtn"); b.textContent = "tend another"; b.onclick = function () { startNew(); };
+      if (game.mode === "ladder") {
+        var next = (game.ladderRung || 0) + 1, top = next >= LADDER.length;
+        document.getElementById("veilText").textContent = top
+          ? "The very top of the ladder, tended. Nothing above but sky."
+          : "Rung " + ((game.ladderRung || 0) + 1) + " tended. The path climbs gently on.";
+        btns.innerHTML = "";
+        if (!top) addVeilBtn("climb higher", function () { startLadder(next); }, true);
+        addVeilBtn("a fresh amble", function () { startAmble(); }, top);
+      } else {
+        document.getElementById("veilText").textContent = "Every piggy has its patch. Nothing to do now but enjoy the quiet snuffle.";
+        btns.innerHTML = "";
+        addVeilBtn("tend another", function () { startAmble(); }, true);
+        addVeilBtn("choose a field", function () { openCreate(); }, false);
+      }
       v.classList.add("show");
     } else if (!game.slow && game.hearts === 0) {
       document.getElementById("veilTitle").textContent = "The field got a little crowded.";
       document.getElementById("veilText").textContent = "No harm done. Shall we settle the piggies again from the start?";
-      var b2 = document.getElementById("veilBtn"); b2.textContent = "fresh start";
-      b2.onclick = function () { game.piggies.clear(); game.hoofprints.clear(); game.hearts = MAX_HEARTS; game.solved = false; persist(); render(); };
+      btns.innerHTML = "";
+      addVeilBtn("fresh start", function () {
+        game.piggies.clear(); game.hoofprints.clear(); game.hearts = game.maxHearts; game.solved = false;
+        persist(); render();
+      }, true);
       v.classList.add("show");
     } else {
       v.classList.remove("show");
     }
   }
+  function addVeilBtn(label, fn, primary) {
+    var b = document.createElement("button");
+    b.textContent = label; if (!primary) b.className = "soft"; b.onclick = fn;
+    document.getElementById("veilBtns").appendChild(b);
+  }
 
   // ---- controls ----
-  // mark the active button within a segmented control by data-<attr> value
   function segOn(segId, attr, val) {
     var seg = document.getElementById(segId); if (!seg) return;
     var btns = seg.querySelectorAll("button");
     for (var i = 0; i < btns.length; i++) btns[i].classList.toggle("on", btns[i].dataset[attr] === val);
   }
 
-  document.getElementById("newBtn").onclick = function () { startNew(); };
+  document.getElementById("newBtn").onclick = function () { startAmble(); };
   document.getElementById("clearBtn").onclick = function () {
-    game.piggies.clear(); game.hoofprints.clear(); game.solved = false;
-    if (!game.slow) game.hearts = MAX_HEARTS; persist(); render();
+    if (game.metrics) game.metrics.clears++;
+    game.piggies.clear(); game.hoofprints.clear(); game.revealed.clear(); game.solved = false;
+    if (!game.slow) game.hearts = game.maxHearts; persist(); render();
   };
 
-  // ⚙ menu: open/close + the folded-away controls
+  // ⚙ menu: open/close + the folded-away play controls
   var menu = document.getElementById("menu"), menuBtn = document.getElementById("menuBtn");
   function openMenu(open) {
     menu.hidden = !open;
     menuBtn.classList.toggle("on", open);
     menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
   }
+  function closeMenu() { openMenu(false); }
   menuBtn.onclick = function (e) { e.stopPropagation(); openMenu(menu.hidden); };
   document.addEventListener("click", function (e) {
     if (!menu.hidden && !menu.contains(e.target) && e.target !== menuBtn) openMenu(false);
   });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") openMenu(false); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { openMenu(false); closeSheet("createBack"); closeSheet("histBack"); }
+  });
 
-  // field mode (daily / amble) — keeps the current size
-  document.getElementById("modeSeg").onclick = function (e) {
-    var b = e.target.closest("button[data-mode]"); if (!b) return;
-    (b.dataset.mode === "daily" ? startDaily : startNew)(game.puzzle.size);
-  };
-  document.getElementById("sizeSeg").onclick = function (e) {
-    var b = e.target.closest("button[data-size]"); if (!b) return;
-    (game.mode === "daily" ? startDaily : startNew)(+b.dataset.size);
-  };
   document.getElementById("slowToggle").onclick = function () {
-    game.slow = !game.slow; if (game.slow) game.hearts = MAX_HEARTS; persist(); render();
+    game.slow = !game.slow; if (game.slow) game.hearts = game.maxHearts; persist(); render();
   };
   document.getElementById("assistSeg").onclick = function (e) {
     var b = e.target.closest("button[data-assist]"); if (!b) return;
-    game.assist = b.dataset.assist; saveAssist(game.assist); persist(); render();
+    game.assist = b.dataset.assist; game.lockedAssist = false; saveAssist(game.assist); persist(); render();
   };
+  document.getElementById("peekBtn").onclick = function () { peek(); };
+
+  // copy this field's code
+  document.getElementById("codeChip").onclick = function () {
+    var code = game.code;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(function () { toast("field code copied · " + code); }, function () { toast("field code · " + code); });
+    } else { toast("field code · " + code); }
+  };
+
+  // ---- tiny toast ----
+  var toastEl = document.getElementById("toast"), toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 1900);
+  }
+
+  // ---- sheets (shared open/close) ----
+  function openSheet(id) { document.getElementById(id).hidden = false; }
+  function closeSheet(id) { var el = document.getElementById(id); if (el) el.hidden = true; }
+  ["createBack", "histBack"].forEach(function (id) {
+    document.getElementById(id).addEventListener("click", function (e) { if (e.target.id === id) closeSheet(id); });
+  });
+
+  // ======================================================================
+  //  CREATE A FIELD
+  // ======================================================================
+  var cState = { mode: "amble", size: 8, diff: "meadow", seed: null };
+
+  function openCreate() {
+    closeMenu();
+    cState = { mode: game ? (game.mode === "ladder" ? "amble" : game.mode) : "amble",
+               size: curSize(), diff: game ? curReqDiff() : "meadow", seed: randomSeed() };
+    if (cState.mode === "daily") cState.diff = "meadow";
+    if (cState.mode === "wallow") cState.diff = "hilltop";
+    document.getElementById("cSeed").value = "";
+    document.getElementById("cSeed").classList.remove("bad");
+    updateCreate();
+    openSheet("createBack");
+  }
+
+  // resolve the create form into a concrete field descriptor. The seed is always
+  // concrete, so the preview *is* the exact board you'll tend (WYSIWYG); daily
+  // and ladder ignore the chosen seed and fix their own layout.
+  function resolveCreate() {
+    var mode = cState.mode, size = cState.size, diff = cState.diff, seed = cState.seed;
+    if (mode === "daily")  { diff = "meadow"; seed = dailySeed(); }
+    else if (mode === "wallow") { diff = "hilltop"; }
+    else if (mode === "ladder") { var lc = ladderRung(0); size = lc.size; diff = lc.difficulty; }
+    if (seed == null) seed = randomSeed();
+    return { mode: mode, size: size, diff: diff, seed: seed };
+  }
+
+  function updateCreate() {
+    var r = resolveCreate();
+    segOn("cMode", "mode", cState.mode);
+    segOn("cSize", "size", String(r.size));
+    segOn("cDiff", "diff", r.diff);
+    document.getElementById("cModeNote").textContent = modeCfg(cState.mode).note;
+
+    // which rows are relevant to this mode
+    show("cSizeRow", cState.mode !== "ladder");
+    show("cDiffRow", cState.mode === "amble" || cState.mode === "fog");
+    show("cSeedRow", cState.mode !== "daily" && cState.mode !== "ladder");
+
+    // live preview + predicted difficulty — the actual board this will tend
+    var pz = makeBoard(r.size, r.diff, r.seed);
+    renderMini(document.getElementById("cPreview"), pz);
+    var aScore = Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
+    document.getElementById("cCode").textContent =
+      r.mode === "ladder" ? "the ladder · begins gently" :
+      r.mode === "daily" ? "today’s field · " + boardCode(r.size, r.diff, r.seed) :
+      boardCode(r.size, r.diff, r.seed);
+    document.getElementById("cBand").textContent = pz.difficulty + " · effort " + aScore + "/100";
+    document.getElementById("cBar").style.width = aScore + "%";
+    var pr = pz.profile || {};
+    document.getElementById("cProfile").textContent =
+      "logic: " + (pr.l1 || 0) + " singles · " + (pr.l2 || 0) + " confinements · " + (pr.l3 || 0) + " deeper";
+  }
+  function show(id, on) { document.getElementById(id).hidden = !on; }
+
+  // render a small, piggy-free board (just the pens) for previews
+  function renderMini(el, p) {
+    var n = p.size, reg = p.regions;
+    el.style.gridTemplateColumns = "repeat(" + n + ", 1fr)";
+    el.style.gridTemplateRows = "repeat(" + n + ", 1fr)";
+    var same = function (r1, c1, r2, c2) { return r2 >= 0 && r2 < n && c2 >= 0 && c2 < n && reg[r1][c1] === reg[r2][c2]; };
+    var thick = "1.3px solid rgba(81,75,66,.5)", thin = "1px solid rgba(255,255,255,.3)";
+    var out = "";
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+      out += '<div style="background:' + PALETTE[reg[r][c] % PALETTE.length] +
+        ";border-top:" + (same(r, c, r - 1, c) ? thin : thick) +
+        ";border-left:" + (same(r, c, r, c - 1) ? thin : thick) +
+        ";border-right:" + (same(r, c, r, c + 1) ? thin : thick) +
+        ";border-bottom:" + (same(r, c, r + 1, c) ? thin : thick) + '"></div>';
+    }
+    el.innerHTML = out;
+  }
+
+  document.getElementById("cMode").onclick = function (e) {
+    var b = e.target.closest("button[data-mode]"); if (!b) return;
+    cState.mode = b.dataset.mode; updateCreate();
+  };
+  document.getElementById("cSize").onclick = function (e) {
+    var b = e.target.closest("button[data-size]"); if (!b) return;
+    cState.size = +b.dataset.size; updateCreate();
+  };
+  document.getElementById("cDiff").onclick = function (e) {
+    var b = e.target.closest("button[data-diff]"); if (!b) return;
+    cState.diff = b.dataset.diff; updateCreate();
+  };
+  document.getElementById("cSeed").oninput = function () {
+    var v = this.value.trim();
+    if (!v) { cState.seed = randomSeed(); this.classList.remove("bad"); updateCreate(); return; } // cleared → surprise me
+    var pc = parseCode(v);
+    if (pc) {
+      cState.seed = pc.seed >>> 0;
+      if (pc.size) cState.size = pc.size;
+      if (pc.difficulty) cState.diff = pc.difficulty;   // pasting a full code loads that exact board
+      this.classList.remove("bad");
+    } else { this.classList.add("bad"); return; }        // keep last good seed while they type
+    updateCreate();
+  };
+  // 🎲 rolls a fresh random field — the preview, code and difficulty all update
+  document.getElementById("cDice").onclick = function () {
+    cState.seed = randomSeed();
+    var i = document.getElementById("cSeed"); i.value = ""; i.classList.remove("bad");
+    updateCreate();
+  };
+  document.getElementById("cCancel").onclick = function () { closeSheet("createBack"); };
+  document.getElementById("cTend").onclick = function () {
+    var r = resolveCreate();
+    closeSheet("createBack");
+    if (r.mode === "ladder") { startLadder(0); return; }
+    beginGame({ mode: r.mode, size: r.size, difficulty: r.diff, seed: r.seed });
+  };
+  document.getElementById("createBtn").onclick = openCreate;
+
+  // ======================================================================
+  //  HISTORY & CURATION
+  // ======================================================================
+  var hTab = "recent";
+
+  function openHistory() { closeMenu(); hTab = "recent"; segTab(); renderHistory(); openSheet("histBack"); }
+  function segTab() {
+    var t = document.getElementById("hTabs").querySelectorAll("button");
+    for (var i = 0; i < t.length; i++) t[i].classList.toggle("on", t[i].dataset.tab === hTab);
+  }
+
+  function fmtTime(ms) { if (ms == null) return "—"; var s = Math.round(ms / 1000), m = Math.floor(s / 60); s %= 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+  function slips(n) { return n === 1 ? "1 slip" : n + " slips"; }
+  function isCurated(code) { return getCurated().some(function (x) { return x.code === code; }); }
+
+  function renderHistory() {
+    var st = getStats();
+    var avg = st.played ? (st.mistakes / st.played) : 0;
+    document.getElementById("hStats").innerHTML =
+      "<b>" + (st.solved || 0) + "</b> fields tended · <b>" + (st.played || 0) + "</b> played · " +
+      "~" + avg.toFixed(1) + " slips each" +
+      (st.bestLadder ? " · best climb <b>rung " + st.bestLadder + "</b>" : "");
+
+    var list = document.getElementById("hList");
+    var items = hTab === "recent" ? getHistory() : getCurated();
+    if (!items.length) {
+      list.innerHTML = '<div class="hempty">' + (hTab === "recent"
+        ? "No fields tended yet.<br>Settle a piggy or two and they’ll gather here."
+        : "No curated fields yet.<br>Star a field you loved from the recent list.") + "</div>";
+      return;
+    }
+    list.innerHTML = "";
+    items.forEach(function (rec) { list.appendChild(historyCard(rec)); });
+  }
+
+  function historyCard(rec) {
+    var el = document.createElement("div"); el.className = "hcard";
+    var band = rec.band || rec.reqDifficulty || "meadow";
+    var outcome = rec.solved
+      ? '<div class="houtcome">settled · ' + fmtTime(rec.playMs) + " · " + slips(rec.mistakes || 0) +
+        (rec.hints ? " · " + rec.hints + " peek" + (rec.hints > 1 ? "s" : "") : "") + "</div>"
+      : '<div class="houtcome miss">left at ' + (rec.placed || 0) + "/" + rec.size + " · " + slips(rec.mistakes || 0) + "</div>";
+
+    // a-priori (solver) vs empirical (how it actually played)
+    var a = rec.aScore || 0, e = rec.eScore;
+    var bars = '<div class="hbars">' +
+      '<div class="hbar-row"><span>looks like</span><div class="bar"><i class="a" style="width:' + a + '%"></i></div><span>' + a + "</span></div>";
+    if (e != null) bars += '<div class="hbar-row"><span>played like</span><div class="bar"><i class="e" style="width:' + e + '%"></i></div><span>' + e + "</span></div>";
+    bars += "</div>";
+
+    var flag = "";
+    if (rec.solved && e != null) {
+      var d = e - a;
+      if (d >= 18) flag = '<div class="hflag">🌾 played tougher than it looks</div>';
+      else if (d <= -18) flag = '<div class="hflag">🌤 gentler than it looks</div>';
+    }
+
+    var curated = isCurated(rec.code);
+    el.innerHTML =
+      '<div class="top"><span class="hcode">' + rec.code + '</span><span class="htags">' +
+        modeCfg(rec.mode).label + " · " + rec.size + "×" + rec.size + " · " + band + "</span></div>" +
+      outcome + bars + flag +
+      '<div class="hacts">' +
+        '<button data-act="replay">replay</button>' +
+        '<button data-act="curate" class="' + (curated ? "on" : "") + '">' + (curated ? "curated ✓" : "☆ curate") + "</button>" +
+      "</div>";
+
+    el.querySelector('[data-act="replay"]').onclick = function () { closeSheet("histBack"); replayBoard(rec); };
+    el.querySelector('[data-act="curate"]').onclick = function () { toggleCurate(rec); renderHistory(); };
+    return el;
+  }
+
+  function toggleCurate(rec) {
+    var cur = getCurated();
+    var i = cur.findIndex(function (x) { return x.code === rec.code; });
+    if (i >= 0) { cur.splice(i, 1); toast("uncurated"); }
+    else {
+      cur.unshift({ code: rec.code, size: rec.size, seed: rec.seed, reqDifficulty: rec.reqDifficulty,
+                    mode: rec.mode, band: rec.band, aScore: rec.aScore, eScore: rec.eScore, addedAt: Date.now() });
+      if (cur.length > 100) cur.length = 100;
+      toast("curated · " + rec.code);
+    }
+    sset("curated", cur);
+  }
+
+  document.getElementById("hTabs").onclick = function (e) {
+    var b = e.target.closest("button[data-tab]"); if (!b) return;
+    hTab = b.dataset.tab; segTab(); renderHistory();
+  };
+  document.getElementById("hClose").onclick = function () { closeSheet("histBack"); };
+  document.getElementById("hClear").onclick = function () {
+    if (hTab === "curated") { sset("curated", []); toast("curated cleared"); }
+    else { sset("history", []); toast("history cleared"); }
+    renderHistory();
+  };
+  document.getElementById("historyBtn").onclick = openHistory;
 
   // ---- a cozy little saying, picked fresh on each load ----
   var SAYINGS = [
