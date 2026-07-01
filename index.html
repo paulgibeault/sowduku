@@ -177,22 +177,37 @@
   .stats b { color: var(--ink); font-weight: 600; }
   .hlist { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1rem; }
   .hcard { border: 1px solid var(--line); border-radius: .8rem; padding: .7rem .85rem; background: var(--bg); }
-  .hcard .top { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+  /* editable name — curated fields only */
+  .hname { display: block; width: 100%; font: inherit; font-family: Georgia,serif; font-size: 1rem; color: var(--ink);
+    background: transparent; border: none; border-bottom: 1px dashed transparent; padding: 0 0 .3rem; margin-bottom: .55rem; }
+  .hname:hover { border-bottom-color: #e0d6c2; }
+  .hname:focus { outline: none; border-bottom-color: #c9b89b; }
+  .hname::placeholder { color: var(--ink-soft); font-style: italic; }
+  .hmain { display: flex; gap: .75rem; align-items: flex-start; }
+  .miniboard.sm { width: 3.6rem; height: 3.6rem; border-radius: .4rem; }
+  .hinfo { flex: 1; min-width: 0; }
+  .htop { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
   .hcode { font-family: ui-monospace,Menlo,monospace; font-size: .85rem; color: var(--ink); }
-  .htags { font-size: .74rem; color: var(--ink-soft); text-transform: capitalize; }
-  .houtcome { font-size: .8rem; color: var(--ink); margin: .35rem 0 .5rem; }
+  .badge { flex: 0 0 auto; font-size: .68rem; font-weight: 600; letter-spacing: .02em; padding: .14rem .5rem;
+    border-radius: 999px; text-transform: capitalize; white-space: nowrap; }
+  .badge.easy       { background: #d7e4c8; color: #4d5f3b; }
+  .badge.medium     { background: #cdd9e2; color: #3d505c; }
+  .badge.hard       { background: #eeddb2; color: #6a5626; }
+  .badge.difficult  { background: #e7c6b6; color: #7a4634; }
+  .badge.lostcause  { background: #d9cfe1; color: #564a66; }
+  .hset { font-size: .74rem; color: var(--ink-soft); text-transform: capitalize; margin: .22rem 0 .38rem; }
+  .houtcome { font-size: .78rem; color: var(--ink); }
   .houtcome.miss { color: var(--ink-soft); }
-  .hbars { display: flex; flex-direction: column; gap: .3rem; margin-bottom: .5rem; }
-  .hbar-row { display: flex; align-items: center; gap: .5rem; font-size: .68rem; color: var(--ink-soft); }
-  .hbar-row span:first-child { width: 4.6rem; flex: 0 0 auto; }
-  .hbar-row .bar { flex: 1; }
-  .hbar-row .bar i.a { background: #b8c8d1; }
-  .hbar-row .bar i.e { background: #e3c2cb; }
-  .hflag { font-size: .72rem; color: #b07d5f; margin: 0 0 .45rem; }
-  .hacts { display: flex; gap: .4rem; }
-  .hacts button { font: inherit; font-size: .74rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); border-radius: 999px; padding: .28rem .7rem; }
-  .hacts button:hover { color: var(--ink); border-color: #d8ccb5; }
-  .hacts button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
+  .hscore { font-size: .78rem; color: var(--ink-soft); margin-top: .25rem; }
+  .hscore .val { color: var(--ink); font-weight: 600; }
+  .hacts { display: flex; gap: .5rem; align-items: center; margin-top: .7rem; }
+  .hacts button { font: inherit; cursor: pointer; border: 1px solid var(--line); border-radius: 999px; }
+  .hacts .play { font-size: .9rem; font-weight: 600; color: var(--ink); background: #efe6d3; border-color: #d8ccb5; padding: .5rem 1.5rem; }
+  .hacts .play:hover { border-color: #c9b89b; }
+  .hacts .fav { width: 2.5rem; height: 2.5rem; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; line-height: 1; color: var(--ink-soft); background: var(--panel); }
+  .hacts .fav:hover { color: var(--ink); border-color: #d8ccb5; }
+  .hacts .fav.on { color: #cc9a3a; background: #f6efdd; border-color: #e2d3ac; }
   .hempty { color: var(--ink-soft); font-size: .85rem; text-align: center; padding: 1.6rem 0; line-height: 1.5; }
 
   .toast { position: fixed; left: 50%; bottom: 2rem; transform: translateX(-50%) translateY(1rem); z-index: 60;
@@ -522,9 +537,41 @@
   if (A && A.onStateReplaced) A.onStateReplaced(function () { if (!restore()) startDaily(8); render(); });
 
   // ---- history + stats + curated boards ----
-  function getHistory() { return sget("history") || []; }
-  function getCurated() { return sget("curated") || []; }
-  function getStats()   { return sget("stats") || { played: 0, solved: 0, mistakes: 0, playMs: 0, bestLadder: 0 }; }
+  function getHistory()  { return sget("history") || []; }
+  function getCurated()  { return sget("curated") || []; }
+  function getStats()    { return sget("stats") || { played: 0, solved: 0, mistakes: 0, playMs: 0, bestLadder: 0 }; }
+  // best-ever run for each board, keyed by code. Durable on its own so a high
+  // score survives a history clear and rides the arcade export — the raw
+  // material a campaign mode sorts pre-tested fields by.
+  function getHiScores() { return sget("hiScores") || {}; }
+
+  // a single run's points. Cozy, not cutthroat: a clean, unhurried solve scores
+  // well; slips and peeks cost the most; time nudges gently. Bigger, knottier
+  // boards are worth more, so the leaderboard rewards the fields worth tending.
+  var DIFF_MUL = { sunbeam: 0.85, meadow: 1, hilltop: 1.35, unfair: 1.6 };
+  function playScore(rec) {
+    if (!rec.solved) return 0;
+    var size = rec.size || 8;
+    var base = 500 + size * size * 8;                         // 6×6 → 788 · 9×9 → 1148
+    var slipPen = (rec.mistakes || 0) * 60;
+    var hintPen = (rec.hints || 0) * 90;
+    var timePen = Math.min(base * 0.45, ((rec.playMs || 0) / 1000) * 2);
+    var raw = (base - slipPen - hintPen - timePen) * (DIFF_MUL[rec.band] || 1);
+    return Math.max(50, Math.round(raw));                     // a finished field always scores
+  }
+
+  // slot a field into a plain category. Unbeaten-but-attempted is "lost-cause";
+  // a solved field is bucketed by how it actually played (empirical), falling
+  // back to the solver's a-priori read when there's no playthrough signal yet.
+  function diffCategory(rec) {
+    if (!rec.solved) return "lost-cause";
+    var s = rec.eScore != null ? rec.eScore : (rec.aScore || 0);
+    if (s <= 25) return "easy";
+    if (s <= 48) return "medium";
+    if (s <= 70) return "hard";
+    return "difficult";
+  }
+  var CAT_LABEL = { easy: "easy", medium: "medium", hard: "hard", difficult: "difficult", "lost-cause": "lost-cause" };
 
   // a solved field's *empirical* difficulty from how it actually played — the
   // human counterpoint to the solver's a-priori humanScore. Time-per-pen and
@@ -552,6 +599,8 @@
       aScore: Sowdoku.humanScore(p.size, profile, p.difficulty),
     };
     rec.eScore = empiricalScore(rec);
+    rec.score = playScore(rec);
+    rec.category = diffCategory(rec);
     rec.id = rec.code + "@" + rec.endedAt;
     return rec;
   }
@@ -567,11 +616,32 @@
 
     var h = getHistory(); h.unshift(rec); if (h.length > 300) h.length = 300; sset("history", h);
 
+    // keep the best run for this board — the field's durable high score
+    if (rec.solved) {
+      var hs = getHiScores(), prev = hs[rec.code];
+      if (!prev || rec.score > prev.score) {
+        hs[rec.code] = { score: rec.score, at: rec.endedAt, size: rec.size,
+                         playMs: rec.playMs, mistakes: rec.mistakes, hints: rec.hints };
+        sset("hiScores", hs);
+        syncCuratedScore(rec.code, hs[rec.code]);
+      }
+    }
+
     var st = getStats();
     st.played++; if (rec.solved) st.solved++;
     st.mistakes += rec.mistakes; st.playMs += rec.playMs;
     if (rec.mode === "ladder" && rec.solved) st.bestLadder = Math.max(st.bestLadder || 0, rec.ladderRung + 1);
     sset("stats", st);
+  }
+
+  // if a curated field just earned a new best, keep its stored copy in step so
+  // the export/campaign bundle carries the current high score without a re-open.
+  function syncCuratedScore(code, best) {
+    var cur = getCurated(), i = cur.findIndex(function (x) { return x.code === code; });
+    if (i < 0) return;
+    cur[i].hiScore = best.score; cur[i].hiAt = best.at;
+    if (!cur[i].solved) { cur[i].solved = true; cur[i].category = diffCategory(cur[i]); }
+    sset("curated", cur);
   }
 
   function onSolved() { flushTick(); finalizeGame(true); }
@@ -1085,6 +1155,7 @@
   function isCurated(code) { return getCurated().some(function (x) { return x.code === code; }); }
 
   function renderHistory() {
+    releaseMinis();
     var st = getStats();
     var avg = st.played ? (st.mistakes / st.played) : 0;
     document.getElementById("hStats").innerHTML =
@@ -1093,52 +1164,127 @@
       (st.bestLadder ? " · best climb <b>rung " + st.bestLadder + "</b>" : "");
 
     var list = document.getElementById("hList");
-    var items = hTab === "recent" ? getHistory() : getCurated();
+    var curatedTab = hTab === "curated";
+    var items = curatedTab ? getCurated() : dedupeByCode(getHistory());
     if (!items.length) {
-      list.innerHTML = '<div class="hempty">' + (hTab === "recent"
-        ? "No fields tended yet.<br>Settle a piggy or two and they’ll gather here."
-        : "No curated fields yet.<br>Star a field you loved from the recent list.") + "</div>";
+      list.innerHTML = '<div class="hempty">' + (curatedTab
+        ? "No curated fields yet.<br>Star a field you loved from the recent list."
+        : "No fields tended yet.<br>Settle a piggy or two and they’ll gather here.") + "</div>";
       return;
     }
     list.innerHTML = "";
-    items.forEach(function (rec) { list.appendChild(historyCard(rec)); });
+    items.forEach(function (rec) { list.appendChild(historyCard(rec, curatedTab)); });
+    drainMinis();
   }
 
-  function historyCard(rec) {
+  // One card per board in the recent list — a field replayed five times is still
+  // one field. Keep it in most-recent order, but let its best solved run stand in
+  // (so the outcome, category and high score all describe the same, best play).
+  function dedupeByCode(list) {
+    var pick = {}, order = [];
+    list.forEach(function (rec) {
+      var ex = pick[rec.code];
+      if (!ex) { pick[rec.code] = rec; order.push(rec.code); return; }
+      if (rec.solved && (!ex.solved || (rec.score || 0) > (ex.score || 0))) pick[rec.code] = rec;
+    });
+    return order.map(function (c) { return pick[c]; });
+  }
+
+  // A field's high score, live from the durable store (falls back to whatever a
+  // curated copy carried). null when the board has never been beaten.
+  function bestScore(rec) {
+    var hs = getHiScores()[rec.code];
+    if (hs) return hs.score;
+    return rec.hiScore != null ? rec.hiScore : null;
+  }
+
+  function historyCard(rec, curatedTab) {
     var el = document.createElement("div"); el.className = "hcard";
     var band = rec.band || rec.reqDifficulty || "meadow";
-    var outcome = rec.solved
-      ? '<div class="houtcome">settled · ' + fmtTime(rec.playMs) + " · " + slips(rec.mistakes || 0) +
-        (rec.hints ? " · " + rec.hints + " peek" + (rec.hints > 1 ? "s" : "") : "") + "</div>"
-      : '<div class="houtcome miss">left at ' + (rec.placed || 0) + "/" + rec.size + " · " + slips(rec.mistakes || 0) + "</div>";
+    var cat = curatedTab ? (rec.category || diffCategory(rec)) : diffCategory(rec);
+    var badge = '<span class="badge ' + (cat === "lost-cause" ? "lostcause" : cat) + '">' +
+                (CAT_LABEL[cat] || cat) + "</span>";
 
-    // a-priori (solver) vs empirical (how it actually played)
-    var a = rec.aScore || 0, e = rec.eScore;
-    var bars = '<div class="hbars">' +
-      '<div class="hbar-row"><span>looks like</span><div class="bar"><i class="a" style="width:' + a + '%"></i></div><span>' + a + "</span></div>";
-    if (e != null) bars += '<div class="hbar-row"><span>played like</span><div class="bar"><i class="e" style="width:' + e + '%"></i></div><span>' + e + "</span></div>";
-    bars += "</div>";
+    // recent cards report the run; curated cards describe the field itself, so
+    // they lean on the badge + high score rather than a single run's outcome
+    var outcome = curatedTab ? ""
+      : rec.solved
+        ? '<div class="houtcome">settled · ' + fmtTime(rec.playMs) + " · " + slips(rec.mistakes || 0) +
+          (rec.hints ? " · " + rec.hints + " peek" + (rec.hints > 1 ? "s" : "") : "") + "</div>"
+        : '<div class="houtcome miss">left at ' + (rec.placed || 0) + "/" + rec.size + " · " + slips(rec.mistakes || 0) + "</div>";
 
-    var flag = "";
-    if (rec.solved && e != null) {
-      var d = e - a;
-      if (d >= 18) flag = '<div class="hflag">🌾 played tougher than it looks</div>';
-      else if (d <= -18) flag = '<div class="hflag">🌤 gentler than it looks</div>';
-    }
+    var hi = bestScore(rec);
+    var score = hi != null
+      ? '<div class="hscore">high score <span class="val">' + hi.toLocaleString() + "</span></div>"
+      : '<div class="hscore">unbeaten — no score yet</div>';
 
-    var curated = isCurated(rec.code);
+    // curated fields lead with an editable name; recent ones don't
+    var nameField = curatedTab
+      ? '<input class="hname" maxlength="40" placeholder="name this field" value="' +
+        String(rec.name || "").replace(/"/g, "&quot;") + '">'
+      : "";
+
     el.innerHTML =
-      '<div class="top"><span class="hcode">' + rec.code + '</span><span class="htags">' +
-        modeCfg(rec.mode).label + " · " + rec.size + "×" + rec.size + " · " + band + "</span></div>" +
-      outcome + bars + flag +
+      nameField +
+      '<div class="hmain">' +
+        '<div class="miniboard sm" data-mini data-size="' + rec.size + '" data-seed="' + rec.seed +
+          '" data-diff="' + (rec.reqDifficulty || band) + '"></div>' +
+        '<div class="hinfo">' +
+          '<div class="htop"><span class="hcode">' + rec.code + "</span>" + badge + "</div>" +
+          '<div class="hset">' + modeCfg(rec.mode).label + " · " + rec.size + "×" + rec.size + " · " + band + "</div>" +
+          outcome + score +
+        "</div>" +
+      "</div>" +
       '<div class="hacts">' +
-        '<button data-act="replay">replay</button>' +
-        '<button data-act="curate" class="' + (curated ? "on" : "") + '">' + (curated ? "curated ✓" : "☆ curate") + "</button>" +
+        '<button class="play" data-act="replay">play</button>' +
+        '<button class="fav ' + (isCurated(rec.code) ? "on" : "") + '" data-act="curate" ' +
+          'aria-label="favorite" title="favorite">' + (isCurated(rec.code) ? "★" : "☆") + "</button>" +
       "</div>";
 
+    queueMini(el.querySelector("[data-mini]"));
     el.querySelector('[data-act="replay"]').onclick = function () { closeSheet("histBack"); replayBoard(rec); };
     el.querySelector('[data-act="curate"]').onclick = function () { toggleCurate(rec); renderHistory(); };
+    if (curatedTab) {
+      var nm = el.querySelector(".hname");
+      nm.onchange = nm.onblur = function () { renameCurated(rec.code, this.value); };
+      nm.onkeydown = function (e) { if (e.key === "Enter") this.blur(); };
+    }
     return el;
+  }
+
+  // ---- mini-boards, drained a few per frame ----
+  // Each sample is regenerated from its code (size · band · seed round-trips to
+  // the exact board). Generating runs the solver, so we spread the work across
+  // animation frames and memoize by board — a long list never blocks the open.
+  var miniQueue = [], miniCache = {}, miniDraining = false;
+  function releaseMinis() { miniQueue.length = 0; miniDraining = false; }
+  function queueMini(el) { if (el) miniQueue.push(el); }
+  function drainMinis() {
+    if (miniDraining) return;
+    miniDraining = true;
+    var pump = window.requestAnimationFrame || function (f) { return setTimeout(f, 16); };
+    (function step() {
+      for (var budget = 6; budget-- && miniQueue.length; ) {
+        var el = miniQueue.shift();
+        if (el.isConnected) fillMini(el);
+      }
+      if (miniQueue.length) pump(step); else miniDraining = false;
+    })();
+  }
+  function fillMini(el) {
+    if (el.dataset.filled) return;
+    el.dataset.filled = "1";
+    var k = el.dataset.size + "|" + el.dataset.diff + "|" + el.dataset.seed;
+    var pz = miniCache[k] || (miniCache[k] = makeBoard(+el.dataset.size, el.dataset.diff, +el.dataset.seed));
+    renderMini(el, pz);
+  }
+
+  function renameCurated(code, name) {
+    var cur = getCurated(), i = cur.findIndex(function (x) { return x.code === code; });
+    if (i < 0) return;
+    var v = String(name || "").trim().slice(0, 40);
+    if ((cur[i].name || "") === v) return;
+    cur[i].name = v; sset("curated", cur);
   }
 
   function toggleCurate(rec) {
@@ -1146,8 +1292,10 @@
     var i = cur.findIndex(function (x) { return x.code === rec.code; });
     if (i >= 0) { cur.splice(i, 1); toast("uncurated"); }
     else {
-      cur.unshift({ code: rec.code, size: rec.size, seed: rec.seed, reqDifficulty: rec.reqDifficulty,
-                    mode: rec.mode, band: rec.band, aScore: rec.aScore, eScore: rec.eScore, addedAt: Date.now() });
+      cur.unshift({ code: rec.code, name: rec.name || "", size: rec.size, seed: rec.seed,
+                    reqDifficulty: rec.reqDifficulty, mode: rec.mode, band: rec.band,
+                    aScore: rec.aScore, eScore: rec.eScore, solved: !!rec.solved,
+                    category: diffCategory(rec), hiScore: bestScore(rec), addedAt: Date.now() });
       if (cur.length > 100) cur.length = 100;
       toast("curated · " + rec.code);
     }
