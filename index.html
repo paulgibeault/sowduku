@@ -38,11 +38,19 @@
   .chip strong { color: var(--ink); font-weight: 600; }
   button.chip { cursor: pointer; }
   button.chip:hover { color: var(--ink); border-color: #d8ccb5; }
+  button.chip:disabled { opacity: .38; cursor: default; }
+  button.chip:disabled:hover { color: var(--ink-soft); border-color: var(--line); }
   button.chip.on { background: #efe6d3; color: var(--ink); }
   .codechip { font-family: ui-monospace,"SF Mono",Menlo,monospace; letter-spacing: .02em; cursor: pointer; }
   .codechip:hover { color: var(--ink); border-color: #d8ccb5; }
   .codechip::before { content: "🌱 "; }
   .climbchip[hidden] { display: none; }
+
+  /* surfaced when a pen has been starved out — a gentle, warm nudge that the
+     field can no longer be solved from here, pointing at the blushing pen. */
+  .stuck { font-size: .82rem; color: #b07d5f; margin: .9rem 0 0;
+    display: flex; align-items: center; gap: .4rem; line-height: 1.4; }
+  .stuck[hidden] { display: none; }
 
   .board-wrap { position: relative; background: var(--panel); border: 1px solid var(--line);
     border-radius: 1.4rem; padding: 1.5rem; box-shadow: 0 1px 0 #fff inset, 0 18px 40px -28px rgba(70,62,52,.35); }
@@ -68,6 +76,15 @@
     background:
       repeating-linear-gradient(45deg, transparent 0 6px, rgba(110,100,84,.12) 6px 9px),
       rgba(245,239,227,.55); }
+
+  /* a "starved" pen — no piggy placed and every cell ruled out, so it can never
+     be filled: the field is stuck. Unlike an ordinary ruled-out cell that fades
+     into parchment, a starved pen keeps a warm blush and a soft outline so the
+     colour in trouble pops out at a glance. Back up and look again. */
+  .cell.starved::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 0 2px rgba(207,138,126,.7);
+    background: rgba(207,138,126,.24); animation: starvedpulse 1.4s ease infinite; }
+  @keyframes starvedpulse { 0%,100%{opacity:.6;} 50%{opacity:1;} }
 
   /* misty-morning fog: a pen keeps its colour hidden until its piggy settles */
   .cell.fog { color: transparent; }
@@ -184,7 +201,7 @@
   .toast.show { opacity: .95; transform: translateX(-50%) translateY(0); }
 
   @media (prefers-reduced-motion: reduce) {
-    .cell.placed svg.pig, .cell.bad, .cell.peek::after { animation: none; }
+    .cell.placed svg.pig, .cell.bad, .cell.peek::after, .cell.starved::after { animation: none; }
   }
 </style>
 </head>
@@ -214,12 +231,15 @@
       </div></div>
     </div>
 
+    <p class="stuck" id="stuckNote" hidden></p>
+
     <div class="controls">
       <button class="chip" id="newBtn">new field</button>
       <button class="chip" id="createBtn">＋ create</button>
       <button class="chip" id="historyBtn">🕘 history</button>
       <button class="chip" id="menuBtn" aria-haspopup="true" aria-expanded="false">⚙ play</button>
       <span class="spacer"></span>
+      <button class="chip" id="undoBtn" title="undo the last piggy or hoofprint (⌘Z)">↶ undo</button>
       <button class="chip" id="clearBtn">clear</button>
 
       <div class="menu" id="menu" hidden role="menu" aria-label="Play settings">
@@ -438,7 +458,7 @@
       hearts: cfg.hearts, maxHearts: cfg.hearts,
       slow: false, assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
       solved: false, recorded: false, ladderRung: opts.ladderRung || 0,
-      metrics: newMetrics(),
+      metrics: newMetrics(), undo: [],
     };
     lastTick = Date.now();
     closeMenu();
@@ -470,6 +490,7 @@
       hearts: game.hearts, maxHearts: game.maxHearts, slow: game.slow,
       solved: !!game.solved, recorded: !!game.recorded,
       ladderRung: game.ladderRung || 0, metrics: game.metrics,
+      undo: game.undo || [],
     });
   }
   function restore() {
@@ -491,6 +512,7 @@
         slow: !!s.slow, solved: !!s.solved, recorded: !!s.recorded,
         assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
         ladderRung: s.ladderRung || 0, metrics: s.metrics || newMetrics(),
+        undo: Array.isArray(s.undo) ? s.undo : [],
       };
       return true;
     } catch (e) { return false; }
@@ -601,6 +623,41 @@
     else game.hoofprints.delete(k);
   }
 
+  // ---- undo ----
+  // One gesture = one undo step: a tap, a long-press, a whole painted drag run, a
+  // right-click, or a clear. We snapshot only the board (piggies · hoofprints ·
+  // the misty-morning reveal), never hearts or metrics — undo is scratch-work
+  // convenience, not a way to unspend a heart. A snapshot is plain arrays, so it
+  // rides along in the autosave and survives a relaunch.
+  var UNDO_MAX = 50;
+  function boardSnap() {
+    return { piggies: Array.from(game.piggies), hoofprints: Array.from(game.hoofprints),
+             revealed: Array.from(game.revealed) };
+  }
+  function boardSig(s) {
+    return (s.piggies.slice().sort().join("|")) + "#" +
+           (s.hoofprints.slice().sort().join("|")) + "#" +
+           (s.revealed.slice().sort().join("|"));
+  }
+  // record `before` only if the gesture actually changed the board (a misplaced
+  // tap that costs a heart leaves the board untouched — nothing to undo).
+  function commitUndo(before) {
+    if (!before || boardSig(before) === boardSig(boardSnap())) return;
+    if (!game.undo) game.undo = [];
+    game.undo.push(before);
+    if (game.undo.length > UNDO_MAX) game.undo.shift();
+  }
+  function canUndo() { return !locked() && !!(game.undo && game.undo.length); }
+  function undo() {
+    if (!canUndo()) return;
+    var s = game.undo.pop();
+    game.piggies = new Set(s.piggies);
+    game.hoofprints = new Set(s.hoofprints);
+    game.revealed = new Set(s.revealed);
+    clearTimeout(hintTimer); hintCell = null; badCell = null;
+    haptic(4); persist(); render();
+  }
+
   var badCell = null, hintCell = null, hintTimer = null;
   function flashBad(r, c) {
     badCell = key(r, c);
@@ -645,7 +702,8 @@
     var cell = e.target.closest && e.target.closest(".cell"); if (!cell) return;
     try { board.setPointerCapture(e.pointerId); } catch (x) {}
     ps = { id: e.pointerId, r: +cell.dataset.r, c: +cell.dataset.c, x: e.clientX, y: e.clientY,
-           dragged: false, longFired: false, mode: null, painted: new Set(), timer: null };
+           dragged: false, longFired: false, mode: null, painted: new Set(), timer: null,
+           before: boardSnap() };  // whole gesture is one undo step
     ps.timer = setTimeout(function () {
       if (ps && !ps.dragged) {                  // held in place -> mark this cell
         ps.longFired = true;
@@ -686,6 +744,7 @@
       if (game.piggies.has(key(ps.r, ps.c))) game.piggies.delete(key(ps.r, ps.c));
       else placePiggy(ps.r, ps.c);
     }
+    commitUndo(ps.before);
     ps = null; persist(); render();
   }
   board.addEventListener("pointerup", endPointer);
@@ -696,7 +755,8 @@
     if (locked()) return;
     var cell = e.target.closest && e.target.closest(".cell"); if (!cell) return;
     var r = +cell.dataset.r, c = +cell.dataset.c;
-    setHoofprint(r, c, !game.hoofprints.has(key(r, c))); haptic(6); persist(); render();
+    var before = boardSnap();
+    setHoofprint(r, c, !game.hoofprints.has(key(r, c))); commitUndo(before); haptic(6); persist(); render();
   });
 
   // ---- render ----
@@ -709,6 +769,8 @@
     var climb = document.getElementById("climbChip");
     if (game.mode === "ladder") { climb.hidden = false; climb.textContent = "rung " + ((game.ladderRung || 0) + 1) + "/" + LADDER.length; }
     else climb.hidden = true;
+
+    document.getElementById("undoBtn").disabled = !canUndo();
 
     // reflect current state inside the ⚙ menu
     segOn("assistSeg", "assist", game.assist);
@@ -724,6 +786,9 @@
     he.innerHTML = h;
 
     var shade = assistOn() && game.piggies.size > 0;
+    // pens that can no longer take a piggy: none placed in them, every cell
+    // ruled out. Only meaningful once the board is helping with the bookkeeping.
+    var starved = shade ? starvedPens(n, reg, game.piggies) : {};
 
     board.style.gridTemplateColumns = "repeat(" + n + ", 1fr)";
     var same = function (r1, c1, r2, c2) { return r2 >= 0 && r2 < n && c2 >= 0 && c2 < n && reg[r1][c1] === reg[r2][c2]; };
@@ -744,14 +809,45 @@
         cell.style.borderBottom = same(r, c, r + 1, c) ? thin : thick;
         var k = key(r, c);
         if (game.piggies.has(k)) { cell.classList.add("placed"); cell.innerHTML = pigSVG(); }
-        else if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) { cell.classList.add("shade"); } // ruled-out overrides a manual hoofprint
+        else if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) { cell.classList.add(starved[id] ? "starved" : "shade"); } // ruled-out overrides a manual hoofprint; a starved pen blushes instead of fading
         else if (game.hoofprints.has(k)) { cell.innerHTML = '<div class="hoofprint"><i></i><i></i><i></i></div>'; }
         if (k === badCell) cell.classList.add("bad");
         if (k === hintCell) cell.classList.add("peek");
         board.appendChild(cell);
       }
     }
+
+    // when a pen has been starved out, say so plainly — the blushing cells show
+    // *which* colour, this line says the field is stuck and can be backed out of.
+    var note = document.getElementById("stuckNote");
+    var stuck = Object.keys(starved).length;
+    note.hidden = stuck === 0;
+    if (stuck) note.textContent = stuck === 1
+      ? "🐷 A pen has no room left for its piggy — back up and look again."
+      : "🐷 " + stuck + " pens have no room left for a piggy — back up and look again.";
+
     renderVeil();
+  }
+
+  // regions that can never be filled from here: no piggy placed inside and no
+  // cell where one could still legally go. Keyed by region id. Small boards, so
+  // the double sweep is cheap.
+  function starvedPens(n, reg, piggies) {
+    var hasPig = {}, hasRoom = {};
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        var id = reg[r][c];
+        if (piggies.has(key(r, c))) hasPig[id] = true;
+        else if (Sowdoku.isLegalPlacement(n, reg, piggies, r, c)) hasRoom[id] = true;
+      }
+    }
+    var starved = {};
+    for (var r2 = 0; r2 < n; r2++)
+      for (var c2 = 0; c2 < n; c2++) {
+        var id2 = reg[r2][c2];
+        if (!hasPig[id2] && !hasRoom[id2]) starved[id2] = true;
+      }
+    return starved;
   }
 
   function renderVeil() {
@@ -801,10 +897,12 @@
 
   document.getElementById("newBtn").onclick = function () { startAmble(); };
   document.getElementById("clearBtn").onclick = function () {
+    var before = boardSnap();                 // a swept board is recoverable with one undo
     if (game.metrics) game.metrics.clears++;
     game.piggies.clear(); game.hoofprints.clear(); game.revealed.clear(); game.solved = false;
-    if (!game.slow) game.hearts = game.maxHearts; persist(); render();
+    if (!game.slow) game.hearts = game.maxHearts; commitUndo(before); persist(); render();
   };
+  document.getElementById("undoBtn").onclick = function () { undo(); };
 
   // ⚙ menu: open/close + the folded-away play controls
   var menu = document.getElementById("menu"), menuBtn = document.getElementById("menuBtn");
@@ -820,6 +918,10 @@
   });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") { openMenu(false); closeSheet("createBack"); closeSheet("histBack"); }
+    if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
+      var t = e.target; if (t && /^(INPUT|TEXTAREA)$/.test(t.tagName)) return;  // leave text fields alone
+      e.preventDefault(); undo();
+    }
   });
 
   document.getElementById("slowToggle").onclick = function () {
