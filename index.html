@@ -175,6 +175,15 @@
   .sheet-tabs button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
   .stats { font-size: .82rem; color: var(--ink-soft); margin-bottom: .8rem; line-height: 1.55; }
   .stats b { color: var(--ink); font-weight: 600; }
+  .campaign { display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+    margin-bottom: .85rem; padding: .7rem .85rem; border: 1px solid #e2d3ac; background: #f6efdd; border-radius: .8rem; }
+  .campaign[hidden] { display: none; }
+  .cbtext { font-size: .8rem; color: var(--ink-soft); line-height: 1.4; min-width: 0; }
+  .cbtext b { color: var(--ink); font-weight: 600; }
+  .cbtext .lead { display: block; color: var(--ink); font-family: Georgia,serif; font-size: .95rem; }
+  #campBtn { flex: 0 0 auto; font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    border: 1px solid #d8ccb5; background: #efe6d3; color: var(--ink); border-radius: 999px; padding: .5rem 1.1rem; }
+  #campBtn:hover { border-color: #c9b89b; }
   .hlist { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1rem; }
   .hcard { border: 1px solid var(--line); border-radius: .8rem; padding: .7rem .85rem; background: var(--bg); }
   /* editable name — curated fields only */
@@ -188,6 +197,9 @@
   .hinfo { flex: 1; min-width: 0; }
   .htop { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
   .hcode { font-family: ui-monospace,Menlo,monospace; font-size: .85rem; color: var(--ink); }
+  .hbadges { display: flex; align-items: center; gap: .35rem; flex: 0 0 auto; }
+  .tended { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem;
+    border-radius: 999px; font-size: .7rem; font-weight: 700; background: #d7e4c8; color: #4d5f3b; }
   .badge { flex: 0 0 auto; font-size: .68rem; font-weight: 600; letter-spacing: .02em; padding: .14rem .5rem;
     border-radius: 999px; text-transform: capitalize; white-space: nowrap; }
   .badge.easy       { background: #d7e4c8; color: #4d5f3b; }
@@ -329,6 +341,10 @@
         <button data-tab="curated">curated</button>
       </div>
       <div class="stats" id="hStats"></div>
+      <div class="campaign" id="campaignBar" hidden>
+        <div class="cbtext" id="campText"></div>
+        <button id="campBtn">play campaign</button>
+      </div>
       <div class="hlist" id="hList"></div>
       <div class="sheet-actions">
         <button class="ghost" id="hClear">clear history</button>
@@ -379,6 +395,8 @@
               note: "The pens hide in morning fog; a pen’s colour settles in only once its piggy does." },
     wallow: { label: "the wallow",    hearts: 1, assist: "manual", bias: "hilltop",
               note: "One heart, no hand-holding, the knottier fields. For a focused, unhurried sit." },
+    campaign: { label: "campaign",    hearts: 5,
+              note: "Your curated fields, tended in order from gentlest to knottiest." },
   };
   function modeCfg(m) { return MODES[m] || MODES.amble; }
 
@@ -473,6 +491,7 @@
       hearts: cfg.hearts, maxHearts: cfg.hearts,
       slow: false, assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
       solved: false, recorded: false, ladderRung: opts.ladderRung || 0,
+      campaignCode: opts.campaignCode || null,
       metrics: newMetrics(), undo: [],
     };
     lastTick = Date.now();
@@ -492,6 +511,50 @@
   function curSize()    { return (game && game.puzzle && game.puzzle.size) || 8; }
   function curReqDiff() { return (game && game.reqDifficulty) || "meadow"; }
 
+  // ---- campaign: the curated list played through in order ----
+  // Order is the sorted "difficulty curve" — gentlest first — so a campaign is a
+  // pre-tested progression, not a random pile. Progress is tracked by code, so
+  // curating or removing a field reshapes the trail without losing what's done.
+  var CAT_RANK = { easy: 0, medium: 1, hard: 2, difficult: 3, "lost-cause": 4 };
+  function curatedOrdered() {
+    return getCurated().slice().sort(function (a, b) {
+      var ra = CAT_RANK[a.category] != null ? CAT_RANK[a.category] : 1;
+      var rb = CAT_RANK[b.category] != null ? CAT_RANK[b.category] : 1;
+      if (ra !== rb) return ra - rb;
+      var sa = a.eScore != null ? a.eScore : (a.aScore || 0);
+      var sb = b.eScore != null ? b.eScore : (b.aScore || 0);
+      if (sa !== sb) return sa - sb;
+      return (a.addedAt || 0) - (b.addedAt || 0);
+    });
+  }
+  function getCampaignDone()   { return sget("campaignDone") || []; }
+  function isCampaignDone(code){ return getCampaignDone().indexOf(code) >= 0; }
+  function markCampaignDone(code) {
+    var d = getCampaignDone();
+    if (d.indexOf(code) < 0) { d.push(code); sset("campaignDone", d); }
+  }
+  function resetCampaign() { sset("campaignDone", []); }
+  function campaignDoneCount() {
+    var done = getCampaignDone();
+    return curatedOrdered().reduce(function (n, x) { return n + (done.indexOf(x.code) >= 0 ? 1 : 0); }, 0);
+  }
+  function nextCampaign() {
+    var order = curatedOrdered(), done = getCampaignDone();
+    for (var i = 0; i < order.length; i++) if (done.indexOf(order[i].code) < 0) return order[i];
+    return null; // whole trail tended
+  }
+  function beginCampaignField(f) {
+    beginGame({ mode: "campaign", size: f.size, difficulty: f.reqDifficulty || f.band || "meadow",
+                seed: f.seed, campaignCode: f.code });
+  }
+  function startCampaign(reset) {
+    if (reset) resetCampaign();
+    var f = nextCampaign();
+    if (!f) return;                      // nothing curated, or already complete
+    closeSheet("histBack");
+    beginCampaignField(f);
+  }
+
   // ---- persistence (in-progress field) ----
   function persist() {
     if (!game) return;
@@ -504,8 +567,8 @@
       revealed: Array.from(game.revealed),
       hearts: game.hearts, maxHearts: game.maxHearts, slow: game.slow,
       solved: !!game.solved, recorded: !!game.recorded,
-      ladderRung: game.ladderRung || 0, metrics: game.metrics,
-      undo: game.undo || [],
+      ladderRung: game.ladderRung || 0, campaignCode: game.campaignCode || null,
+      metrics: game.metrics, undo: game.undo || [],
     });
   }
   function restore() {
@@ -526,7 +589,8 @@
         maxHearts: s.maxHearts || cfg.hearts || MAX_HEARTS,
         slow: !!s.slow, solved: !!s.solved, recorded: !!s.recorded,
         assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
-        ladderRung: s.ladderRung || 0, metrics: s.metrics || newMetrics(),
+        ladderRung: s.ladderRung || 0, campaignCode: s.campaignCode || null,
+        metrics: s.metrics || newMetrics(),
         undo: Array.isArray(s.undo) ? s.undo : [],
       };
       return true;
@@ -644,7 +708,11 @@
     sset("curated", cur);
   }
 
-  function onSolved() { flushTick(); finalizeGame(true); }
+  function onSolved() {
+    flushTick();
+    if (game.mode === "campaign" && game.campaignCode) markCampaignDone(game.campaignCode);
+    finalizeGame(true);
+  }
 
   // ---- quiet play-time accrual (visible only in history, never as a timer) ----
   var lastTick = Date.now(), tickN = 0;
@@ -838,6 +906,10 @@
 
     var climb = document.getElementById("climbChip");
     if (game.mode === "ladder") { climb.hidden = false; climb.textContent = "rung " + ((game.ladderRung || 0) + 1) + "/" + LADDER.length; }
+    else if (game.mode === "campaign") {
+      var order = curatedOrdered(), idx = order.findIndex(function (x) { return x.code === game.campaignCode; });
+      climb.hidden = false; climb.textContent = "field " + (idx >= 0 ? idx + 1 : "?") + "/" + order.length;
+    }
     else climb.hidden = true;
 
     document.getElementById("undoBtn").disabled = !canUndo();
@@ -932,6 +1004,19 @@
         btns.innerHTML = "";
         if (!top) addVeilBtn("climb higher", function () { startLadder(next); }, true);
         addVeilBtn("a fresh amble", function () { startAmble(); }, top);
+      } else if (game.mode === "campaign") {
+        var nxt = nextCampaign(), total = curatedOrdered().length, dcount = campaignDoneCount();
+        document.getElementById("veilText").textContent = nxt
+          ? dcount + " of " + total + " curated fields tended. The trail winds gently on."
+          : "Every curated field tended — the whole campaign, done. Beautifully quiet work.";
+        btns.innerHTML = "";
+        if (nxt) {
+          addVeilBtn("next field →", function () { beginCampaignField(nxt); }, true);
+          addVeilBtn("pause the trail", function () { startAmble(); }, false);
+        } else {
+          addVeilBtn("a fresh amble", function () { startAmble(); }, true);
+          addVeilBtn("walk it again", function () { startCampaign(true); }, false);
+        }
       } else {
         document.getElementById("veilText").textContent = "Every piggy has its patch. Nothing to do now but enjoy the quiet snuffle.";
         btns.innerHTML = "";
@@ -1165,6 +1250,7 @@
 
     var list = document.getElementById("hList");
     var curatedTab = hTab === "curated";
+    renderCampaignBar(curatedTab);
     var items = curatedTab ? getCurated() : dedupeByCode(getHistory());
     if (!items.length) {
       list.innerHTML = '<div class="hempty">' + (curatedTab
@@ -1175,6 +1261,25 @@
     list.innerHTML = "";
     items.forEach(function (rec) { list.appendChild(historyCard(rec, curatedTab)); });
     drainMinis();
+  }
+
+  // the campaign launcher — only on the curated tab, only once there's a trail
+  function renderCampaignBar(curatedTab) {
+    var bar = document.getElementById("campaignBar");
+    var order = curatedOrdered();
+    if (!curatedTab || !order.length) { bar.hidden = true; return; }
+    bar.hidden = false;
+    var total = order.length, dcount = campaignDoneCount(), nxt = nextCampaign();
+    var txt = document.getElementById("campText"), btn = document.getElementById("campBtn");
+    if (!nxt) {
+      txt.innerHTML = '<span class="lead">Campaign tended 🌾</span>all <b>' + total + '</b> curated fields, in order';
+      btn.textContent = "walk it again";
+    } else {
+      txt.innerHTML = '<span class="lead">Campaign</span><b>' + dcount + '</b> of <b>' + total +
+        '</b> tended · next ' + (nxt.name ? nxt.name : nxt.code);
+      btn.textContent = dcount ? "continue" : "play in order";
+    }
+    btn.onclick = function () { startCampaign(!nxt); };
   }
 
   // One card per board in the recent list — a field replayed five times is still
@@ -1202,7 +1307,8 @@
     var el = document.createElement("div"); el.className = "hcard";
     var band = rec.band || rec.reqDifficulty || "meadow";
     var cat = curatedTab ? (rec.category || diffCategory(rec)) : diffCategory(rec);
-    var badge = '<span class="badge ' + (cat === "lost-cause" ? "lostcause" : cat) + '">' +
+    var badge = (curatedTab && isCampaignDone(rec.code) ? '<span class="tended" title="tended in this campaign">✓</span>' : "") +
+                '<span class="badge ' + (cat === "lost-cause" ? "lostcause" : cat) + '">' +
                 (CAT_LABEL[cat] || cat) + "</span>";
 
     // recent cards report the run; curated cards describe the field itself, so
@@ -1230,7 +1336,7 @@
         '<div class="miniboard sm" data-mini data-size="' + rec.size + '" data-seed="' + rec.seed +
           '" data-diff="' + (rec.reqDifficulty || band) + '"></div>' +
         '<div class="hinfo">' +
-          '<div class="htop"><span class="hcode">' + rec.code + "</span>" + badge + "</div>" +
+          '<div class="htop"><span class="hcode">' + rec.code + '</span><span class="hbadges">' + badge + "</span></div>" +
           '<div class="hset">' + modeCfg(rec.mode).label + " · " + rec.size + "×" + rec.size + " · " + band + "</div>" +
           outcome + score +
         "</div>" +
