@@ -5,31 +5,21 @@ prompt below is meant to be used **with the style preamble prepended** —
 paste it once as a system/style instruction if your tool supports one, or
 prepend it to each prompt individually.
 
-**Status:** Phase 1 and Phase 2 are generated and wired into `index.html`.
-All final files are `.png`, not `.svg` — the image tool output ".svg"
-files that were actually raster PNGs wrapped in an SVG container (`<image
-href="data:image/png;base64,...">`), which inflates size (base64 + XML
-overhead) without any of the benefits of a real vector. Those were
-unwrapped, right-sized for their actual display dimensions, and
-palette-quantized before being committed (3.7MB → ~250KB total). Generate
-any remaining assets the same way, and apply the same fix if the tool
-outputs another fake-`.svg`.
+**Status:** Phase 1, Phase 2, and the trimmed Phase 3 (Unimpressed + OG
+image) are all generated and wired into `index.html`. Every active item
+below is done. All files are real `.png` — the image tool's first batch
+output ".svg" files that were actually raster PNGs wrapped in an SVG
+container (`<image href="data:image/png;base64,...">`), which inflated
+size (base64 + XML overhead) without any vector benefit; those were
+unwrapped, right-sized, and palette-quantized (3.7MB → ~250KB). The
+Phase-3 batch came back as proper PNGs directly — no fix needed that time.
 
-**Phase 3 scope (decided 2026-07-02):** only **Unimpressed** and **OG /
-social share image** below are still active — both have real value
-(clearer negative feedback; a shareable link preview). Dozing, Celebrating,
-Board paper texture, and Background farm-horizon border are **on hold**:
-none has a natural place to live in the current UI, and forcing one in
-risks cluttering `STYLE.md`'s "calm clarity" over showing genuine
-restraint. Their prompts are left below for whenever a concrete use
-surfaces (e.g. a first-run flow for Dozing) — don't generate them without
-a call site decided first.
-
-The **Unimpressed** and **OG image** prompts below have been updated to
-reference the actual generated files for consistency (Antigravity should
-use `assets/piggy/settled.png` / `assets/logo/wordmark.png` as an
-image-to-image reference where its tool supports that, or match their
-proportions and line weight by eye otherwise).
+**Remaining, on hold:** Dozing, Celebrating, Board paper texture, and
+Background farm-horizon border — none has a natural place to live in the
+current UI, and forcing one in risks cluttering `STYLE.md`'s "calm
+clarity" over showing genuine restraint. Their prompts are left below for
+whenever a concrete use surfaces (e.g. a first-run flow for Dozing) —
+don't generate them without a call site decided first.
 
 ## Style preamble (prepend to every prompt)
 
@@ -87,15 +77,13 @@ three so the set actually matches.
 > Transparent background, flat pastel fill with charcoal line, no cast
 > shadow.
 
-### Unimpressed — code ready, art not yet generated
-`assets/piggy/unimpressed.png` — **call site already wired**: a rejected
-piggy placement (illegal square, or a legal-but-wrong-patch mistake under
-Honest+/Stern stakes) briefly shows this pose in the cell for 420ms via
+### Unimpressed — done
+`assets/piggy/unimpressed.png` — wired: a rejected piggy placement
+(illegal square, or a legal-but-wrong-patch mistake under Honest+/Stern
+stakes) briefly shows this pose in the cell for 420ms via
 `unimpressedSVG()`, alongside the existing red flash. A rejected
 *hoofprint* still shows only the flash — no piggy was ever attempted
-there. The `<img>` reference already points at this exact path, so it'll
-just start working the moment the file exists — no further code changes
-needed.
+there.
 
 > Reference `assets/piggy/settled.png` for exact proportions, line weight,
 > and camera angle. The same piglet, cracking one skeptical half-open eye,
@@ -226,12 +214,10 @@ button in the create sheet's mode picker
 
 ## Marketing
 
-### OG / social share image — code ready, art not yet generated
-`assets/social/og-image.png`, 1200×630 px — **call site already wired**:
-`og:image` and `twitter:image` meta tags in `<head>` already point at
-this exact path, alongside `og:title`/`og:description` pulled from the
-README's own opening line. Will just start rendering in link previews the
-moment the file exists.
+### OG / social share image — done
+`assets/social/og-image.png`, 1200×630 px — wired: `og:image` and
+`twitter:image` meta tags in `<head>` point at this file, alongside
+`og:title`/`og:description` pulled from the README's own opening line.
 
 > Reference `assets/logo/wordmark.png` for the exact wordmark treatment —
 > reuse it directly rather than redrawing it. A 1200×630 banner: the

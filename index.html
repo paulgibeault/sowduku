@@ -11,6 +11,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="assets/favicon/favicon-512x512.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png" />
 <link rel="manifest" href="assets/favicon/site.webmanifest" />
+<meta name="theme-color" content="#f4eee1" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content="Sowdoku" />
 <meta property="og:description" content="A field of contented little piggies, and the quiet logic of giving each one its own patch of mud." />
@@ -24,6 +25,18 @@
 <script src="/arcade-sdk.js"></script>
 <script>if (window.Arcade) Arcade.init({ gameId: "sowduku" });</script>
 <style>
+  /* self-hosted, variable-weight — Fraunces (headers) leans into the game's
+     cozy, hand-tended feel; Inter (UI) stays quiet and legible everywhere
+     else. Both files cover a weight range so a single @font-face per family
+     serves every weight this page uses, no separate static files needed. */
+  @font-face {
+    font-family: "Fraunces"; font-style: normal; font-weight: 300 900;
+    font-display: swap; src: url("assets/fonts/fraunces-variable.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Inter"; font-style: normal; font-weight: 100 900;
+    font-display: swap; src: url("assets/fonts/inter-variable.woff2") format("woff2");
+  }
   :root { font-size: calc(100% * var(--font-scale, 1)); }
   :root {
     --bg: #f4eee1; --panel: #fbf7ee; --ink: #514b42; --ink-soft: #8a8175;
@@ -35,7 +48,7 @@
   html, body { margin: 0; height: 100%; }
   body {
     background: radial-gradient(120% 80% at 50% -10%, #fbf6ea 0%, var(--bg) 60%);
-    color: var(--ink); font-family: "Inter","Helvetica Neue",system-ui,sans-serif;
+    color: var(--ink); font-family: "Inter","Helvetica Neue",system-ui,sans-serif; font-weight: 400;
     -webkit-font-smoothing: antialiased;
     height: 100dvh; overflow: hidden;
     display: flex; flex-direction: column;
@@ -45,7 +58,7 @@
   .topbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
     gap: .75rem; padding: .8rem 1rem .5rem; }
   .topbar-right { display: flex; align-items: center; gap: .7rem; }
-  .title { font-family: Georgia,"Iowan Old Style",serif; font-weight: 600; font-size: 1.5rem; margin: 0; line-height: 1; display: flex; align-items: center; }
+  .title { font-family: "Fraunces",Georgia,"Iowan Old Style",serif; font-weight: 600; font-size: 1.5rem; margin: 0; line-height: 1; display: flex; align-items: center; }
   .title img.logo { height: 1.8rem; display: block; }
   .hearts { display: flex; gap: .3rem; align-items: center; }
   .hearts svg, .hearts img { width: 1.15rem; height: 1.15rem; transition: transform .25s ease; }
@@ -141,6 +154,24 @@
     box-shadow: inset 0 0 0 3px rgba(201,139,134,.85); animation: peekpulse 1.1s ease infinite; }
   @keyframes peekpulse { 0%,100%{opacity:.35;} 50%{opacity:1;} }
 
+  /* a pen is "done" the instant its one piggy settles — every cell of that
+     pen gets a single soft sheen sweeping across it, the little "this patch
+     is spoken for" moment. ::before (not ::after, already used by
+     shade/starved/peek) so it composes cleanly on a pen's other, now-ruled-
+     out cells too. */
+  .cell.pen-shimmer::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.7) 45%, transparent 65%);
+    background-size: 240% 100%; background-position: -70% 0;
+    animation: penShimmer .7s ease-out; }
+  @keyframes penShimmer { from { background-position: -70% 0; opacity: 1; } to { background-position: 170% 0; opacity: 0; } }
+
+  /* an optional per-pen letter (⚙ menu, off by default) — tells pens apart
+     without relying on hue, for colorblind play. A fixed, fairly dark ink
+     tone reads consistently across every pastel in the palette, so it's
+     legible regardless of which pen it's labelling. */
+  .cell .penlabel { position: absolute; top: 2px; left: 4px; z-index: 1;
+    font-size: .62rem; font-weight: 700; line-height: 1; color: rgba(56,50,42,.68); pointer-events: none; }
+
   /* the ⚙ popover folds the play settings (slow, assist, stakes) under the
      header button — peek lives in the action bar now, it's a play move, not a setting. */
   .menu { position: absolute; top: calc(100% + .5rem); right: 0; z-index: 30;
@@ -170,7 +201,7 @@
   /* the "how to play" sheet's body copy — no scroll region of its own, the
      outer .sheet already scrolls (same as the history list does) */
   .info-body { font-size: .85rem; color: var(--ink-soft); line-height: 1.55; }
-  .info-body h3 { font-family: Georgia,serif; font-weight: 600; font-size: 1rem;
+  .info-body h3 { font-family: "Fraunces",Georgia,serif; font-weight: 600; font-size: 1rem;
     color: var(--ink); margin: 1.1rem 0 .35rem; }
   .info-body h3:first-child { margin-top: 0; }
   .info-body p { margin: 0 0 .3rem; }
@@ -211,7 +242,7 @@
     padding: 1.5rem 1.6rem; box-shadow: 0 1px 0 #fff inset, 0 20px 50px -24px rgba(70,62,52,.4);
     opacity: 0; transform: translateY(10px); animation: veilIn .32s ease forwards; }
   @keyframes veilIn { to { opacity: 1; transform: translateY(0); } }
-  .veil h2 { font-family: Georgia,serif; font-weight: 600; font-size: 1.6rem; margin: 0 0 .5rem; }
+  .veil h2 { font-family: "Fraunces",Georgia,serif; font-weight: 600; font-size: 1.6rem; margin: 0 0 .5rem; }
   .veil p { color: var(--ink-soft); margin: 0 0 1.2rem; line-height: 1.5; }
   .veil .vbtns { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
   .veil button { font: inherit; cursor: pointer; border: 1px solid #d8ccb5; background: #efe6d3;
@@ -239,7 +270,7 @@
   .sheet { width: min(30rem, 100%); max-height: 90vh; overflow: auto; background: var(--panel);
     border: 1px solid var(--line); border-radius: 1.2rem; padding: 1.4rem 1.5rem;
     box-shadow: 0 1px 0 #fff inset, 0 24px 60px -24px rgba(70,62,52,.5); }
-  .sheet h2 { font-family: Georgia,serif; font-weight: 600; font-size: 1.4rem; margin: 0 0 1rem; }
+  .sheet h2 { font-family: "Fraunces",Georgia,serif; font-weight: 600; font-size: 1.4rem; margin: 0 0 1rem; }
   .orow { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .5rem 0; }
   .orow[hidden] { display: none; }
   .orow .lab { font-size: .85rem; color: var(--ink); }
@@ -285,14 +316,14 @@
   .campaign[hidden] { display: none; }
   .cbtext { font-size: .8rem; color: var(--ink-soft); line-height: 1.4; min-width: 0; }
   .cbtext b { color: var(--ink); font-weight: 600; }
-  .cbtext .lead { display: block; color: var(--ink); font-family: Georgia,serif; font-size: .95rem; }
+  .cbtext .lead { display: block; color: var(--ink); font-family: "Fraunces",Georgia,serif; font-size: .95rem; }
   #campBtn { flex: 0 0 auto; font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; white-space: nowrap;
     border: 1px solid #d8ccb5; background: #efe6d3; color: var(--ink); border-radius: 999px; padding: .5rem 1.1rem; }
   #campBtn:hover { border-color: #c9b89b; }
   .hlist { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1rem; }
   .hcard { border: 1px solid var(--line); border-radius: .8rem; padding: .7rem .85rem; background: var(--bg); }
   /* editable name — curated fields only */
-  .hname { display: block; width: 100%; font: inherit; font-family: Georgia,serif; font-size: 1rem; color: var(--ink);
+  .hname { display: block; width: 100%; font: inherit; font-family: "Fraunces",Georgia,serif; font-size: 1rem; color: var(--ink);
     background: transparent; border: none; border-bottom: 1px dashed transparent; padding: 0 0 .3rem; margin-bottom: .55rem; }
   .hname:hover { border-bottom-color: #e0d6c2; }
   .hname:focus { outline: none; border-bottom-color: #c9b89b; }
@@ -335,16 +366,25 @@
     opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
   .toast.show { opacity: .95; transform: translateX(-50%) translateY(0); }
 
+  /* hearts live in the header by default — plenty close to the board on a
+     wide/short viewport. #heartsNearBoard sits in the status strip, right
+     above the board, and only takes over on mobile (below), where the
+     header is far enough from the board that a lost heart doesn't visibly
+     land near the bad tap that cost it. */
+  #heartsNearBoard { display: none; }
+
   /* mobile: let the board go near-full-bleed and keep the action bar in thumb reach */
   @media (max-width: 480px) {
     .board-wrap { padding: .3rem; border-radius: .7rem; }
     .board-area { padding: 0 .5rem; }
     .topbar, .status-strip { padding-left: .65rem; padding-right: .65rem; }
     .actbtn { min-width: 3rem; font-size: .62rem; }
+    #hearts { display: none; }
+    #heartsNearBoard { display: flex; margin-left: auto; }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .cell.placed svg.pig, .cell.placed img.pig, .cell.bad, .cell.peek::after, .cell.starved::after { animation: none; }
+    .cell.placed svg.pig, .cell.placed img.pig, .cell.bad, .cell.peek::after, .cell.starved::after, .cell.pen-shimmer::before { animation: none; }
     .veil .card { animation: none; opacity: 1; transform: none; }
   }
 </style>
@@ -355,7 +395,7 @@
     <div class="topbar-right">
       <div class="hearts" id="hearts"></div>
       <div class="settings-wrap">
-        <button class="iconbtn" id="menuBtn" aria-haspopup="true" aria-expanded="false" title="settings">⚙</button>
+        <button class="iconbtn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-label="settings" title="settings">⚙</button>
         <div class="menu" id="menu" hidden role="menu" aria-label="Play settings">
           <button class="infobtn" id="infoBtn"><span class="icon">ℹ</span>how to play</button>
           <div class="row"><span class="lab" title="how strictly a heart is docked — slow removes the stakes entirely">stakes</span>
@@ -364,6 +404,16 @@
               <button data-stakes="gentle">gentle</button>
               <button data-stakes="honest">honest</button>
               <button data-stakes="stern">stern</button>
+            </div></div>
+          <div class="row"><span class="lab" title="a few quiet, synthesized sounds — a thud, a chime, a snuffle">sound</span>
+            <div class="seg" id="soundSeg">
+              <button data-sound="off">off</button>
+              <button data-sound="on">on</button>
+            </div></div>
+          <div class="row"><span class="lab" title="a small letter on every pen, for telling colors apart without relying on hue">pen labels</span>
+            <div class="seg" id="labelsSeg">
+              <button data-labels="off">off</button>
+              <button data-labels="on">on</button>
             </div></div>
         </div>
       </div>
@@ -375,6 +425,8 @@
     <button class="chip codechip" id="codeChip" title="copy this field’s code">8m-0</button>
     <span class="chip climbchip" id="climbChip" hidden>rung 1/8</span>
     <span class="chip"><strong id="leftChip">8</strong> left</span>
+    <button class="chip" id="dailyChip" hidden title="play today's shared field">today’s field awaits 🌱</button>
+    <div class="hearts" id="heartsNearBoard"></div>
   </div>
 
   <main class="board-area">
@@ -451,7 +503,7 @@
       <div class="orow" id="cSeedRow"><span class="lab">seed</span>
         <div class="seedbox">
           <input id="cSeed" placeholder="code or number" autocomplete="off" spellcheck="false" />
-          <button id="cDice" title="random field">🎲</button>
+          <button id="cDice" aria-label="random field" title="random field">🎲</button>
         </div></div>
       <div class="preview">
         <div class="miniboard" id="cPreview"></div>
@@ -507,8 +559,10 @@
           <b>Long-press</b> (or <b>right-click</b>) fences off a cell with a
           hoofprint, your "definitely-not-here" note. <b>Drag</b> paints
           hoofprints across a whole run at once. <b>⌘Z</b> undoes the last
-          gesture. <b>👁 peek</b> (in this menu) glows the next
-          logically-forced piggy when you're stuck.</p>
+          gesture. <b>👁 peek</b> (in the action bar) glows the next
+          logically-forced piggy when you're stuck. On a keyboard, <b>arrow
+          keys</b> move around the board, <b>Enter</b> settles or lifts a
+          piggy, and <b>Space</b> marks a hoofprint.</p>
         <h3>Difficulty</h3>
         <p>Four bands, each asking a little more of the same rules:
           <b>Sunbeam</b> (forced singles), <b>Meadow</b> (a few
@@ -748,6 +802,141 @@
   function stakesAtLeast(level) { return STAKES_RANK[game.stakes] >= STAKES_RANK[level]; }
   function isSlow() { return game.stakes === "slow"; }
 
+  // ---- sound: a few quiet, synthesized cues — off by default. No audio
+  // files (nothing to source/host) — everything's a couple of oscillators or
+  // a filtered noise burst, generated on the fly with the Web Audio API. ----
+  var SOUND_MODES = ["off", "on"];
+  function loadSound() { var v = sget("sound"); return SOUND_MODES.indexOf(v) >= 0 ? v : "off"; }
+  function saveSound(v) { sset("sound", v); }
+  function soundOn() { return loadSound() === "on"; }
+
+  // ---- pen labels: an optional letter per pen (colorblind support) ----
+  var PEN_LABEL_MODES = ["off", "on"];
+  function loadPenLabels() { var v = sget("penLabels"); return PEN_LABEL_MODES.indexOf(v) >= 0 ? v : "off"; }
+  function savePenLabels(v) { sset("penLabels", v); }
+  function penLetter(id) { return String.fromCharCode(65 + id); } // 0..9 -> A..J, covers every board size
+
+  var audioCtx = null, noiseBuffer = null;
+  function getAudioCtx() {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    if (!audioCtx) audioCtx = new Ctx();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+  // one shared burst of white noise, filtered per-use into whatever texture a
+  // sound needs (regenerated only if a context with a different sample rate
+  // ever shows up, which in practice never happens on a given device).
+  function getNoiseBuffer(ctx) {
+    if (!noiseBuffer || noiseBuffer.sampleRate !== ctx.sampleRate) {
+      var len = Math.floor(ctx.sampleRate * 0.5);
+      noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
+      var data = noiseBuffer.getChannelData(0);
+      for (var i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    }
+    return noiseBuffer;
+  }
+
+  // a soft wooden thud — a piggy settling into its patch
+  function playThud() {
+    if (!soundOn()) return;
+    var ctx = getAudioCtx(); if (!ctx) return;
+    var t = ctx.currentTime;
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(65, t + 0.12);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o.connect(g).connect(ctx.destination);
+    o.start(t); o.stop(t + 0.2);
+  }
+
+  // a brief, warm chime — a pen's found its one piggy. Starts a beat after
+  // the thud (its own internal offset) so the two read as cause-then-effect
+  // rather than one blurred sound, even though they're triggered together.
+  function playChime() {
+    if (!soundOn()) return;
+    var ctx = getAudioCtx(); if (!ctx) return;
+    var t = ctx.currentTime + 0.09;
+    [660, 880, 1100].forEach(function (freq, i) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = freq;
+      var start = t + i * 0.03;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.1, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.5);
+      o.connect(g).connect(ctx.destination);
+      o.start(start); o.stop(start + 0.55);
+    });
+  }
+
+  // a contented little snuffle — the whole field's settled. The winning
+  // placement always also fires a thud + chime (every pen completes the
+  // instant its one piggy lands, and the last piggy is no exception) — a
+  // 0.6s head start lets those finish decaying first, so the snuffle reads
+  // as its own, distinct "and now the whole field" moment instead of
+  // getting acoustically buried under the placement sound it coincides with.
+  function playSnuffle() {
+    if (!soundOn()) return;
+    var ctx = getAudioCtx(); if (!ctx) return;
+    var t = ctx.currentTime + 0.6;
+    for (var i = 0; i < 3; i++) {
+      var start = t + i * 0.16;
+      var src = ctx.createBufferSource(); src.buffer = getNoiseBuffer(ctx);
+      var band = ctx.createBiquadFilter();
+      band.type = "bandpass"; band.Q.value = 1.2;
+      band.frequency.setValueAtTime(300, start);
+      band.frequency.exponentialRampToValueAtTime(700, start + 0.1);
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.18, start + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.12);
+      src.connect(band).connect(g).connect(ctx.destination);
+      src.start(start); src.stop(start + 0.14);
+    }
+  }
+
+  // a soft, two-note dip — a slip: an illegal placement, a wrong-but-legal
+  // patch, or a hoofprint that shouldn't have gone there. Deliberately
+  // quieter and lower than the thud so a mistake reads as "gentle no" and
+  // never as a punishment.
+  function playSlip() {
+    if (!soundOn()) return;
+    var ctx = getAudioCtx(); if (!ctx) return;
+    var t = ctx.currentTime;
+    [220, 175].forEach(function (freq, i) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "triangle"; o.frequency.value = freq;
+      var start = t + i * 0.09;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.15, start + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+      o.connect(g).connect(ctx.destination);
+      o.start(start); o.stop(start + 0.18);
+    });
+  }
+
+  // a slow, three-note descending phrase — hearts spent, the field's done
+  // for now. Matches the "no harm done" copy on the fail veil: unhurried and
+  // soft, not a harsh buzzer.
+  function playFail() {
+    if (!soundOn()) return;
+    var ctx = getAudioCtx(); if (!ctx) return;
+    var t = ctx.currentTime;
+    [392, 330, 262].forEach(function (freq, i) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = freq;
+      var start = t + i * 0.15;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.13, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.4);
+      o.connect(g).connect(ctx.destination);
+      o.start(start); o.stop(start + 0.45);
+    });
+  }
+
   // ---- generation with a small retry so we never hand back a null puzzle ----
   function makeBoard(size, reqDiff, seed) {
     for (var i = 0; i < 6; i++) {
@@ -802,6 +991,14 @@
     persist(); render();
   }
   function startDaily(size)      { beginGame({ mode: "daily",  size: size || 8, difficulty: "meadow", seed: dailySeed() }); }
+  // the canonical shared field for today — size 8 (what startDaily() and the
+  // boot flow actually use), regardless of whatever size the create sheet's
+  // picker happens to be sitting on.
+  function dailyCode() { return boardCode(8, "meadow", dailySeed()); }
+  function dailyUntouched() {
+    var code = dailyCode();
+    return !getHistory().some(function (r) { return r.code === code; });
+  }
   // `seed`, when given, lets a caller lock in the exact field a win-veil
   // preview already showed — so what you saw is exactly what you get, not a
   // fresh reroll the moment you tap through.
@@ -1074,6 +1271,7 @@
     flushTick();
     if (game.mode === "campaign" && game.campaignCode) markCampaignDone(game.campaignCode);
     finalizeGame(true);
+    playSnuffle();
   }
 
   // ---- quiet play-time accrual (visible only in history, never as a timer) ----
@@ -1111,6 +1309,8 @@
     gestureDocked = true;
     game.metrics.mistakes++;
     if (!isSlow()) game.hearts = Math.max(0, game.hearts - 1);
+    playSlip();
+    if (!isSlow() && game.hearts === 0) playFail();
     return true;
   }
 
@@ -1127,14 +1327,18 @@
       }
       game.piggies.add(k); game.hoofprints.delete(k); game.metrics.placements++;
       game.revealed.add(game.puzzle.regions[r][c]);   // misty-morning: this pen's colour settles in
-      haptic(8);
+      shimmerPen(game.puzzle.regions[r][c]);          // this pen only ever wanted one piggy — it's done
+      haptic(8); playThud();
       if (Sowdoku.isSolved(game.puzzle.size, game.puzzle.regions, game.piggies)) { game.solved = true; onSolved(); }
     } else if (assistOn()) {
       haptic(4);                  // board already hatches this as impossible — gentle no-op, no heart
     } else {
       game.metrics.mistakes++;
       if (!isSlow()) game.hearts = Math.max(0, game.hearts - 1);
-      haptic([10, 40, 10]); flashBad(r, c, true);
+      var why = whyIllegal(game.puzzle.size, game.puzzle.regions, game.piggies, r, c);
+      if (why) toast(WHY_ILLEGAL_TOAST[why]);
+      haptic([10, 40, 10]); flashBad(r, c, true); playSlip();
+      if (!isSlow() && game.hearts === 0) playFail();
     }
   }
   function setHoofprint(r, c, on) {
@@ -1196,6 +1400,7 @@
     game.hoofprints = new Set(s.hoofprints);
     game.revealed = new Set(s.revealed);
     clearTimeout(hintTimer); hintCell = null; badCell = null; badCellIsPig = false;
+    clearTimeout(shimmerTimer); shimmerPenId = null;
     haptic(4); persist(); render();
   }
 
@@ -1207,6 +1412,16 @@
     badCell = key(r, c);
     badCellIsPig = !!wasPig;
     setTimeout(function () { badCell = null; badCellIsPig = false; render(); }, 420);
+  }
+
+  // a pen only ever wants one piggy, so it's "done" the moment that piggy
+  // settles — a brief shimmer across every cell of that pen marks the moment.
+  var shimmerPenId = null, shimmerTimer = null;
+  function shimmerPen(id) {
+    shimmerPenId = id;
+    playChime();
+    clearTimeout(shimmerTimer);
+    shimmerTimer = setTimeout(function () { shimmerPenId = null; render(); }, 700);
   }
 
   // a gentle hint: glow the next logically-forced piggy for a moment
@@ -1231,8 +1446,48 @@
   // tap = settle/lift a piggy · long-press (or right-click) = mark a hoofprint ·
   // drag = paint hoofprints across a run. One unified pointer session handles all three.
   var board = document.getElementById("board");
+  board.setAttribute("role", "group");
   var LONG_MS = 420, MOVE_PX = 8;
   var ps = null; // active pointer session
+
+  // ---- keyboard board navigation: a roving-tabindex cell, arrow keys move it,
+  // Enter mirrors a tap (settle/lift), Space mirrors a long-press (hoofprint) ----
+  var focusedCell = { r: 0, c: 0 };
+  board.addEventListener("focusin", function (e) {
+    var c = e.target.closest && e.target.closest(".cell");
+    if (c) focusedCell = { r: +c.dataset.r, c: +c.dataset.c };
+  });
+  function focusCell(r, c) {
+    var el = board.querySelector('[data-r="' + r + '"][data-c="' + c + '"]');
+    if (!el) return;
+    var prev = board.querySelector('[data-r="' + focusedCell.r + '"][data-c="' + focusedCell.c + '"]');
+    if (prev) prev.tabIndex = -1;
+    focusedCell = { r: r, c: c };
+    el.tabIndex = 0; el.focus();
+  }
+  board.addEventListener("keydown", function (e) {
+    var cell = e.target.closest && e.target.closest(".cell"); if (!cell) return;
+    var n = game.puzzle.size, r = focusedCell.r, c = focusedCell.c;
+    if (e.key === "ArrowUp")    { e.preventDefault(); focusCell(Math.max(0, r - 1), c); return; }
+    if (e.key === "ArrowDown")  { e.preventDefault(); focusCell(Math.min(n - 1, r + 1), c); return; }
+    if (e.key === "ArrowLeft")  { e.preventDefault(); focusCell(r, Math.max(0, c - 1)); return; }
+    if (e.key === "ArrowRight") { e.preventDefault(); focusCell(r, Math.min(n - 1, c + 1)); return; }
+    if (locked()) return;
+    if (e.key === "Enter") {                          // mirrors a tap: settle or lift
+      e.preventDefault();
+      var before = boardSnap();
+      resetGestureDock();
+      if (game.piggies.has(key(r, c))) game.piggies.delete(key(r, c));
+      else placePiggy(r, c);
+      commitUndo(before); persist(); render();
+    } else if (e.key === " " || e.key === "Spacebar") { // mirrors a long-press: mark a hoofprint
+      e.preventDefault();
+      var before2 = boardSnap();
+      resetGestureDock();
+      setHoofprint(r, c, !game.hoofprints.has(key(r, c)));
+      commitUndo(before2); haptic(6); persist(); render();
+    }
+  });
 
   function cellAt(x, y) {
     var el = document.elementFromPoint(x, y);
@@ -1312,6 +1567,7 @@
     document.getElementById("fieldChip").textContent = modeCfg(game.mode).label + " · " + n + "×" + n + " · " + (p.difficulty || "—");
     document.getElementById("leftChip").textContent = n - game.piggies.size;
     document.getElementById("codeChip").textContent = game.code;
+    document.getElementById("dailyChip").hidden = game.mode === "daily" || !dailyUntouched();
 
     var climb = document.getElementById("climbChip");
     if (game.mode === "ladder") { climb.hidden = false; climb.textContent = "rung " + ((game.ladderRung || 0) + 1) + "/" + LADDER.length; }
@@ -1326,13 +1582,21 @@
 
     // reflect current state inside the ⚙ menu
     segOn("stakesSeg", "stakes", game.stakes);
+    segOn("soundSeg", "sound", loadSound());
+    segOn("labelsSeg", "labels", loadPenLabels());
+    var penLabelsOn = loadPenLabels() === "on";
 
-    // hearts (hidden at the "slow" stakes tier — no failure, so nothing to count)
-    var he = document.getElementById("hearts");
-    he.style.visibility = isSlow() ? "hidden" : "visible";
+    // hearts (hidden at the "slow" stakes tier — no failure, so nothing to
+    // count). Rendered into two spots — the header (desktop) and the status
+    // strip right above the board (mobile, see the @media rule) — CSS picks
+    // which one is actually shown, so both just always carry the same markup.
     var h = "";
     for (var i = 0; i < game.maxHearts; i++) h += heartSVG(i < game.hearts);
-    he.innerHTML = h;
+    ["hearts", "heartsNearBoard"].forEach(function (id) {
+      var he = document.getElementById(id);
+      he.style.visibility = isSlow() ? "hidden" : "visible";
+      he.innerHTML = h;
+    });
 
     var shade = assistOn() && game.piggies.size > 0;
     // pens that can no longer take a piggy: none placed in them, every cell
@@ -1351,30 +1615,41 @@
     board.style.gridTemplateRows = "repeat(" + n + ", 1fr)";
     var same = function (r1, c1, r2, c2) { return r2 >= 0 && r2 < n && c2 >= 0 && c2 < n && reg[r1][c1] === reg[r2][c2]; };
     var thick = "1.8px solid rgba(81,75,66,.55)", thin = "1px solid rgba(255,255,255,.35)";
+    // rebuilding the board wipes whatever cell had keyboard focus — remember
+    // it (clamped to this field's size, in case the new field is smaller)
+    // so the same logical cell gets focus back once the new ones exist.
+    var boardHadFocus = board.contains(document.activeElement);
+    focusedCell.r = Math.min(focusedCell.r, n - 1);
+    focusedCell.c = Math.min(focusedCell.c, n - 1);
     board.innerHTML = "";
     for (var r = 0; r < n; r++) {
       for (var c = 0; c < n; c++) {
         var cell = document.createElement("div");
         cell.className = "cell"; cell.dataset.r = r; cell.dataset.c = c;
+        cell.setAttribute("role", "gridcell");
+        cell.tabIndex = (r === focusedCell.r && c === focusedCell.c) ? 0 : -1;
         var id = reg[r][c];
+        var label = "row " + (r + 1) + " of " + n + ", column " + (c + 1) + " of " + n + ", pen " + (id + 1);
+        if (id === shimmerPenId) cell.classList.add("pen-shimmer");
         // misty morning: a pen shows only fog until its piggy has settled
         var hidden = fog && !game.revealed.has(id);
         cell.style.background = hidden ? "var(--fog)" : PALETTE[id % PALETTE.length];
-        if (hidden) cell.classList.add("fog");
+        if (hidden) { cell.classList.add("fog"); label += ", hidden in fog"; }
         cell.style.borderTop = same(r, c, r - 1, c) ? thin : thick;
         cell.style.borderLeft = same(r, c, r, c - 1) ? thin : thick;
         cell.style.borderRight = same(r, c, r, c + 1) ? thin : thick;
         cell.style.borderBottom = same(r, c, r + 1, c) ? thin : thick;
         var k = key(r, c);
-        if (game.piggies.has(k)) { cell.classList.add("placed"); cell.innerHTML = pigSVG(); }
+        if (game.piggies.has(k)) { cell.classList.add("placed"); cell.innerHTML = pigSVG(); label += ", piggy settled"; }
         else if (game.revealedSolution && p.solution[r] === c) {
           // "show me where it went wrong": the honest answer, not a placement —
           // faded, and it overrides hoofprints/shading since play is already over.
-          cell.classList.add("reveal"); cell.innerHTML = pigSVG();
+          cell.classList.add("reveal"); cell.innerHTML = pigSVG(); label += ", the field's answer";
         } else {
-          if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) cell.classList.add(starved[id] ? "starved" : "shade"); // ruled-out overrides a manual hoofprint; a starved pen blushes instead of fading
-          else if (game.hoofprints.has(k)) cell.innerHTML = hoofprintHTML(r, c);
-          if (fenceStarved[id]) cell.classList.add("starved");
+          var ruledOut = shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c); // ruled-out overrides a manual hoofprint; a starved pen blushes instead of fading
+          if (ruledOut) { cell.classList.add(starved[id] ? "starved" : "shade"); label += starved[id] ? ", pen has no room left" : ", ruled out"; }
+          else if (game.hoofprints.has(k)) { cell.innerHTML = hoofprintHTML(r, c); label += ", hoofprint marked"; }
+          if (fenceStarved[id]) { cell.classList.add("starved"); label += ", pen fenced shut"; }
         }
         if (k === badCell) {
           cell.classList.add("bad");
@@ -1382,9 +1657,22 @@
           // rejected hoofprint (never a piggy attempt) is just the red flash
           if (badCellIsPig) cell.innerHTML = unimpressedSVG();
         }
-        if (k === hintCell) cell.classList.add("peek");
+        if (k === hintCell) { cell.classList.add("peek"); label += ", gentle hint glowing here"; }
+        cell.setAttribute("aria-label", label);
+        // an optional letter per pen — appended, not innerHTML'd, so it never
+        // clobbers whatever the branches above already put in the cell
+        if (penLabelsOn && !hidden) {
+          var labelSpan = document.createElement("span");
+          labelSpan.className = "penlabel"; labelSpan.setAttribute("aria-hidden", "true");
+          labelSpan.textContent = penLetter(id);
+          cell.appendChild(labelSpan);
+        }
         board.appendChild(cell);
       }
+    }
+    if (boardHadFocus) {
+      var toFocus = board.querySelector('[data-r="' + focusedCell.r + '"][data-c="' + focusedCell.c + '"]');
+      if (toFocus) toFocus.focus();
     }
 
     // when a pen has been starved out, say so plainly — the blushing cells show
@@ -1449,6 +1737,32 @@
       }
     return starved;
   }
+
+  // which rule a rejected placement actually broke — for the teaching toast
+  // on a gentle-stakes slip. Checked one rule at a time across every settled
+  // piggy (not per-piggy) so a cell that breaks more than one rule at once
+  // still gets a single, consistent answer: row and column before pen,
+  // before the Wallow rule, since those are the more fundamental constraint.
+  function whyIllegal(n, reg, piggies, r, c) {
+    var list = Array.from(piggies).map(function (k) {
+      var parts = k.split(","); return { r: +parts[0], c: +parts[1] };
+    });
+    var i;
+    for (i = 0; i < list.length; i++) if (list[i].r === r) return "row";
+    for (i = 0; i < list.length; i++) if (list[i].c === c) return "column";
+    for (i = 0; i < list.length; i++) if (reg[list[i].r][list[i].c] === reg[r][c]) return "pen";
+    for (i = 0; i < list.length; i++) {
+      var p = list[i];
+      if (Math.abs(p.r - r) <= 1 && Math.abs(p.c - c) <= 1) return "wallow";
+    }
+    return null;
+  }
+  var WHY_ILLEGAL_TOAST = {
+    row: "this row’s already settled",
+    column: "this column’s already settled",
+    pen: "this pen’s already settled",
+    wallow: "piggies won’t settle that close together",
+  };
 
   // ---- win/fail results screen (the veil) ----
 
@@ -1637,7 +1951,11 @@
   function segOn(segId, attr, val) {
     var seg = document.getElementById(segId); if (!seg) return;
     var btns = seg.querySelectorAll("button");
-    for (var i = 0; i < btns.length; i++) btns[i].classList.toggle("on", btns[i].dataset[attr] === val);
+    for (var i = 0; i < btns.length; i++) {
+      var on = btns[i].dataset[attr] === val;
+      btns[i].classList.toggle("on", on);
+      btns[i].setAttribute("aria-pressed", on ? "true" : "false");
+    }
   }
 
   // "new field" and the old "＋ create" are the same action now — one button
@@ -1672,6 +1990,7 @@
     if (game.metrics) game.metrics.clears++;
     game.piggies.clear(); game.hoofprints.clear(); game.revealed.clear();
     game.solved = false; game.revealedSolution = false;
+    clearTimeout(shimmerTimer); shimmerPenId = null;
     // gauntlet's hearts are a shared pool across three fields, not a per-field
     // allowance — a clear must not hand back hearts already spent earlier in the run.
     if (!isSlow() && game.mode !== "gauntlet") game.hearts = game.maxHearts;
@@ -1713,6 +2032,18 @@
   };
   document.getElementById("peekBtn").onclick = function () { peek(); };
 
+  document.getElementById("soundSeg").onclick = function (e) {
+    var b = e.target.closest("button[data-sound]"); if (!b) return;
+    saveSound(b.dataset.sound);
+    segOn("soundSeg", "sound", b.dataset.sound);
+    if (b.dataset.sound === "on") playChime(); // a little confirmation blip, on the same gesture that unlocked audio
+  };
+  document.getElementById("labelsSeg").onclick = function (e) {
+    var b = e.target.closest("button[data-labels]"); if (!b) return;
+    savePenLabels(b.dataset.labels);
+    render();
+  };
+
   // copy this field's code
   document.getElementById("codeChip").onclick = function () {
     var code = game.code;
@@ -1720,6 +2051,7 @@
       navigator.clipboard.writeText(code).then(function () { toast("field code copied · " + code); }, function () { toast("field code · " + code); });
     } else { toast("field code · " + code); }
   };
+  document.getElementById("dailyChip").onclick = function () { startDaily(8); };
 
   // ---- tiny toast ----
   var toastEl = document.getElementById("toast"), toastTimer = null;
@@ -1880,7 +2212,11 @@
   function openHistory() { closeMenu(); hTab = "recent"; segTab(); renderHistory(); openSheet("histBack"); }
   function segTab() {
     var t = document.getElementById("hTabs").querySelectorAll("button");
-    for (var i = 0; i < t.length; i++) t[i].classList.toggle("on", t[i].dataset.tab === hTab);
+    for (var i = 0; i < t.length; i++) {
+      var on = t[i].dataset.tab === hTab;
+      t[i].classList.toggle("on", on);
+      t[i].setAttribute("aria-selected", on ? "true" : "false");
+    }
   }
 
   function fmtTime(ms) { if (ms == null) return "—"; var s = Math.round(ms / 1000), m = Math.floor(s / 60); s %= 60; return m + ":" + (s < 10 ? "0" : "") + s; }
@@ -2183,8 +2519,27 @@
   function pickSaying() { return SAYINGS[Math.floor(Math.random() * SAYINGS.length)]; }
 
   // ---- boot: resume in-progress field, else today's ----
-  if (!restore()) startDaily(8);
+  var hadSavedField = restore();
+  if (!hadSavedField) startDaily(8);
   render();
+
+  // ---- first-run onboarding: open "how to play" once, automatically ----
+  // only for a genuinely new player. Anyone with a saved field, or history/
+  // stats from before this flag existed, already knows how to play — mark
+  // them seen without interrupting whatever they came back to do.
+  if (!sget("seenIntro")) {
+    sset("seenIntro", true);
+    var isReturning = hadSavedField || getHistory().length > 0 || getStats().played > 0;
+    if (!isReturning) openSheet("infoBack");
+  }
+
+  // offline shell — registered last, after the game is already up and
+  // playable, so a slow or failed registration never blocks first paint
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {}); // offline just won't work; the game still does
+    });
+  }
 })();
 </script>
 </body>

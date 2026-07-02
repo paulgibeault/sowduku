@@ -1,6 +1,8 @@
 {
   "name": "Sowdoku",
   "short_name": "Sowdoku",
+  "description": "A field of contented little piggies, and the quiet logic of giving each one its own patch of mud.",
+  "scope": "../../",
   "icons": [
     {
       "src": "favicon-192x192.png",

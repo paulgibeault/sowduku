@@ -220,14 +220,12 @@ reinvented). Full prior regression suite (16 test files) re-run clean.
 - [x] Favicon / app icon (512/192/180/32/16 + `.ico`) — full `<link>` set
       + manifest added to `<head>` (there were none before)
 - [x] Piggy sprite: settled — wired into `pigSVG()`
-- [ ] Piggy sprite: unimpressed — **code done, art pending.** A rejected
-      piggy placement (illegal square, or a legal-but-wrong-patch mistake
-      under Honest+/Stern) shows this pose in the cell for 420ms via a new
+- [x] Piggy sprite: unimpressed — done. A rejected piggy placement
+      (illegal square, or a legal-but-wrong-patch mistake under
+      Honest+/Stern) shows this pose in the cell for 420ms via a new
       `unimpressedSVG()` + `badCellIsPig` flag on the shared `flashBad()`
       mechanism, alongside the existing red flash. A rejected hoofprint
-      still shows only the flash. `<img src="assets/piggy/unimpressed.png">`
-      is already live in the render path — will just start working once
-      the file exists.
+      still shows only the flash.
 - [ ] Piggy sprite: dozing — **on hold**, no call site (deferred, see
       Phase 3 scope note below)
 - [ ] Piggy sprite: celebrating — **on hold**, win vignette already covers
@@ -245,11 +243,9 @@ reinvented). Full prior regression suite (16 test files) re-run clean.
 - [x] Empty-state spots — history + curated wired into the `.hempty`
       blocks in the history sheet; first-run generated but unwired (no
       first-run flow exists yet)
-- [ ] OG / social share image — **code done, art pending.** `og:title` /
-      `og:description` / `og:image` + matching `twitter:*` tags are live
-      in `<head>`, `og:description` pulled from the README's own opening
-      line. Will render in link previews once `assets/social/og-image.png`
-      exists.
+- [x] OG / social share image — done. `og:title` / `og:description` /
+      `og:image` + matching `twitter:*` tags are live in `<head>`,
+      `og:description` pulled from the README's own opening line.
 - [x] Misty Morning badge — wired into the `data-mode="fog"` button in the
       create sheet's mode picker
 
@@ -260,14 +256,14 @@ pure swaps:
    logo, settled piggy, hearts, hoofprint.
 2. **Phase 2 — win/fail vignettes + empty states + misty badge. Done**
    (except empty-firstrun, deferred — no UI hook yet).
-3. **Phase 3 — the open-ended ones. Trimmed scope, in progress.** Asked
+3. **Phase 3 — the open-ended ones. Trimmed scope, done.** Asked
    the user how much of Phase 3 to pursue given the mixed risk/value (win
    vignette already covers "celebration"; several items have no natural
    UI hook). Chose the trimmed option: **only Unimpressed and OG image.**
    Both now have their code-side hook fully wired — designed and built
    the "unimpressed" transient state myself (a genuinely new mechanic, not
-   just an asset swap), added the OG/Twitter meta tags — so both will
-   start working the instant the art exists. Dozing, Celebrating, paper
+   just an asset swap), added the OG/Twitter meta tags — and both are
+   generated and verified live. Dozing, Celebrating, paper
    texture, and horizon border are on hold: no natural call site for any
    of them, and forcing one in risks cluttering the "calm clarity" house
    style just because the asset could exist. Revisit if a concrete use
@@ -301,19 +297,112 @@ integration, neither caused by the generation itself:
   `.sheet-backdrop`, `.orow`, `.campaign` all already had this).
   `.vvignette[hidden]` given the same treatment defensively.
 
-### A5. Other polish backlog
-- [ ] Sound: wooden thud / pen-complete chime / solve snuffle (off by default)
-- [ ] Real typography: Fraunces (headers) + Inter (UI)
-- [ ] Illegal-placement teaching: highlight *why* a slip failed
-- [ ] Pen-completion shimmer
-- [ ] First-run onboarding (tap / long-press / Wallow Rule, `seenIntro` flag)
-- [ ] Colorblind support: optional per-pen letter/pattern overlay
-- [ ] Keyboard/board accessibility: arrow-key focus, Enter/Space, aria-labels
-- [ ] PWA: manifest.json + icon set + minimal service worker
-- [ ] Render diffing instead of full `board.innerHTML` rebuild per paint
-- [ ] Share affordance on win screen (code + one-line challenge)
-- [ ] Quiet "today's field awaits 🌱" chip when daily untouched
-- [ ] Hearts near the board (mobile) so cause/effect (bad tap → heart) is close
+### A5. Other polish backlog — **done, except two deliberately deferred**
+- [x] Real typography — self-hosted variable-weight Fraunces (headers) + Inter
+      (UI), fetched from Google Fonts and hosted under `assets/fonts/` (no
+      CDN dependency at runtime, matching every other asset in this repo).
+      One `@font-face` per family with a wide `font-weight` range covers
+      every weight the page uses, so a single file serves all of it. Swapped
+      into the six Georgia/serif header declarations (`.title`, `.veil h2`,
+      `.sheet h2`, `.info-body h3`, `.cbtext .lead`, `.hname`) and the body's
+      existing (previously unbacked) `"Inter"` stack. Verified both actually
+      load — Fraunces lazily (only once a sheet with a heading first opens,
+      confirmed via `document.fonts`), Inter on first paint — in both
+      Chromium and WebKit.
+- [x] PWA — `sw.js`, a minimal cache-first service worker precaching the 24
+      files that make up the app shell (HTML, JS, both fonts, every in-app
+      image, the favicon set + manifest). Registered after first paint so a
+      slow/failed registration never blocks it. `site.webmanifest` gained a
+      `description` and `scope`; `<meta name="theme-color">` added. Verified:
+      all 24 shell files cached, and a full offline reload still renders the
+      complete board.
+- [x] Keyboard/board accessibility — cells are a roving-tabindex grid:
+      arrow keys move focus, `Enter` mirrors a tap (settle/lift a piggy),
+      `Space` mirrors a long-press (mark a hoofprint). Each cell carries a
+      live `aria-label` (row/column/pen + current state — piggy settled,
+      ruled out, hoofprint, starved, fog-hidden, hinted). Focus survives
+      `render()`'s full board rebuild (the rebuild is a real `innerHTML`
+      wipe, so this needed explicit save/restore around it, not just CSS).
+      Segmented controls (`segOn`) now carry `aria-pressed`; the history
+      tabs carry `aria-selected`; `#menuBtn`/`#cDice` gained explicit
+      `aria-label`s. The info sheet's Controls section documents the new
+      keys (also fixed a stale leftover noticed in the same paragraph: it
+      still said peek lived "in this menu" from before A2b moved it to the
+      action bar). Verified: arrow nav, Enter place/lift, Space hoofprint,
+      focus-survives-render, and `aria-pressed` all confirmed via Playwright.
+- [x] Hearts near the board (mobile) — a second `#heartsNearBoard` row lives
+      in the status strip, right above the board; CSS (not JS) decides which
+      of the two hearts rows is actually visible — the header copy above
+      480px, the near-board copy below it — so a bad tap and the heart it
+      costs land in the same glance on a phone. `render()` just populates
+      both with identical markup.
+- [x] Illegal-placement teaching — new `whyIllegal()` checks row, then
+      column, then pen, then the Wallow (adjacency) rule across every
+      settled piggy — one consistent reason even when a cell breaks more
+      than one rule at once — and a matching toast fires on a gentle-stakes
+      slip ("this row's already settled" / "…column's…" / "…pen's…" /
+      "piggies won't settle that close together"). Verified all four via
+      Playwright by engineering a placement that isolates each rule.
+- [x] Pen-completion shimmer — a pen only ever wants one piggy, so it's
+      "done" the instant that piggy settles; every cell of that pen gets a
+      single soft sheen (a `::before` gradient sweep, .7s, self-clearing)
+      the moment it happens. `::before` specifically — `::after` was already
+      spoken for by shade/starved/peek, and this needed to compose cleanly
+      with a pen's other, now-ruled-out cells. Cleared alongside undo/clear
+      so a stray shimmer can never survive a board mutation that erases the
+      placement that triggered it. Verified: exactly the pen's cell count
+      gets the class, self-clears after 700ms.
+- [x] Sound: synthesized thud / chime / snuffle, off by default — asked the
+      user how to source audio given there's no established pipeline for it
+      (Antigravity was image-only); chose Web Audio API synthesis over
+      sourcing real audio files, so there's nothing to generate or host.
+      Three cues, all plain oscillators/filtered-noise with a gain envelope:
+      a low sine "thud" on a piggy settling, a three-note sine "chime" (its
+      own ~90ms internal start offset so it reads as *after* the thud, not
+      blended with it — both fire from the same event since every pen
+      completes the instant its one piggy lands) when a pen's shimmer
+      triggers, and three short bandpass-filtered noise bursts as a "snuffle"
+      on a full solve. New `sound` on/off row in the ⚙ menu (persisted like
+      stakes) — it's a live, always-effective toggle, unlike assist, so it
+      belongs there and not in the create sheet. `AudioContext` is created
+      lazily on the first real toggle-on click, so it's always inside a
+      genuine user gesture (autoplay policy) and never touched at all while
+      sound is off. Verified end-to-end by instrumenting `AudioContext` to
+      count oscillator/buffer-source calls: zero while off, thud+chime (4
+      oscillators) together on a placement, and 3 buffer sources on a solve.
+- [x] Colorblind support — an optional per-pen letter (⚙ menu, off by
+      default, persisted): `A`–`J` covering every board size up to 10×10,
+      appended as a small corner `<span>` (not `innerHTML`'d, so it never
+      clobbers whatever a cell's piggy/hoofprint markup already set) in a
+      fixed dark ink tone chosen to stay legible against every pastel in
+      `PALETTE`. Suppressed on still-fogged misty-morning cells — the letter
+      would otherwise spoil the fog mechanic ahead of the pen's own color.
+      Verified: every cell of a given pen shares exactly one letter, off by
+      default, correctly hidden under fog until revealed.
+- [x] First-run onboarding — the "how to play" sheet auto-opens exactly once,
+      gated on a new `seenIntro` flag, but *only* for a genuinely new player:
+      anyone with an existing in-progress field, history, or stats (i.e.
+      every current player, the day this ships) gets the flag silently set
+      without the interruption, since they already know how to play.
+      Verified all three paths: fresh player (opens), same player reloading
+      (doesn't reopen), and a simulated pre-existing player who has stats
+      but had never had the flag before (doesn't open, flag gets set).
+- [x] Quiet "today's field awaits 🌱" chip — shown in the status strip
+      whenever the player isn't currently on today's daily field *and*
+      hasn't touched it yet (no history record for today's code — "touched"
+      survives even an unsolved/abandoned attempt, since `finalizeGame`
+      records on any real attempt, not just a win). Tapping it jumps
+      straight to the daily field. Verified the full lifecycle: hidden while
+      already on daily, shown from an amble field, hidden again immediately
+      after tapping through, and stays hidden after actually solving it.
+- [ ] Render diffing instead of full `board.innerHTML` rebuild per paint —
+      **deliberately deferred.** Asked the user: no reported performance
+      problem exists today, and this is the single highest-regression-risk
+      item on the list (it touches the core render path every other feature
+      here also touches) for no currently-visible user benefit. Revisit if a
+      real perf complaint shows up, e.g. at a larger board size than 10×10.
+- [ ] Share affordance on win screen (code + one-line challenge) — **out of
+      scope for this pass**, per the user (not needed yet).
 
 ---
 
@@ -630,3 +719,45 @@ puddles) → C (twin litters, own milestone).
   Dozing/Celebrating/texture/horizon-border clearly on-hold so they aren't
   generated without a call site decided first. Full regression suite
   clean.
+- 2026-07-02 — User generated `unimpressed.png` and `og-image.png` via
+  Antigravity and pushed. Verified rather than assumed: both are genuine
+  PNGs this time (no repeat of the fake-SVG issue — Antigravity's export
+  was clean), viewed both directly (unimpressed nails "a shrug, not a
+  scold"; the OG image reuses the wordmark exactly as instructed with a
+  clean, uncluttered layout), then confirmed live — `og:image` resolves
+  with a 200, and the unimpressed pose actually renders on a rejected
+  placement (verified a legal placement still shows the settled pose right
+  next to it, no cross-contamination). Full regression suite clean. A4 is
+  now fully closed out at its decided scope: Phase 1, Phase 2, and trimmed
+  Phase 3 all done; Dozing/Celebrating/texture/horizon-border remain
+  deliberately on hold pending a real call site.
+- 2026-07-02 — User asked to close out the plan; A4 (asset generation) was
+  the only thing left from the original UI-overhaul ask, and it just
+  finished, so the remainder of Part A was A5 (the polish backlog) plus
+  Part B2's remaining mechanics. Asked to tackle A5 next, explicitly
+  dropping the share affordance for now. Before starting, resolved two real
+  forks with the user rather than guessing: sound would be synthesized via
+  Web Audio API (no established audio-gen pipeline the way Antigravity
+  covered images) rather than deferred, and the render-diffing item would
+  be deferred (no reported perf problem, highest regression-risk item on
+  the list for no current benefit) rather than bundled in. Implemented and
+  verified, one item at a time, the other ten: typography (self-hosted
+  Fraunces + Inter), a PWA shell (manifest + service worker), keyboard/board
+  accessibility (roving-tabindex cells, arrow nav, Enter/Space, aria-labels,
+  aria-pressed on every segmented control), hearts relocated near the board
+  on mobile, illegal-placement teaching (a `whyIllegal()` toast naming the
+  actual rule broken), a pen-completion shimmer, the three synthesized
+  sounds, an optional per-pen colorblind letter, first-run onboarding (gated
+  so it never interrupts an existing player), and the daily-untouched chip.
+  See the A5 section above for full technical detail on each. Verified with
+  a consolidated Playwright pass covering both the new work and load-bearing
+  existing mechanics it touches (stakes docking, crag, size-10, gauntlet,
+  persistence, all four keyboard shortcuts together) — 15/15 clean in
+  Chromium, plus a WebKit spot-check (this repo's real target, per the
+  lesson from the A2b board-clipping bug) confirming the new CSS (fonts,
+  the hearts media query, the shimmer, pen labels) renders correctly there
+  too, not just Chromium. A5 is now done at its decided scope (10 of 12
+  items; render diffing and sharing both deliberately deferred). Remaining
+  across the whole plan: Part B2's mud puddles, twin litters (its own
+  milestone), limited hoofprints, "settled means settled", and daily
+  modifier rotation.
