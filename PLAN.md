@@ -207,24 +207,67 @@ create-sheet's existing preview language (deliberately reused, not
 reinvented). Full prior regression suite (16 test files) re-run clean.
 
 ### A4. Asset & branding generation (separate image-gen track)
-- [ ] Logo / wordmark
-- [ ] Favicon / app icon (512/192/180/32/16)
-- [ ] Piggy sprite: settled
-- [ ] Piggy sprite: unimpressed (illegal placement)
-- [ ] Piggy sprite: dozing (idle)
-- [ ] Piggy sprite: celebrating (win)
-- [ ] Hoofprint marker
-- [ ] Hearts (full / empty)
-- [ ] Board paper texture (tileable)
-- [ ] Background farm-horizon border illustration
-- [ ] Win vignette illustration
-- [ ] Fail/"crowded field" vignette
-- [ ] Empty-state spot illustrations (history / curated / first-run)
-- [ ] OG / social share image (1200×630)
-- [ ] Misty Morning mode badge
-- Prompts for all of the above are recorded in the conversation history that
-  produced this plan; re-derive or ask to have them re-listed when the art
-  pass starts.
+- [x] **Prompts written — done.** Now living in `ASSET_PROMPTS.md` (moved
+      there from a session Artifact so they're durable/version-controlled,
+      not tied to a session URL) — a reusable style preamble plus 15
+      prompts grouped by category, each tagged with its target file path
+      and either its exact call site in `index.html` or a suggested one
+      where none exists yet. Palette and type throughout are pulled
+      directly from the game's own CSS custom properties and font stacks —
+      no new typefaces or colors invented.
+- [ ] Logo / wordmark — prompt ready, has no current UI slot (header title
+      is plain text) — decide during integration whether to replace it
+- [ ] Favicon / app icon (512/192/180/32/16 + `.ico`) — prompt ready, **zero
+      favicon/manifest/OG tags exist in `<head>` today** — this is new, not
+      a swap
+- [ ] Piggy sprite: settled — prompt ready, **exact call site**: `pigSVG()`
+      in `index.html` (~line 630), used at the `.placed` and `.reveal`
+      cell-render sites
+- [ ] Piggy sprite: unimpressed — prompt ready, **no call site today**; the
+      current "wrong placement" feedback is a red flash on the cell
+      (`.cell.bad`), no piggy is ever rendered there since the placement is
+      rejected. Wiring this in means adding a *new* transient state, not a
+      pure asset swap
+- [ ] Piggy sprite: dozing — prompt ready, **no call site**; no idle/empty
+      state currently shows any piggy art
+- [ ] Piggy sprite: celebrating — prompt ready, **no call site**; the win
+      veil (`renderVeil()`) is text + stats + a mini-board preview today,
+      no hero art
+- [ ] Hoofprint marker — prompt ready, **exact call site**: the inline
+      `<div class="hoofprint"><i></i><i></i><i></i></div>` markup built in
+      `render()`'s cell loop
+- [ ] Hearts (full / empty) — prompt ready, **exact call site**:
+      `heartSVG(filled)` in `index.html` (~line 639)
+- [ ] Board paper texture — prompt ready, **no call site**; `.board-wrap`
+      currently has a flat `var(--panel)` background
+- [ ] Background farm-horizon border — prompt ready, **no call site**
+- [ ] Win vignette — prompt ready, suggested slot: above `#vStats` in the
+      win veil
+- [ ] Fail vignette — prompt ready, suggested slot: above `#vStats` in the
+      fail veil
+- [ ] Empty-state spots (3) — prompt ready, suggested slot: the `.hempty`
+      text blocks in the history sheet
+- [ ] OG / social share image — prompt ready, **no `<meta property="og:*">`
+      tags exist yet** — new, not a swap
+- [ ] Misty Morning badge — prompt ready, suggested slot: the
+      `data-mode="fog"` button in the create sheet's mode picker
+
+**Phased plan**, since half of these need a new UI decision and half are
+pure swaps:
+
+1. **Phase 1 — pure swaps + new-but-obvious.** Favicon/manifest, logo (if
+   used), settled piggy, hearts, hoofprint. Every one of these either has
+   an exact call site already or a single unambiguous slot (`<head>`).
+   Lowest risk, ships fastest, immediately visible.
+2. **Phase 2 — win/fail vignettes + empty states + misty badge.** Each
+   needs one small, contained UI decision (where exactly the image sits)
+   but no gameplay logic changes.
+3. **Phase 3 — the open-ended ones.** Unimpressed/dozing/celebrating piggy
+   poses, paper texture, horizon border, OG image. These either need new
+   code to trigger a new state (unimpressed/celebrating) or are pure
+   ambiance calls with real risk of cluttering the "calm clarity" house
+   style if overdone — worth a design gut-check per `STYLE.md` before
+   committing, not just dropping in because the asset exists.
 
 ### A5. Other polish backlog
 - [ ] Sound: wooden thud / pen-complete chime / solve snuffle (off by default)
@@ -495,3 +538,20 @@ puddles) → C (twin litters, own milestone).
   spurious timeout on a background batch run turned out to be Chromium
   resource contention, not a real failure — confirmed by re-running that
   file alone).
+- 2026-07-02 — A4 (asset/branding prompts) delivered as an Artifact — see
+  notes above. Every code-driven item from the original UI-overhaul ask is
+  now done (A1–A3, A2b). Remaining: A5 (polish backlog), the actual asset
+  generation + integration pass once images come back, and Part B2's
+  remaining mechanics (twin litters, mud puddles, limited hoofprints,
+  "settled means settled", daily modifier rotation).
+- 2026-07-02 — User doesn't have an image-gen API available to me here;
+  decided to run the A4 asset pass through Antigravity IDE (Google's
+  agentic coding tool) instead, driven manually since it doesn't expose a
+  scriptable interface I could call directly (checked: its CLI,
+  `antigravity-ide`, is a VS-Code-style file/window opener only, no
+  image-gen flag). Moved the 15 prompts from the session Artifact into
+  `ASSET_PROMPTS.md` for durability, and expanded A4's checklist above with
+  the exact `index.html` call site (or lack of one) for every asset, plus a
+  3-phase integration order (pure swaps → contained new UI decisions →
+  open-ended/needs-a-design-call). Gave the user a ready-to-paste kickoff
+  prompt for Antigravity pointing at both docs.
