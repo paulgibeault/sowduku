@@ -556,12 +556,21 @@ gauntlet → B bigger boards → D → C. Everything before D shipped, plus B3
 campaign packs landed out of that original order per the 2026-07-02
 re-plan.)*
 
-### B3. Campaign packs — **done** (2026-07-02)
+### B3. Campaign packs — **done** (2026-07-02), UI superseded same day — see status log
 
-Curated series of fixed-seed fields, selectable in the create sheet. The
-existing single-list "campaign" mode (play your curated list in difficulty
-order, launched from the history sheet) is now the *authoring loop* for
-packs; a new intro/first-time pack ships as campaign #1.
+Curated series of fixed-seed fields. The existing single-list "campaign" mode
+(play your curated list in difficulty order) is now the *authoring loop* for
+packs; a new intro/first-time pack ships as campaign #1. **Note (same-day
+follow-up):** the checklist below describes the *original* shipped shape —
+campaign mode as a `#cMode` button inside "tend a new field," with a
+progress bar in the history sheet's curated tab. A same-day follow-up
+request ("campaigns should be a distinct button... choose a cuter name")
+replaced that UI: it's now **🌾 Trails**, a standalone action-bar button and
+sheet, no longer reachable from the create sheet at all; the history-sheet
+progress bar was removed (superseded by Trails itself). The data
+model/internals below (packs, `campaignPack`, `campaignDone` migration,
+`beginCampaignField`, etc.) are unchanged and still accurate — only the
+entry-point UI moved. Full detail in the status log entry below.
 
 **Data model**
 - [x] New `campaigns.js` (script-tagged before the main inline script; added
@@ -1003,3 +1012,91 @@ accordingly (documented inline in `pick_intro_seeds.js`).
   green after the fixes. B3 is the only item recommended ahead of mud
   puddles / limited hoofprints / settled-means-settled / daily rotation /
   twin litters, and it's now done — see the top of Part B2 for what's left.
+- 2026-07-02 — **Same-day follow-up: veil clipping fix + history/export
+  fidelity + Trails rename/declutter.** User reported four things at once:
+  1. **Veil popup clipped by the board's bounds** (screenshot: title and
+     buttons cut off on mobile). Root cause: `.veil` was `position: absolute;
+     inset: 0` relative to `.board-wrap`, so its box was capped at the
+     board's own (often small) square size regardless of how tall the win/
+     fail card's content actually was. Fixed by switching `.veil` to
+     `position: fixed; inset: 0; z-index: 50` — the same pattern every other
+     modal in the app (`.sheet-backdrop`) already used — plus `max-height:
+     90vh; overflow: auto` on `.veil .card`. Confirmed fixed via a real
+     screenshot at 390×844 (previously-clipped title and both buttons now
+     fully visible). Side effect, verified as *correct* rather than a
+     regression: the veil now blocks the whole screen (header/action-bar
+     included) while showing, not just the board — realigning behavior with
+     an existing code comment on the peek/restore listener that already
+     assumed nothing behind the veil was reachable ("nothing real is lost by
+     swallowing the click").
+  2. **History/export fidelity.** Curated fields, replayed history cards, and
+     exported pack JSON only carried *which board* (code), not *how it was
+     played* (assist, stakes) — replaying or exporting a starred field
+     silently used the player's current defaults instead of recreating the
+     actual run. Fixed: `beginGame()` gained `opts.forcedStakes` (mirrors the
+     existing `opts.forcedAssist` — applies without becoming the new saved
+     default); `persist()`/`restore()` now round-trip `game.stakes`/
+     `lockedStakes` explicitly (previously `restore()` always re-derived
+     stakes from the live default, silently losing a forced value on
+     reload — the same class of bug the assist path had already been fixed
+     for); `toggleCurate()` now stores `assist`/`stakes`/`ladderRung`/
+     `gauntletStep`; `replayBoard()` forwards them as forced (not a fresh
+     choice); the export-pack JSON includes `assist`/`stakes` per field when
+     present. Verified end-to-end (`scripts/test_history_fidelity.js`, 7
+     checks): curate under honest+assist-off while the live defaults are
+     gentle+assist-on, flip the live defaults to the opposite, replay the
+     curated field, confirm it still docks a heart under honest stakes and
+     shows no assist shading — i.e., its *own* settings won, not the current
+     defaults.
+  3. **"Trails," a distinct button with a cuter name.** User: too many modes
+     crammed into one create-sheet row, and campaign packs specifically
+     should be reachable from their own button, not nested inside "tend a
+     new field." Asked the user two quick questions (name, button placement)
+     rather than guessing on either — both resolved to the recommended
+     option: **🌾 Trails**, a new action-bar button (between "new field" and
+     "history") opening its own `#trailsBack` sheet with a pack picker,
+     WYSIWYG next-field preview, and tend/walk-it-again — no editable assist
+     row (unlike the old create-sheet campaign branch), since Trails always
+     applies a field's authored assist/stakes via `forcedAssist`/
+     `forcedStakes`, same as the veil's auto-advance already did. The old
+     create-sheet campaign branch (`cPackRow`, `showPackComplete`/
+     `showPackEmpty`, `packSuggestedAssist`) and the old in-history-sheet
+     "campaign bar" launcher (progress + play/continue button) were removed
+     entirely — Trails is now the single entry point, including for "my
+     trail" (the curated list). The history sheet's curated tab keeps only
+     the pre-existing "export pack" button (renamed "export as trail pack").
+     User-facing copy renamed campaign → trail throughout (mode label,
+     history badge tooltip); the internal `mode: "campaign"` string,
+     `campaignDone` storage key, and `campaign*`-prefixed function names were
+     deliberately left unchanged to avoid a data migration — only display
+     text moved.
+  4. **Create-sheet declutter: tabs + sliders.** The remaining 6 modes
+     (amble/daily/ladder/fog/wallow/gauntlet) were a flat button row. Grouped
+     into 3 tabs (`amble` / `daily` / `runs`): "misty morning" folded into
+     the amble tab as a weather toggle (clear/misty) instead of being its own
+     top-level mode; ladder/gauntlet/wallow moved under a "runs" tab with
+     their own 3-button sub-picker. `cState` gained `fog` (bool) and
+     `runMode` (string) so switching tabs away and back remembers each tab's
+     own sub-choice. Size (6–10) and difficulty (sunbeam→crag) pill-rows
+     replaced with `<input type="range">` sliders + live `<output>` labels —
+     both are genuinely ordinal scales, which a slider reads more directly
+     than a row of pills. `resolveCreate`/`updateCreate`/`tendCreateForm`
+     simplified back toward their pre-campaign shape now that pack-specific
+     branching lives entirely in Trails.
+  Rewrote all four Playwright suites' create-sheet interactions for the new
+  tabs/sliders/Trails-sheet DOM (56 checks, all green) plus a WebKit spot
+  check. Ran a second independent code review (fresh context, no access to
+  the first review's findings) against this whole round before calling it
+  done — it caught three more real bugs: `#trailsBack` was missing from both
+  the click-outside-to-close and Escape-key dismissal wiring every other
+  sheet already had, and — more significant — `toggleCurate()` never copied
+  a record's `campaignPack` onto the curated entry at all, so *any* freshly-
+  curated campaign-mode field (not just hypothetical legacy data) would
+  replay into no pack and silently fail to credit progress; fixed by having
+  `toggleCurate()` carry `campaignPack` and giving `replayBoard()` the same
+  "campaignCode-without-campaignPack falls back to curated" defensive
+  fallback `restore()` already had. All three fixed and covered by 5 new
+  targeted checks (`scripts/test_review_fixes2.js`); full 61-check suite
+  green after the fixes. README's Modes section and curation section updated
+  to match (Trails as its own bullet, curation's assist/stakes fidelity
+  noted).

@@ -57,28 +57,28 @@ async function run() {
     await ctx.close();
   }
 
-  // ---- fix 2: "walk it again" via the create sheet honors the pack's authored assist ----
+  // ---- fix 2: "walk it again" via the Trails sheet honors the pack's authored
+  // assist, not the player's live default (campaign now only has one entry
+  // point — the Trails sheet — which always applies forcedAssist, so this
+  // also confirms the create-sheet's old, now-removed campaign branch isn't
+  // needed for correctness here). ----
   {
-    console.log("\n[fix2] create-sheet walk-it-again uses field 1's authored assist");
+    console.log("\n[fix2] trails sheet walk-it-again uses field 1's authored assist");
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
     // set the player's generic default assist to "off" explicitly, distinct from field 1's authored "on"
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="amble"]');
-    await page.click('#cAssist button[data-assist="off"]');
-    await page.click("#cCancel"); // don't actually tend it, just wanted the default saved... but assist only saves on tend
-    await page.click("#newBtn");
-    await page.click('#cMode button[data-mode="amble"]');
+    await page.click('#cTabs button[data-tab="amble"]');
     await page.click('#cAssist button[data-assist="off"]');
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
     // now blitz through the whole intro pack to reach "done"
-    await page.click("#newBtn");
-    await page.click('#cMode button[data-mode="campaign"]');
-    await page.click('#cPack button[data-pack="intro"]');
-    await page.click("#cTend");
+    await page.click("#trailsBtn");
+    await page.waitForSelector("#trailsBack:not([hidden])");
+    await page.click('#tPack button[data-pack="intro"]');
+    await page.click("#tTend");
     const order = ["6s-1", "6s-6", "6m-8z", "6m-1", "7m-2", "7m-2ix"];
     for (let i = 0; i < order.length; i++) {
       await page.waitForFunction((c) => document.getElementById("codeChip").textContent.trim() === c, order[i]);
@@ -88,19 +88,22 @@ async function run() {
     }
     await page.click('#veilBtns button:has-text("a fresh amble")');
     await page.waitForFunction(() => !document.getElementById("veil").classList.contains("show"));
-    // pack is now done; open create sheet, select intro pack, "walk it again"
-    await page.click("#newBtn");
-    await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="campaign"]');
-    await page.click('#cPack button[data-pack="intro"]');
-    const assistShown = await page.locator('#cAssist button[data-assist="on"].on').count();
-    ok(assistShown === 1, "assist row pre-fills 'on' (field 1's authored value) for a done pack, not the player's 'off' default");
-    await page.click("#cTend"); // "walk it again"
+    // pack is now done; open trails, select intro pack, "walk it again"
+    await page.click("#trailsBtn");
+    await page.waitForSelector("#trailsBack:not([hidden])");
+    await page.click('#tPack button[data-pack="intro"]');
+    const tendLabel = await page.textContent("#tTend");
+    ok(tendLabel.trim() === "walk it again", "trails sheet's tend button reads 'walk it again' for a done pack");
+    await page.click("#tTend");
     await page.waitForFunction(() => document.getElementById("codeChip").textContent.trim() === "6s-1");
     const savedAssist = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.assist")));
-    // this is a forced/suggested value applied via create-sheet's explicit opts.assist path,
-    // so per existing semantics it DOES become the new saved default (same as any create-sheet choice)
-    ok(savedAssist === "on", "walking the pack again starts field 1 with assist=on (its authored value), got " + savedAssist);
+    // forcedAssist never touches the saved default, unlike an explicit create-sheet choice
+    ok(savedAssist === "off", "walking the pack again does NOT overwrite the player's saved assist default, got " + savedAssist);
+    // assist has no live UI readout, so infer via dead-cell shading after a placement
+    await page.click('[data-r="0"][data-c="4"]'); // 6s-1's actual solution cell for row 0
+    await page.waitForTimeout(300);
+    const shaded = await page.locator(".cell.shade").count();
+    ok(shaded > 0, "walking the pack again starts field 1 with assist=on (its authored value) — dead cells shaded after a placement, got " + shaded);
     await ctx.close();
   }
 

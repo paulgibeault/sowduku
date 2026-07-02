@@ -1,9 +1,10 @@
 /*
- * Sowdoku — built-in campaign packs: curated series of fixed-seed fields,
+ * Sowdoku — built-in trail packs: curated series of fixed-seed fields,
  * hand-picked and hand-played so each teaches exactly one new thing. A pack
  * is fully determined by its fields' board codes (size · band · seed — see
  * `boardCode`/`parseCode` in index.html), plus optional per-field teaching
- * copy and an assist override.
+ * copy and assist/stakes overrides (either can be omitted to leave that
+ * setting at the player's own preference).
  *
  * The player's own curated list is a second, virtual pack (id "curated",
  * assembled at runtime from `curatedOrdered()`) — this file only holds the

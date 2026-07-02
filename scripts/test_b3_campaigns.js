@@ -86,31 +86,33 @@ async function run() {
     await ctx.close();
   }
 
-  // ---- 3/4. create sheet: campaign mode, pack picker, WYSIWYG preview ----
+  // ---- 3/4. trails sheet: distinct from create, pack picker, WYSIWYG preview ----
   {
-    console.log("\n[3/4] create sheet campaign mode + pack picker + WYSIWYG preview");
+    console.log("\n[3/4] trails sheet (distinct from create) + pack picker + WYSIWYG preview");
     const { ctx, page } = await freshPage(browser);
     await gotoAndDismissIntro(page);
+    // campaign/trails no longer lives inside "tend a new field" at all
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="campaign"]');
-    await page.waitForSelector("#cPackRow:not([hidden])");
-    const packBtns = await page.$$eval("#cPack button", bs => bs.map(b => b.textContent.trim()));
+    const campaignInCreate = await page.locator('[data-mode="campaign"], [data-tab="campaign"]').count();
+    ok(campaignInCreate === 0, "campaign/trails is not a mode inside the create sheet anymore");
+    await page.click("#cCancel");
+
+    await page.click("#trailsBtn");
+    await page.waitForSelector("#trailsBack:not([hidden])");
+    const packBtns = await page.$$eval("#tPack button", bs => bs.map(b => b.textContent.trim()));
     ok(packBtns.some(t => t.startsWith("first steps")), "pack picker lists 'first steps', got " + JSON.stringify(packBtns));
     ok(packBtns.some(t => t.startsWith("my trail")), "pack picker lists 'my trail', got " + JSON.stringify(packBtns));
     ok(packBtns.find(t => t.startsWith("first steps")).includes("0/6"), "'first steps' shows 0/6 progress");
     ok(packBtns.find(t => t.startsWith("my trail")).includes("0/0"), "'my trail' shows 0/0 (empty)");
-    // size/diff/seed/surprise hidden for campaign mode
-    ok(await page.getAttribute("#cSizeRow", "hidden") !== null, "size row hidden for campaign");
-    ok(await page.getAttribute("#cSeedRow", "hidden") !== null, "seed row hidden for campaign");
     // preview should show field 1 (6s-1)
-    const previewCode = await page.textContent("#cCode");
-    ok(previewCode.trim() === "6s-1", "create-sheet preview shows 6s-1, got " + previewCode);
+    const previewCode = await page.textContent("#tCode");
+    ok(previewCode.trim() === "settling in", "trails-sheet preview shows field 1's name, got " + previewCode);
     // tend it, confirm WYSIWYG: the field actually started matches the preview
-    await page.click("#cTend");
+    await page.click("#tTend");
     await page.waitForSelector(".board .cell");
     const startedCode = await page.textContent("#codeChip");
-    ok(startedCode.trim() === "6s-1", "tending campaign mode starts exactly the previewed field, got " + startedCode);
+    ok(startedCode.trim() === "6s-1", "tending from trails starts exactly the previewed field, got " + startedCode);
     await ctx.close();
   }
 
@@ -159,16 +161,14 @@ async function run() {
     ok(veilText.includes("Every first steps field tended"), "final win veil announces the whole pack done, got: " + veilText);
     const hasWalkAgain = await page.locator('#veilBtns button:has-text("walk it again")').count();
     ok(hasWalkAgain === 1, "veil offers 'walk it again' once the pack is fully tended");
-    // create sheet should also reflect pack-complete state now
+    // trails sheet should also reflect pack-complete state now
     await page.click('#veilBtns button:has-text("a fresh amble")');
     await page.waitForFunction(() => !document.getElementById("veil").classList.contains("show"));
-    await page.click("#newBtn");
-    await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="campaign"]');
-    await page.waitForSelector("#cPackRow:not([hidden])");
-    await page.click('#cPack button[data-pack="intro"]');
-    const tendLabel = await page.textContent("#cTend");
-    ok(tendLabel.trim() === "walk it again", "create sheet's tend button reads 'walk it again' for a done pack, got " + tendLabel);
+    await page.click("#trailsBtn");
+    await page.waitForSelector("#trailsBack:not([hidden])");
+    await page.click('#tPack button[data-pack="intro"]');
+    const tendLabel = await page.textContent("#tTend");
+    ok(tendLabel.trim() === "walk it again", "trails sheet's tend button reads 'walk it again' for a done pack, got " + tendLabel);
     await ctx.close();
   }
 
@@ -197,9 +197,9 @@ async function run() {
     await ctx.close();
   }
 
-  // ---- 9. curated-tab campaign bar ("my trail") still works ----
+  // ---- 9. "my trail" (curated) pack still playable via the Trails sheet ----
   {
-    console.log("\n[9] curated-tab campaign bar");
+    console.log("\n[9] 'my trail' playable via the trails sheet");
     const { ctx, page } = await freshPage(browser);
     await gotoAndDismissIntro(page);
     // play (and record) a field first, then curate it from the recent tab
@@ -210,10 +210,14 @@ async function run() {
     await page.click("#historyBtn");
     await page.waitForSelector(".hcard");
     await page.click('.hcard [data-act="curate"]');
-    await page.click('#hTabs button[data-tab="curated"]');
-    await page.waitForSelector("#campaignBar:not([hidden])");
-    const campText = await page.textContent("#campText");
-    ok(campText.includes("0") && campText.includes("1"), "campaign bar shows 0 of 1 tended, got " + campText);
+    await page.click("#hClose");
+    await page.click("#trailsBtn");
+    await page.waitForSelector("#trailsBack:not([hidden])");
+    await page.click('#tPack button[data-pack="curated"]');
+    const packBtns = await page.$$eval("#tPack button", bs => bs.map(b => b.textContent.trim()));
+    ok(packBtns.find(t => t.startsWith("my trail")).includes("0/1"), "'my trail' now shows 0/1, got " + JSON.stringify(packBtns));
+    const tendLabel = await page.textContent("#tTend");
+    ok(tendLabel.trim() === "tend this field", "'my trail' offers a tendable field, not empty/done state");
     await ctx.close();
   }
 
@@ -231,7 +235,7 @@ async function run() {
     await page.waitForSelector(".hcard");
     await page.click('.hcard [data-act="curate"]');
     await page.click('#hTabs button[data-tab="curated"]');
-    await page.waitForSelector("#campExport:not([disabled])");
+    await page.waitForSelector("#exportBar:not([hidden])");
     await page.click("#campExport");
     const clip = await page.evaluate(() => navigator.clipboard.readText());
     let parsed = null;
@@ -249,21 +253,30 @@ async function run() {
 
   await browser.close();
 
-  // ---- 11. WebKit spot-check for new sheet rows (house policy) ----
+  // ---- 11. WebKit spot-check for the trails sheet + new create-sheet tabs (house policy) ----
   {
     console.log("\n[11] WebKit spot-check");
     const wk = await webkit.launch();
     const ctx = await wk.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
+    await page.click("#trailsBtn");
+    await page.waitForSelector("#trailsBack:not([hidden])");
+    const packRowVisible = await page.isVisible("#tPack");
+    ok(packRowVisible, "WebKit: trails pack picker renders visible");
+    const packBtnCount = await page.locator("#tPack button").count();
+    ok(packBtnCount === 2, "WebKit: pack picker shows 2 packs, got " + packBtnCount);
+    await page.click("#tCancel");
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="campaign"]');
-    await page.waitForSelector("#cPackRow:not([hidden])");
-    const packRowVisible = await page.isVisible("#cPackRow");
-    ok(packRowVisible, "WebKit: pack picker row renders visible");
-    const packBtnCount = await page.locator("#cPack button").count();
-    ok(packBtnCount === 2, "WebKit: pack picker shows 2 packs, got " + packBtnCount);
+    const tabCount = await page.locator("#cTabs button").count();
+    ok(tabCount === 3, "WebKit: create sheet shows 3 mode tabs, got " + tabCount);
+    await page.click('#cTabs button[data-tab="runs"]');
+    const runBtnCount = await page.locator("#cRunSeg button").count();
+    ok(runBtnCount === 3, "WebKit: runs tab shows 3 sub-modes, got " + runBtnCount);
+    await page.click('#cTabs button[data-tab="amble"]');
+    const sizeSliderVisible = await page.isVisible("#cSizeSlider");
+    ok(sizeSliderVisible, "WebKit: size slider renders visible on the amble tab");
     await page.click('#cCancel');
     await page.click("#historyBtn");
     await page.click('#hTabs button[data-tab="curated"]');

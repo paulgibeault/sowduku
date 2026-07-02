@@ -32,7 +32,7 @@ async function run() {
     await gotoAndDismissIntro(page);
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="amble"]');
+    await page.click('#cTabs button[data-tab="amble"]');
     await page.click('#cAssist button[data-assist="off"]');
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
@@ -50,7 +50,8 @@ async function run() {
     await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.assist", JSON.stringify("on")));
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="wallow"]');
+    await page.click('#cTabs button[data-tab="runs"]');
+    await page.click('#cRunSeg button[data-mode="wallow"]');
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
     const stillOn = await page.evaluate(() => localStorage.getItem("arcade.v1.sowduku.assist"));
@@ -66,7 +67,8 @@ async function run() {
     await gotoAndDismissIntro(page);
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="ladder"]');
+    await page.click('#cTabs button[data-tab="runs"]');
+    await page.click('#cRunSeg button[data-mode="ladder"]');
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
     const climb = await page.textContent("#climbChip");
@@ -82,7 +84,8 @@ async function run() {
     await gotoAndDismissIntro(page);
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="gauntlet"]');
+    await page.click('#cTabs button[data-tab="runs"]');
+    await page.click('#cRunSeg button[data-mode="gauntlet"]');
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
     const climb = await page.textContent("#climbChip");
@@ -98,7 +101,7 @@ async function run() {
     await gotoAndDismissIntro(page);
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="amble"]');
+    await page.click('#cTabs button[data-tab="amble"]');
     await page.click('#cAssist button[data-assist="off"]');
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
@@ -148,7 +151,7 @@ async function run() {
     await page.click("#menuBtn"); // close
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cMode button[data-mode="amble"]');
+    await page.click('#cTabs button[data-tab="amble"]');
     await page.fill("#cSeed", "6m-1"); // known intro-pack code; solution row0 is col 2
     await page.click('#cAssist button[data-assist="off"]');
     await page.click("#cTend");

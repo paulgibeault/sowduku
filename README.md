@@ -124,9 +124,10 @@ Drawn straight from the house style — **calm clarity**.
 
 ## Modes
 
-Every mode is reachable from the **＋ create** sheet — pick a mode, size, and
-mood, watch the live preview, and settle in. Each slants the same gentle
-deduction a different way:
+Most modes live in the **＋ new field** sheet — a few tabs (amble / daily /
+runs), a weather toggle, and size/difficulty sliders, not a wall of buttons.
+Watch the live preview, and settle in. **🌾 Trails** is its own, separate
+button — curated series of fields, not something you're "creating."
 
 - **The Amble** — an endless supply of hand-warm, unique puzzles. Pick a board
   size, pick a difficulty (*Sunbeam → Meadow → Hilltop → Crag*), and wander.
@@ -136,9 +137,10 @@ deduction a different way:
 - **The Ladder** — a gentle climb. Begin on a small Sunbeam field; each field you
   tend nudges the next a notch harder, up through a 9×9 Crag at the very top.
   Your best rung is quietly remembered. Stop whenever; the ladder waits.
-- **Misty Morning** — the pens hide in fog, drawn only in outline. A pen's colour
-  settles in the moment its piggy does. Same fair puzzle, read entirely from the
-  fences — a slower, more spatial kind of seeing.
+- **Misty Morning** — a weather toggle on the amble tab, not a separate mode.
+  The pens hide in fog, drawn only in outline. A pen's colour settles in the
+  moment its piggy does. Same fair puzzle, read entirely from the fences — a
+  slower, more spatial kind of seeing.
 - **The Wallow** — one heart, no assist, stern stakes, the knottiest Crag
   fields. For a focused, deliberate sit where every placement — and every
   mark — is yours to stand behind.
@@ -147,6 +149,14 @@ deduction a different way:
   three. A slip on field one is a slip you're playing field three without.
   Clearing the whole gauntlet with any hearts left is worth noticing;
   running dry ends the whole run, not just the field you're on.
+- **🌾 Trails** — curated series of fixed-seed fields, tended in order, each
+  with its own little teaching note under the board. "first steps" is a
+  six-field introduction (auto-started for a brand-new player); "my trail" is
+  your own starred fields, gentlest to knottiest. A trail's next-field preview
+  is exactly the field you'll land on — same WYSIWYG guarantee as everything
+  else. From the history sheet's curated tab, **export as trail pack** turns
+  your starred list into ready-to-paste JSON for building a new built-in
+  trail.
 
 Want the ritual without the stakes? Set **stakes** to *slow* (in the ⚙ menu)
 over any field — no hearts, no failure, infinite markers.
@@ -188,7 +198,10 @@ two difficulty reads:
 When the two disagree, the card says so — *"played tougher than it looks"* or
 *"gentler than it looks"* — which is exactly the signal for **curation**: star
 (☆) the fields worth keeping, and the curated list becomes a hand-picked set of
-layouts whose real-world difficulty you've verified, not just guessed.
+layouts whose real-world difficulty you've verified, not just guessed. A
+starred field remembers exactly how you played it — assist and stakes
+included, not just which board it is — so replaying (or exporting) it
+faithfully recreates the run, not a fresh default one.
 
 ### Quiet accolades
 
