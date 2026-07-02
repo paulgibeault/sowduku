@@ -5,6 +5,16 @@ prompt below is meant to be used **with the style preamble prepended** —
 paste it once as a system/style instruction if your tool supports one, or
 prepend it to each prompt individually.
 
+**Status:** Phase 1 and Phase 2 assets below are generated and wired into
+`index.html`. All final files are `.png`, not `.svg` — the image tool
+output ".svg" files that were actually raster PNGs wrapped in an SVG
+container (`<image href="data:image/png;base64,...">`), which inflates
+size (base64 + XML overhead) without any of the benefits of a real vector.
+Those were unwrapped, right-sized for their actual display dimensions, and
+palette-quantized before being committed (3.7MB → ~250KB total). Generate
+any remaining assets the same way, and apply the same fix if the tool
+outputs another fake-`.svg`.
+
 ## Style preamble (prepend to every prompt)
 
 ```
@@ -21,8 +31,9 @@ calm clarity. No text in the image unless specified.
 
 ## Identity
 
-### Logo / wordmark
-`assets/logo/wordmark.svg` + `assets/logo/mark-square.svg`
+### Logo / wordmark — done
+`assets/logo/wordmark.png` (wired into the header title) +
+`assets/logo/mark-square.png` (generated, not yet wired anywhere)
 
 > A horizontal wordmark: the word "Sowdoku" in a warm, rounded serif with
 > hand-drawn character, the "o" in "Sow" replaced by a curled-up sleeping
@@ -31,7 +42,7 @@ calm clarity. No text in the image unless specified.
 > piglet's cheek. Also produce a stacked square variant (wordmark below a
 > larger version of the piglet mark) for small placements.
 
-### Favicon / app icon
+### Favicon / app icon — done
 `assets/favicon/` — export the same source at 512, 192, 180 (apple-touch),
 32, and 16 px, plus a `.ico` bundling 16/32/48.
 
@@ -51,8 +62,8 @@ camera angle so they can swap in place. Generate **settled** first, then
 reference it (image-to-image, or describe its proportions) for the other
 three so the set actually matches.
 
-### Settled
-`assets/piggy/settled.svg` — replaces `pigSVG()` in `index.html`
+### Settled — done
+`assets/piggy/settled.png` — wired into `pigSVG()` in `index.html`
 
 > One small round piglet, top-down/three-quarter view, flopped happily in
 > place, eyes closed, tiny ears, subtle blush snout. Proportions and
@@ -60,23 +71,23 @@ three so the set actually matches.
 > Transparent background, flat pastel fill with charcoal line, no cast
 > shadow.
 
-### Unimpressed
-`assets/piggy/unimpressed.svg` — **no existing call site**, see integration notes
+### Unimpressed — not yet generated
+`assets/piggy/unimpressed.png` — **no existing call site**, see integration notes
 
 > The same piglet as reference, identical proportions and line weight,
 > cracking one skeptical half-open eye, one ear tilted back. Same framing
 > and canvas size so it can swap in-place with the settled pose.
 > Transparent background.
 
-### Dozing
-`assets/piggy/dozing.svg` — **no existing call site**, see integration notes
+### Dozing — not yet generated
+`assets/piggy/dozing.png` — **no existing call site**, see integration notes
 
 > The same piglet as reference, fast asleep, two tiny "z z" marks drifting
 > up, a slow-breath posture (chest very slightly raised). Same framing and
 > canvas size as the set. Transparent background.
 
-### Celebrating
-`assets/piggy/celebrating.svg` — **no existing call site**, see integration notes
+### Celebrating — not yet generated
+`assets/piggy/celebrating.png` — **no existing call site**, see integration notes
 
 > The same piglet as reference, on its back, trotters up, utterly content,
 > eyes closed in a happy squint, a small warm sun-glow patch under it.
@@ -87,16 +98,20 @@ three so the set actually matches.
 
 ## Board elements
 
-### Hoofprint marker
-`assets/board/hoofprint.svg` — replaces the inline `.hoofprint` divs in `index.html`
+### Hoofprint marker — done
+`assets/board/hoofprint.png` — wired into `index.html`. Note: the
+integration went beyond a simple swap — a new `hoofprintHTML(r, c)`
+function positions two rotated copies per cell with a deterministic
+per-cell angle, reading as a little walking trail rather than a static
+mark.
 
 > A tiny two-toed pig hoofprint, like a mark pressed into dried mud, single
 > warm charcoal-brown tone at roughly 50% opacity, slightly irregular and
 > hand-stamped rather than geometric. Must read clearly at 16px.
 > Transparent background.
 
-### Hearts — full & empty
-`assets/board/heart-full.svg`, `assets/board/heart-empty.svg` — replaces `heartSVG()`
+### Hearts — full & empty — done
+`assets/board/heart-full.png`, `assets/board/heart-empty.png` — wired into `heartSVG()`
 
 > A matched pair of small hearts, hand-drawn with a slightly asymmetric,
 > wobbly outline (not a perfect geometric heart). Left: full, soft
@@ -132,16 +147,18 @@ three so the set actually matches.
 
 ## Illustrations
 
-### Win vignette
-`assets/illustration/win-vignette.svg` — suggested slot: win veil, above the stats row
+### Win vignette — done
+`assets/illustration/win-vignette.png` — wired into the win veil, between
+the title and the descriptive text (`#vVignette` in `renderVeil()`)
 
 > A small vignette, wide and short composition (3:1): five piglets each
 > settled comfortably in their own patch of a gently colored field, spaced
 > generously apart, warm dusk light. Line art with soft pastel fills,
 > matching the board's own watercolor pens.
 
-### Fail / "crowded field" vignette
-`assets/illustration/fail-vignette.svg` — suggested slot: fail veil, above the stats row
+### Fail / "crowded field" vignette — done
+`assets/illustration/fail-vignette.png` — wired into the fail veil, same
+slot as the win vignette. Shared across all fail paths, gauntlet included.
 
 > A small vignette: two piglets accidentally settled back-to-back, both
 > mildly affronted, one eyebrow raised each — comedy through restraint, no
@@ -149,9 +166,11 @@ three so the set actually matches.
 > style as the rest of the set.
 
 ### Empty-state spots
-`assets/illustration/empty-history.svg`, `empty-curated.svg`, `empty-firstrun.svg`
-— suggested slots: the `.hempty` text in the history sheet's recent/curated
-tabs, and a future first-run flow
+`assets/illustration/empty-history.png`, `empty-curated.png` — **done**,
+wired into the `.hempty` blocks in the history sheet's recent/curated
+tabs. `assets/illustration/empty-firstrun.png` — generated but **not
+wired**, since no first-run onboarding flow exists yet (A5 backlog item);
+revisit when that flow gets built.
 
 **(a) History — empty**
 > A tiny spot illustration: an open farm gate on its own, nobody through it
@@ -168,8 +187,8 @@ tabs, and a future first-run flow
 > field map tied with string. Standalone on transparent background, square
 > format, generous negative space.
 
-### Misty Morning badge
-`assets/illustration/misty-badge.svg` — suggested slot: the `data-mode="fog"`
+### Misty Morning badge — done
+`assets/illustration/misty-badge.png` — wired into the `data-mode="fog"`
 button in the create sheet's mode picker
 
 > A small square emblem: the settled piglet's silhouette half-veiled in

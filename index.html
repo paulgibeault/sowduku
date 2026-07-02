@@ -150,6 +150,7 @@
   .seg button:hover { color: var(--ink); border-color: #d8ccb5; }
   .seg button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
   .seg.wrap { flex-wrap: wrap; justify-content: flex-end; }
+  .seg button .mode-badge { width: 1rem; height: 1rem; vertical-align: -.15rem; margin-right: .25rem; }
 
   /* the "how to play" entry point, ahead of the settings rows in the ⚙ menu */
   .infobtn { display: flex; align-items: center; gap: .5rem; width: 100%; font: inherit;
@@ -208,6 +209,11 @@
   .veil button { font: inherit; cursor: pointer; border: 1px solid #d8ccb5; background: #efe6d3;
     color: var(--ink); border-radius: 999px; padding: .5rem 1.2rem; }
   .veil button.soft { background: transparent; color: var(--ink-soft); }
+  /* the win/fail vignette — a quiet illustration, not a hero banner; shares
+     the title's billing rather than upstaging it */
+  .vvignette { display: block; width: 100%; max-width: 20rem; height: auto;
+    margin: 0 auto .9rem; border-radius: .6rem; }
+  .vvignette[hidden] { display: none; } /* same [hidden]-vs-class specificity trap as .preview */
   /* win: quiet stats + a new-high-score callout, no fireworks */
   .vstats { font-size: .85rem; color: var(--ink-soft); margin: .1rem 0 .6rem; line-height: 1.6; }
   .vstats b { color: var(--ink); font-weight: 600; }
@@ -244,6 +250,11 @@
   .seedbox button:hover { border-color: #d8ccb5; }
   .preview { display: flex; gap: 1rem; align-items: center; margin: .7rem 0 1rem; padding: .9rem; background: var(--bg);
     border: 1px solid var(--line); border-radius: .9rem; }
+  /* [hidden] and .preview have equal CSS specificity, so without this the
+     later (author) rule silently wins ties over the browser's default
+     [hidden]{display:none} — the fail veil's #vPreview was staying visible
+     despite hideResultPreview() correctly setting the hidden attribute. */
+  .preview[hidden] { display: none; }
   .miniboard { display: grid; width: 7.5rem; height: 7.5rem; flex: 0 0 auto; border-radius: .45rem; overflow: hidden; }
   .miniboard div { width: 100%; height: 100%; }
   .pmeta { flex: 1; min-width: 0; }
@@ -312,6 +323,7 @@
   .hacts .fav:hover { color: var(--ink); border-color: #d8ccb5; }
   .hacts .fav.on { color: #cc9a3a; background: #f6efdd; border-color: #e2d3ac; }
   .hempty { color: var(--ink-soft); font-size: .85rem; text-align: center; padding: 1.6rem 0; line-height: 1.5; }
+  .hempty img { display: block; width: 6rem; height: auto; margin: 0 auto .8rem; }
 
   /* clears the docked action bar's height so a toast never sits under it */
   .toast { position: fixed; left: 50%; bottom: calc(5.4rem + env(safe-area-inset-bottom));
@@ -336,7 +348,7 @@
 </head>
 <body>
   <header class="topbar">
-    <h1 class="title"><img src="assets/logo/wordmark.svg" alt="Sowdoku" class="logo"></h1>
+    <h1 class="title"><img src="assets/logo/wordmark.png" alt="Sowdoku" class="logo"></h1>
     <div class="topbar-right">
       <div class="hearts" id="hearts"></div>
       <div class="settings-wrap">
@@ -367,6 +379,7 @@
       <div class="board" id="board"></div>
       <div class="veil" id="veil"><div class="card">
         <h2 id="veilTitle"></h2>
+        <img class="vvignette" id="vVignette" alt="" hidden>
         <p id="veilText"></p>
         <div class="vstats" id="vStats" hidden></div>
         <p class="vverdict" id="vVerdict" hidden></p>
@@ -410,7 +423,7 @@
           <button data-mode="amble">amble</button>
           <button data-mode="daily">daily</button>
           <button data-mode="ladder">ladder</button>
-          <button data-mode="fog">misty</button>
+          <button data-mode="fog"><img class="mode-badge" src="assets/illustration/misty-badge.png" alt="">misty</button>
           <button data-mode="wallow">wallow</button>
           <button data-mode="gauntlet">gauntlet</button>
         </div></div>
@@ -634,13 +647,13 @@
   }
 
   function pigSVG() {
-    return '<img class="pig" src="assets/piggy/settled.svg" alt="Piggy" aria-hidden="true">';
+    return '<img class="pig" src="assets/piggy/settled.png" alt="Piggy" aria-hidden="true">';
   }
   function heartSVG(filled) {
     if (filled) {
-      return '<img src="assets/board/heart-full.svg" class="heart" alt="Heart">';
+      return '<img src="assets/board/heart-full.png" class="heart" alt="Heart">';
     } else {
-      return '<img src="assets/board/heart-empty.svg" class="heart lost" alt="Spent Heart">';
+      return '<img src="assets/board/heart-empty.png" class="heart lost" alt="Spent Heart">';
     }
   }
   function hoofprintHTML(r, c) {
@@ -683,8 +696,8 @@
     var style2 = 'position:absolute; width:34%; height:34%; left:50%; top:50%; margin-left:-17%; margin-top:-17%; ' +
                  'transform: translate(' + dx2 + '%, ' + dy2 + '%) rotate(' + rot2 + 'deg) scale(' + sc2 + '); opacity:0.72;';
                  
-    return '<img class="hoofprint" src="assets/board/hoofprint.svg" alt="" style="' + style1 + '">' +
-           '<img class="hoofprint" src="assets/board/hoofprint.svg" alt="" style="' + style2 + '">';
+    return '<img class="hoofprint" src="assets/board/hoofprint.png" alt="" style="' + style1 + '">' +
+           '<img class="hoofprint" src="assets/board/hoofprint.png" alt="" style="' + style2 + '">';
   }
 
   // "one field a day" seed — same layout for everyone on a given date
@@ -1438,6 +1451,13 @@
   }
   function hideResultPreview() { document.getElementById("vPreview").hidden = true; }
 
+  // the win/fail vignette — same illustration regardless of mode (ladder,
+  // gauntlet, etc. all share the one win/fail moment)
+  function showVeilVignette(src) {
+    var img = document.getElementById("vVignette");
+    img.src = src; img.hidden = false;
+  }
+
   // "looks like" (a-priori) vs "played like" (empirical) — only worth a line
   // when they meaningfully disagree; most solves don't need the callout.
   function verdictText(rec) {
@@ -1488,6 +1508,7 @@
       document.getElementById("veilTitle").textContent = "A perfect field.";
       saying.textContent = pickSaying();
       renderWinStats(lastRecord);
+      showVeilVignette("assets/illustration/win-vignette.png");
       btns.innerHTML = "";
       if (game.mode === "ladder") {
         var next = (game.ladderRung || 0) + 1, top = next >= LADDER.length;
@@ -1547,6 +1568,7 @@
     } else if (!isSlow() && game.hearts === 0 && !game.revealedSolution) {
       saying.textContent = "";
       renderFailStats();
+      showVeilVignette("assets/illustration/fail-vignette.png");
       hideResultPreview();
       btns.innerHTML = "";
       if (game.mode === "gauntlet") {
@@ -1870,7 +1892,8 @@
     renderCampaignBar(curatedTab);
     var items = curatedTab ? getCurated() : dedupeByCode(getHistory());
     if (!items.length) {
-      list.innerHTML = '<div class="hempty">' + (curatedTab
+      list.innerHTML = '<div class="hempty"><img src="assets/illustration/' +
+        (curatedTab ? "empty-curated" : "empty-history") + '.png" alt="">' + (curatedTab
         ? "No curated fields yet.<br>Star a field you loved from the recent list."
         : "No fields tended yet.<br>Settle a piggy or two and they’ll gather here.") + "</div>";
       return;

@@ -215,59 +215,74 @@ reinvented). Full prior regression suite (16 test files) re-run clean.
       where none exists yet. Palette and type throughout are pulled
       directly from the game's own CSS custom properties and font stacks —
       no new typefaces or colors invented.
-- [ ] Logo / wordmark — prompt ready, has no current UI slot (header title
-      is plain text) — decide during integration whether to replace it
-- [ ] Favicon / app icon (512/192/180/32/16 + `.ico`) — prompt ready, **zero
-      favicon/manifest/OG tags exist in `<head>` today** — this is new, not
-      a swap
-- [ ] Piggy sprite: settled — prompt ready, **exact call site**: `pigSVG()`
-      in `index.html` (~line 630), used at the `.placed` and `.reveal`
-      cell-render sites
-- [ ] Piggy sprite: unimpressed — prompt ready, **no call site today**; the
-      current "wrong placement" feedback is a red flash on the cell
-      (`.cell.bad`), no piggy is ever rendered there since the placement is
-      rejected. Wiring this in means adding a *new* transient state, not a
-      pure asset swap
-- [ ] Piggy sprite: dozing — prompt ready, **no call site**; no idle/empty
-      state currently shows any piggy art
-- [ ] Piggy sprite: celebrating — prompt ready, **no call site**; the win
-      veil (`renderVeil()`) is text + stats + a mini-board preview today,
-      no hero art
-- [ ] Hoofprint marker — prompt ready, **exact call site**: the inline
-      `<div class="hoofprint"><i></i><i></i><i></i></div>` markup built in
-      `render()`'s cell loop
-- [ ] Hearts (full / empty) — prompt ready, **exact call site**:
-      `heartSVG(filled)` in `index.html` (~line 639)
-- [ ] Board paper texture — prompt ready, **no call site**; `.board-wrap`
-      currently has a flat `var(--panel)` background
-- [ ] Background farm-horizon border — prompt ready, **no call site**
-- [ ] Win vignette — prompt ready, suggested slot: above `#vStats` in the
-      win veil
-- [ ] Fail vignette — prompt ready, suggested slot: above `#vStats` in the
-      fail veil
-- [ ] Empty-state spots (3) — prompt ready, suggested slot: the `.hempty`
-      text blocks in the history sheet
-- [ ] OG / social share image — prompt ready, **no `<meta property="og:*">`
-      tags exist yet** — new, not a swap
-- [ ] Misty Morning badge — prompt ready, suggested slot: the
-      `data-mode="fog"` button in the create sheet's mode picker
+- [x] Logo / wordmark — wired into the header title (`.title`), replacing
+      the plain-text "Sowdoku 🐖"
+- [x] Favicon / app icon (512/192/180/32/16 + `.ico`) — full `<link>` set
+      + manifest added to `<head>` (there were none before)
+- [x] Piggy sprite: settled — wired into `pigSVG()`
+- [ ] Piggy sprite: unimpressed — not generated. Still needs a *new*
+      transient state, not a pure swap (see Phase 3 note below)
+- [ ] Piggy sprite: dozing — not generated, no call site
+- [ ] Piggy sprite: celebrating — not generated, no call site
+- [x] Hoofprint marker — wired in via a new `hoofprintHTML(r, c)` helper
+      that positions two rotated hoofprint images per cell with a
+      deterministic per-cell angle (reads as a little walking trail),
+      replacing the old three-dot `<i>` markup
+- [x] Hearts (full / empty) — wired into `heartSVG(filled)`
+- [ ] Board paper texture — not generated, no call site
+- [ ] Background farm-horizon border — not generated, no call site
+- [x] Win vignette — wired into the win veil, between the title and the
+      descriptive text
+- [x] Fail vignette — wired into the fail veil, same slot
+- [x] Empty-state spots — history + curated wired into the `.hempty`
+      blocks in the history sheet; first-run generated but unwired (no
+      first-run flow exists yet)
+- [ ] OG / social share image — not generated, no call site
+- [x] Misty Morning badge — wired into the `data-mode="fog"` button in the
+      create sheet's mode picker
 
 **Phased plan**, since half of these need a new UI decision and half are
 pure swaps:
 
-1. **Phase 1 — pure swaps + new-but-obvious.** Favicon/manifest, logo (if
-   used), settled piggy, hearts, hoofprint. Every one of these either has
-   an exact call site already or a single unambiguous slot (`<head>`).
-   Lowest risk, ships fastest, immediately visible.
-2. **Phase 2 — win/fail vignettes + empty states + misty badge.** Each
-   needs one small, contained UI decision (where exactly the image sits)
-   but no gameplay logic changes.
-3. **Phase 3 — the open-ended ones.** Unimpressed/dozing/celebrating piggy
-   poses, paper texture, horizon border, OG image. These either need new
-   code to trigger a new state (unimpressed/celebrating) or are pure
-   ambiance calls with real risk of cluttering the "calm clarity" house
-   style if overdone — worth a design gut-check per `STYLE.md` before
-   committing, not just dropping in because the asset exists.
+1. **Phase 1 — pure swaps + new-but-obvious. Done.** Favicon/manifest,
+   logo, settled piggy, hearts, hoofprint.
+2. **Phase 2 — win/fail vignettes + empty states + misty badge. Done**
+   (except empty-firstrun, deferred — no UI hook yet).
+3. **Phase 3 — the open-ended ones. Not started.**
+   Unimpressed/dozing/celebrating piggy poses, paper texture, horizon
+   border, OG image. These either need new code to trigger a new state
+   (unimpressed/celebrating) or are pure ambiance calls with real risk of
+   cluttering the "calm clarity" house style if overdone — worth a design
+   gut-check per `STYLE.md` before committing, not just dropping in
+   because the asset exists.
+
+**How Phase 1/2 actually got built:** generated via Antigravity IDE (used
+purely for image generation, at the user's preference — not for wiring
+code, which I did directly). Two issues found and fixed during
+integration, neither caused by the generation itself:
+- **Fake-SVG format.** Every ".svg" the tool produced was actually a
+  raster PNG wrapped in an SVG container (`<image
+  href="data:image/png;base64,...">`) — no vector benefit, and base64 +
+  XML overhead bloated `assets/` to 3.7MB for icon-scale art. Fixed by
+  extracting the real PNG data, right-sizing each to its actual on-screen
+  use (hearts were sourced at 380px for an 18px display!), and
+  palette-quantizing (128 colors, `Pillow`) — 3.7MB → ~250KB with no
+  visible quality loss. Saved as real `.png` files; `index.html` and
+  `ASSET_PROMPTS.md` updated to match.
+- **Pre-existing `[hidden]` CSS bug, caught by this review.** `.preview`
+  (used by both the create sheet's field preview and the veil's
+  `#vPreview`) sets `display: flex` explicitly. A class selector and the
+  browser's default `[hidden] { display: none }` have equal CSS
+  specificity, so on a tie the later (author) rule wins — meaning
+  `hideResultPreview()` was correctly setting `hidden`, but the fail veil
+  kept showing a stray "next field" preview box anyway. This dates back
+  to the original A3 work (reusing `.preview` for `#vPreview`), not to
+  the asset pass — just never visually caught until this review looked
+  closely at the fail veil screenshot. Fixed with `.preview[hidden] {
+  display: none; }`, matching the pattern already used correctly
+  everywhere else in the file (`.climbchip`, `.stuck`, `.menu`,
+  `.sheet-backdrop`, `.orow`, `.campaign` all already had this).
+  `.vvignette[hidden]` given the same treatment defensively.
 
 ### A5. Other polish backlog
 - [ ] Sound: wooden thud / pen-complete chime / solve snuffle (off by default)
@@ -555,3 +570,21 @@ puddles) → C (twin litters, own milestone).
   3-phase integration order (pure swaps → contained new UI decisions →
   open-ended/needs-a-design-call). Gave the user a ready-to-paste kickoff
   prompt for Antigravity pointing at both docs.
+- 2026-07-02 — Antigravity generated Phase 1 + Phase 2 assets and wired
+  Phase 1 into `index.html` on its own (auto-committed as "plan
+  checkpoint" and "added assets" — a different workflow than mine, flagged
+  to the user rather than assumed OK). I verified the result live before
+  taking the user's "assets are in place" at face value: full regression
+  suite passed after fixing a couple of my own tests' stale `.hearts svg`
+  selectors (hearts are `<img>` now, not inline `<svg>` — not a real
+  regression). Found and reported two real issues: every ".svg" was
+  actually a raster PNG in disguise (3.7MB bloat), and Phase 2's assets
+  were generated but never wired in. User confirmed: use Antigravity only
+  for image generation going forward, asked me to fix the SVGs and wire in
+  Phase 2 directly. Did both — see the A4 section above for the technical
+  detail, including a pre-existing `[hidden]` CSS specificity bug caught
+  along the way (fail veil was showing a stray next-field preview). Full
+  regression suite + new Phase-2-specific tests all pass. Phase 3 remains:
+  the piggy pose variants, texture, horizon border, and OG image, all of
+  which need either new code (a transient "unimpressed" state) or a
+  deliberate design gut-check before adding ambient art.
