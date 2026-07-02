@@ -352,24 +352,45 @@ integration, neither caused by the generation itself:
       so a stray shimmer can never survive a board mutation that erases the
       placement that triggered it. Verified: exactly the pen's cell count
       gets the class, self-clears after 700ms.
-- [x] Sound: synthesized thud / chime / snuffle, off by default — asked the
-      user how to source audio given there's no established pipeline for it
-      (Antigravity was image-only); chose Web Audio API synthesis over
-      sourcing real audio files, so there's nothing to generate or host.
-      Three cues, all plain oscillators/filtered-noise with a gain envelope:
-      a low sine "thud" on a piggy settling, a three-note sine "chime" (its
-      own ~90ms internal start offset so it reads as *after* the thud, not
-      blended with it — both fire from the same event since every pen
-      completes the instant its one piggy lands) when a pen's shimmer
-      triggers, and three short bandpass-filtered noise bursts as a "snuffle"
-      on a full solve. New `sound` on/off row in the ⚙ menu (persisted like
-      stakes) — it's a live, always-effective toggle, unlike assist, so it
-      belongs there and not in the create sheet. `AudioContext` is created
-      lazily on the first real toggle-on click, so it's always inside a
-      genuine user gesture (autoplay policy) and never touched at all while
-      sound is off. Verified end-to-end by instrumenting `AudioContext` to
-      count oscillator/buffer-source calls: zero while off, thud+chime (4
-      oscillators) together on a placement, and 3 buffer sources on a solve.
+- [x] Sound: synthesized thud / chime / snuffle / slip / fail, off by
+      default — asked the user how to source audio given there's no
+      established pipeline for it (Antigravity was image-only); chose Web
+      Audio API synthesis over sourcing real audio files, so there's nothing
+      to generate or host. Five cues, all plain oscillators/filtered-noise
+      with a gain envelope: a low sine "thud" on a piggy settling, a
+      three-note sine "chime" (its own ~90ms internal start offset so it
+      reads as *after* the thud, not blended with it — both fire from the
+      same event since every pen completes the instant its one piggy lands)
+      when a pen's shimmer triggers, three short bandpass-filtered noise
+      bursts as a "snuffle" on a full solve, a soft two-note "slip" dip on
+      any mistake, and a slower three-note descending "fail" phrase the
+      instant hearts hit zero. New `sound` on/off row in the ⚙ menu
+      (persisted like stakes) — it's a live, always-effective toggle, unlike
+      assist, so it belongs there and not in the create sheet. `AudioContext`
+      is created lazily on the first real toggle-on click, so it's always
+      inside a genuine user gesture (autoplay policy) and never touched at
+      all while sound is off.
+      **Follow-up bug, caught by the user testing it live:** shipped with
+      only the three positive cues (thud/chime/snuffle) — every mistake and
+      every game-over were silent, since I'd never wired sound into any of
+      the four heart-docking code paths (`dockStrictHeart()`'s three call
+      sites, plus the plain gentle-stakes illegal-placement branch). Added
+      `playSlip()` (wired into all four) and `playFail()` (fires once,
+      exactly when hearts reach zero, from inside `dockStrictHeart()` and
+      the gentle-stakes branch). Also fixed a second, subtler issue found
+      while diagnosing: the winning placement always fires thud + chime
+      *and* triggers the solve, so `playSnuffle()` was scheduled to start at
+      the exact same instant as those two — almost certainly getting
+      acoustically buried under them, which likely explains why "no sound
+      for completion" was reported even though the calls were technically
+      firing. Gave the snuffle a 0.6s internal head-start so it plays as its
+      own clear, distinct moment once the placement sounds have decayed
+      instead of overlapping them. Verified end-to-end by instrumenting
+      `AudioContext`: zero calls while off; thud+chime (4 oscillators)
+      together on a placement; a slip (2 oscillators) on an illegal
+      placement *and* on a Honest+ wrong-but-legal patch; a slip *and* a
+      fail firing together the moment a Wallow round runs out of its one
+      heart; 3 buffer sources (now delayed) still firing on a full solve.
 - [x] Colorblind support — an optional per-pen letter (⚙ menu, off by
       default, persisted): `A`–`J` covering every board size up to 10×10,
       appended as a small corner `<span>` (not `innerHTML`'d, so it never
@@ -525,9 +546,107 @@ Implementation notes:
       the streak line entirely.
 - [ ] **I. Daily modifier rotation** — fog Wed / stern Fri / gauntlet Sun, etc.
 
-**Recommended build order:** B1 stakes → A (crag band) → H (par/accolades,
-rewards the new difficulty) → G (gauntlet) → B (bigger boards) → D (mud
-puddles) → C (twin litters, own milestone).
+**Recommended build order** (revised 2026-07-02, campaigns first): B3
+(campaign packs, below) → D (mud puddles — also an on-brand pack ingredient
+later) → E (limited hoofprints) / F (settled means settled — small variants,
+possible future pack modifiers) → I (daily modifier rotation) → C (twin
+litters, stays its own milestone).
+*(Original order, for the record: B1 stakes → A crag → H accolades → G
+gauntlet → B bigger boards → D → C. Everything before D shipped.)*
+
+### B3. Campaign packs — **planned 2026-07-02, not started**
+
+Curated series of fixed-seed fields, selectable in the create sheet. The
+existing single-list "campaign" mode (play your curated list in difficulty
+order, launched from the history sheet) becomes the *authoring loop* for
+packs; a new intro/first-time pack ships as campaign #1.
+
+**Data model**
+- [ ] New `campaigns.js` (script-tagged before the main inline script; added
+      to `sw.js` precache + cache version bump) holding
+      `var CAMPAIGNS = [{ id, name, note, fields: [{ code, name, note?,
+      assist? }] }]`. A field is identified by its board code (round-trips
+      via the existing `parseCode`/`boardCode`); optional per-field `assist`
+      override and teaching `note`.
+- [ ] The player's own curated list appears as a virtual pack (`id:
+      "curated"`, "my trail"), ordered by the existing `curatedOrdered()`.
+      Built-in packs play in authored order — no re-sort.
+- [ ] Progress: `campaignDone` migrates from a flat code array to
+      `{ packId: [codes] }` — one-time migration maps the old array to
+      `{ curated: [...] }` (same pattern as the slow→stakes and assist
+      migrations). `markCampaignDone`/`isCampaignDone`/`nextCampaign`/
+      `campaignDoneCount` gain a pack parameter.
+- [ ] `game.campaignPack` alongside the existing `game.campaignCode`,
+      threaded through `beginGame` opts, `persist()`/`restore()`, and
+      `buildRecord`.
+- [ ] **Arcade-export constraint:** every persisted key stays on
+      `sget`/`sset` (the `arcade.v1.sowduku.*` namespace), so campaign
+      progress and curated packs ride the launcher's save-file export/import
+      automatically. Nothing new to build — just don't bypass it.
+
+**UI**
+- [ ] Create sheet: `data-mode="campaign"` button in `#cMode`. When
+      selected: size/diff/seed/surprise rows hidden (fixed by the pack); a
+      new pack-picker row (`cPackRow`) lists built-in packs + "my trail",
+      each with progress ("3 of 6 tended"). Preview shows the *next
+      untended field* of the selected pack — WYSIWYG like every other mode.
+      Assist row respects a per-field override. Tend →
+      `startCampaign(pack)`; a fully-tended pack offers "walk it again"
+      (reset + restart).
+- [ ] Teaching-note display: a quiet line in `.below-board` (next to
+      `#stuckNote`), populated from the active pack field's `note` during
+      `render()` — derived from `game.campaignPack` + `campaignCode`, so it
+      survives reload with zero extra persistence.
+- [ ] Win veil campaign branch generalized from `curatedOrdered()` to the
+      active pack's ordered list; progress copy names the pack.
+- [ ] History sheet, curated tab: campaign bar stays as the "my trail"
+      launcher; new **"export pack"** button beside it copies
+      pretty-printed, ready-to-paste pack JSON (placeholder id/name/note +
+      ordered fields carrying `code` and the player's edited `name`) via
+      `navigator.clipboard.writeText`, textarea-select fallback, confirming
+      toast. This is the pipeline for building future built-in packs:
+      curate → order → export → paste into `campaigns.js`.
+- [ ] First-run: extend the existing genuinely-new-player gate (`seenIntro`
+      — no in-progress field, history, or stats): instead of a random
+      amble, a brand-new player starts on intro field 1 (how-to-play sheet
+      still auto-opens on top). Existing players untouched.
+
+**Intro pack — six designed fields (seeds picked at build time)**
+Seed selection is scripted: a Node script drives `sowdoku.js` to generate
+candidates per (size, band), filters on the profile/region criteria below,
+then each finalist is hand-played before its code is locked into
+`campaigns.js`.
+1. [ ] "settling in" — 6×6 sunbeam, assist on. Lesson: tap to settle; one
+       piggy per pen/row/column. Criteria: a 1-cell pen (obvious first
+       move), near-pure L1 profile (`l2 === 0`).
+2. [ ] "good neighbors" — 6×6 sunbeam, assist on. Lesson: piggies never
+       settle adjacent (even diagonally); tap a settled piggy to lift it.
+       Criteria: an early forced piggy whose neighborhood visibly carves up
+       an adjacent pen.
+3. [ ] "leaving hoofprints" — 6×6 meadow, assist on. Lesson: long-press /
+       Space marks a hoofprint. Criteria: `l2 >= 2` — the opening stalls
+       without marking impossible cells.
+4. [ ] "reading the field" — 6×6 meadow. Lesson: confinement — a pen
+       squeezed into one row/column claims it. Criteria: an L2 confinement
+       near the start; assist reverts to player preference from here on.
+5. [ ] "a helping hand" — 7×7 meadow. Lesson: peek (H) and undo (⌘Z) exist
+       and cost nothing but pride. Criteria: first size step-up, mid-band
+       effort score.
+6. [ ] "out into the meadow" — 7×7 meadow, high-effort end of the band.
+       Lesson: none — "this one's all yours." Capstone, no new mechanics.
+
+**Verification (when built)**
+- [ ] Playwright: campaign mode in create sheet; pack picker shows both
+      packs with correct progress; preview code === the field actually
+      started; teaching note renders and survives reload; win veil advances
+      within the right pack; old `campaignDone` array migrates; a
+      fresh-profile run lands on intro field 1 with the how-to-play sheet
+      open; an existing-player profile is untouched; export puts valid JSON
+      on the clipboard that round-trips through `parseCode`; curated-tab
+      campaign bar still works. WebKit spot-check for the new sheet rows
+      (house policy). Note: prior sessions' Playwright regression scripts
+      were session-scratch files, not in the repo — recreate coverage as
+      part of this milestone.
 
 ---
 
@@ -761,3 +880,33 @@ puddles) → C (twin litters, own milestone).
   across the whole plan: Part B2's mud puddles, twin litters (its own
   milestone), limited hoofprints, "settled means settled", and daily
   modifier rotation.
+- 2026-07-02 — User reported hearing sound only on correct placements, none
+  for slips/fails/completion. Real gap: I'd shipped only the three positive
+  cues from the original scope and never wired sound to any mistake path, so
+  every slip and every game-over was genuinely silent — not a perception
+  issue. Also found, while diagnosing, that the solve "snuffle" was
+  scheduled at the same instant as the winning placement's thud+chime, so it
+  was likely getting acoustically buried even when it did fire. Added
+  `playSlip()` and `playFail()`, wired into every heart-docking path, and
+  gave the snuffle a 0.6s head start so it plays as its own moment. See the
+  Sound bullet above for full detail. Verified via instrumented
+  `AudioContext` calls across all five cues.
+- 2026-07-02 — **Part A close-out review + Part B re-plan (planning only, no
+  code).** Walked the whole of Part A against the working tree: A1–A3 and A2b
+  done and verified as they landed; A4 closed at its decided scope (dozing/
+  celebrating sprites, paper texture, horizon border deliberately on hold —
+  no call site); A5 done at 10 of 12 (render diffing and the share affordance
+  deliberately deferred). Nothing in Part A remains actionable. One caveat
+  recorded: the Playwright regression scripts cited throughout were
+  session-scratch files and are not in the repo, so future milestones should
+  recreate coverage as they go. Part B re-planned around a new direction from
+  the user: **campaign packs** — curated series of fixed-seed fields
+  selectable in the create sheet, with the existing curated-list campaign
+  becoming the authoring loop, a designed 6-field intro pack as campaign #1
+  (auto-started for genuinely new players), and a clipboard-JSON "export
+  pack" pipeline for promoting curated lists into built-in packs. Storage
+  already rides `arcade.v1.sowduku.*` via `sget`/`sset`, so campaign state is
+  covered by the Arcade launcher's save-file export with no extra work. Full
+  design captured as B3 above; build order revised to put B3 first, ahead of
+  mud puddles / limited hoofprints / settled-means-settled / daily rotation /
+  twin litters.
