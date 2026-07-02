@@ -149,6 +149,12 @@
   //                      row/col whose candidates share one region) -> eliminate.
   //   L3  contradiction: hypothesize a candidate, propagate at <=L2; if it dead-
   //                      ends, that candidate is impossible -> eliminate.
+  //   L4  deep contradiction: hypothesize a candidate, propagate at <=L3 (so
+  //                      the propagation itself may spend an L3 elimination);
+  //                      if it dead-ends, that candidate is impossible -> eliminate.
+  //                      The one-deeper mirror of L3 — still pure logic, no
+  //                      guessing kept, just a longer chain of "if this, then
+  //                      that's impossible."
   function regionCellsOf(n, region) {
     const rc = Array.from({ length: n }, () => []);
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) rc[region[r][c]].push([r, c]);
@@ -251,6 +257,28 @@
       return false;
     }
 
+    // run L1+L2+L3 to a fixpoint; report contradiction (the deeper propagation
+    // level4's hypotheses get checked against)
+    function propagateL123(s) {
+      for (;;) {
+        if (contradiction(s)) return 'contradiction';
+        if (level1(s)) continue;
+        if (level2(s)) continue;
+        if (level3(s)) continue;
+        return s.placedCount === n ? 'solved' : 'stuck';
+      }
+    }
+
+    function level4(s) { // eliminate one candidate whose only dead end needs an L3 step to reach
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+        if (!s.cand[r][c]) continue;
+        const t = cloneState(n, s);
+        place(t, r, c);
+        if (propagateL123(t) === 'contradiction') { s.cand[r][c] = false; return true; }
+      }
+      return false;
+    }
+
     // find (don't place) the next forced single: a row/col/region with exactly
     // one candidate. Returns { r, c, why } or null.
     function forcedSingle(s) {
@@ -286,13 +314,14 @@
     // Solve with techniques up to maxLevel; report which levels were needed.
     function solve(maxLevel) {
       const s = freshState(n);
-      const counts = { l1: 0, l2: 0, l3: 0 };
+      const counts = { l1: 0, l2: 0, l3: 0, l4: 0 };
       let usedMax = 0;
       for (;;) {
         if (contradiction(s)) break;
         if (level1(s)) { counts.l1++; usedMax = Math.max(usedMax, 1); continue; }
         if (maxLevel >= 2 && level2(s)) { counts.l2++; usedMax = Math.max(usedMax, 2); continue; }
         if (maxLevel >= 3 && level3(s)) { counts.l3++; usedMax = Math.max(usedMax, 3); continue; }
+        if (maxLevel >= 4 && level4(s)) { counts.l4++; usedMax = Math.max(usedMax, 4); continue; }
         break;
       }
       return { solved: s.placedCount === n, counts, usedMax };
@@ -309,19 +338,25 @@
       return { band: r2.counts.l2 <= 3 ? 'sunbeam' : 'meadow', minLevel: r2.usedMax, counts: r2.counts };
     }
     const r3 = solver.solve(3);
-    if (r3.solved) return { band: 'hilltop', minLevel: 3, counts: r3.counts };
-    return { band: 'unfair', minLevel: 4, counts: r3.counts }; // needs deeper search
+    if (r3.solved) {
+      // crag: leans hard on contradiction chains (2+ separate L3 eliminations
+      // needed), not just the single dead-end most hilltop fields ask for.
+      return { band: (r3.counts.l3 || 0) >= 2 ? 'crag' : 'hilltop', minLevel: 3, counts: r3.counts };
+    }
+    const r4 = solver.solve(4);
+    if (r4.solved) return { band: 'crag', minLevel: 4, counts: r4.counts }; // needed a genuinely deeper chain
+    return { band: 'unfair', minLevel: 5, counts: r4.counts }; // needs deeper search than L4 models
   }
 
   // a-priori human-effort estimate (1..100) from the solver's logic profile.
-  // The band sets the floor; L2 confinements and (especially) L3 contradictions
+  // The band sets the floor; L2 confinements and (especially) L3/L4 contradictions
   // add grind; bigger boards ask a little more scanning. This is the "what the
   // field asks of you" number, before anyone has actually played it.
   function humanScore(size, profile, band) {
     const p = profile || {};
-    const base = { sunbeam: 12, meadow: 38, hilltop: 66, unfair: 88 }[band];
+    const base = { sunbeam: 12, meadow: 38, hilltop: 66, crag: 88, unfair: 97 }[band];
     const floor = base != null ? base : 38;
-    const depth = (p.l2 || 0) * 2 + (p.l3 || 0) * 9;
+    const depth = (p.l2 || 0) * 2 + (p.l3 || 0) * 9 + (p.l4 || 0) * 14;
     const sizeAdj = (size - 6) * 4;
     const raw = floor + depth + sizeAdj;
     return Math.max(1, Math.min(100, Math.round(raw)));
@@ -334,12 +369,15 @@
 
   // ---- top-level generation ----
   // generate({ size, difficulty, seed }) -> { size, regions, solution, difficulty, seed }
-  const BANDS = ['sunbeam', 'meadow', 'hilltop'];
+  const BANDS = ['sunbeam', 'meadow', 'hilltop', 'crag'];
   function generate(opts = {}) {
     const size = opts.size || 8;
     const want = BANDS.includes(opts.difficulty) ? opts.difficulty : 'meadow';
     const baseSeed = (opts.seed != null ? opts.seed : 0x5e7) >>> 0;
-    const maxAttempts = opts.maxAttempts || 2000;
+    // crag fields are rarer than the other bands (they need a grindy contradiction
+    // chain, not just a lucky region shape); 10x10 boards are rarer to land a
+    // unique-solution region for at all. Both get more room to find one.
+    const maxAttempts = opts.maxAttempts || (size >= 10 ? 12000 : (want === 'crag' ? 6000 : 2000));
 
     let fallback = null;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {

@@ -278,6 +278,12 @@
             <button data-assist="gated">gated</button>
             <button data-assist="manual">manual</button>
           </div></div>
+        <div class="row"><span class="lab" title="how strictly a heart is docked">stakes</span>
+          <div class="seg" id="stakesSeg">
+            <button data-stakes="gentle">gentle</button>
+            <button data-stakes="honest">honest</button>
+            <button data-stakes="stern">stern</button>
+          </div></div>
         <div class="row"><span class="lab">a gentle hint</span>
           <div class="seg"><button id="peekBtn">peek</button></div></div>
       </div>
@@ -299,18 +305,21 @@
           <button data-mode="ladder">ladder</button>
           <button data-mode="fog">misty</button>
           <button data-mode="wallow">wallow</button>
+          <button data-mode="gauntlet">gauntlet</button>
         </div></div>
       <p class="modeNote" id="cModeNote"></p>
       <div class="orow" id="cSizeRow"><span class="lab">size</span>
         <div class="seg" id="cSize">
           <button data-size="6">6</button><button data-size="7">7</button>
           <button data-size="8">8</button><button data-size="9">9</button>
+          <button data-size="10">10</button>
         </div></div>
       <div class="orow" id="cDiffRow"><span class="lab">difficulty</span>
         <div class="seg" id="cDiff">
           <button data-diff="sunbeam">sunbeam</button>
           <button data-diff="meadow">meadow</button>
           <button data-diff="hilltop">hilltop</button>
+          <button data-diff="crag">crag</button>
         </div></div>
       <div class="orow" id="cSeedRow"><span class="lab">seed</span>
         <div class="seedbox">
@@ -380,7 +389,9 @@
     else localStorage.setItem(NS + key, JSON.stringify(val));
   }
 
-  var PALETTE = ["#cdd6bb","#e6cdb8","#e3c2cb","#c3d0d8","#ecdcae","#d3cadf","#cad9c6","#e9d3bd","#dcb9a6"];
+  // 10 distinct pens for a 10×10 board — one entry short and two regions
+  // would silently share a colour (PALETTE[id % PALETTE.length] wrapping).
+  var PALETTE = ["#cdd6bb","#e6cdb8","#e3c2cb","#c3d0d8","#ecdcae","#d3cadf","#cad9c6","#e9d3bd","#dcb9a6","#b9c9dc"];
   var MAX_HEARTS = 5;
 
   // ---- game modes: each slants play a different, cozy way ----
@@ -393,27 +404,40 @@
               note: "A gentle climb — each solved field nudges the next one a notch harder." },
     fog:    { label: "misty morning", hearts: 5, fog: true,
               note: "The pens hide in morning fog; a pen’s colour settles in only once its piggy does." },
-    wallow: { label: "the wallow",    hearts: 1, assist: "manual", bias: "hilltop",
-              note: "One heart, no hand-holding, the knottier fields. For a focused, unhurried sit." },
+    wallow: { label: "the wallow",    hearts: 1, assist: "manual", stakes: "stern", bias: "crag",
+              note: "One heart, no hand-holding, the knottiest fields, and every mark held to account. For a focused, unhurried sit." },
     campaign: { label: "campaign",    hearts: 5,
               note: "Your curated fields, tended in order from gentlest to knottiest." },
+    gauntlet: { label: "the gauntlet", hearts: 3,
+              note: "Three fields, one shared line of hearts, harder with every one. Run dry and the whole gauntlet ends — clear it and every heart you kept is a small triumph." },
   };
   function modeCfg(m) { return MODES[m] || MODES.amble; }
 
-  // the ladder's rungs: gentle at the foot, knottier toward the top
+  // the ladder's rungs: gentle at the foot, knottier toward the top — crag
+  // caps the climb now that the solver can rate (and the generator can find)
+  // fields that need more than a single contradiction chain.
   var LADDER = [
     { size: 6, difficulty: "sunbeam" }, { size: 6, difficulty: "meadow"  },
     { size: 7, difficulty: "meadow"  }, { size: 7, difficulty: "hilltop" },
     { size: 8, difficulty: "meadow"  }, { size: 8, difficulty: "hilltop" },
-    { size: 9, difficulty: "meadow"  }, { size: 9, difficulty: "hilltop" },
+    { size: 9, difficulty: "hilltop" }, { size: 9, difficulty: "crag"    },
   ];
   function ladderRung(rung) { return LADDER[Math.max(0, Math.min(rung, LADDER.length - 1))]; }
+
+  // the gauntlet's three fields: a fixed, curated escalation (not player-
+  // chosen) since the whole point is one shared, dwindling line of hearts.
+  var GAUNTLET = [
+    { size: 7, difficulty: "meadow"  },
+    { size: 8, difficulty: "hilltop" },
+    { size: 9, difficulty: "crag"    },
+  ];
+  function gauntletStage(step) { return GAUNTLET[Math.max(0, Math.min(step, GAUNTLET.length - 1))]; }
 
   // ---- board identity: a compact, shareable code (size · band · seed) ----
   // A field is fully determined by { size, requested difficulty, seed }, so the
   // code round-trips to the exact same board — the unit of curation and replay.
-  var BAND_CHAR = { sunbeam: "s", meadow: "m", hilltop: "h" };
-  var CHAR_BAND = { s: "sunbeam", m: "meadow", h: "hilltop" };
+  var BAND_CHAR = { sunbeam: "s", meadow: "m", hilltop: "h", crag: "c" };
+  var CHAR_BAND = { s: "sunbeam", m: "meadow", h: "hilltop", c: "crag" };
   function boardCode(size, reqDiff, seed) {
     return size + (BAND_CHAR[reqDiff] || "m") + "-" + ((seed >>> 0).toString(36));
   }
@@ -421,7 +445,7 @@
     if (str == null) return null;
     str = String(str).trim().toLowerCase();
     if (!str) return null;
-    var m = /^([6-9])([smh])-([0-9a-z]+)$/.exec(str);
+    var m = /^(10|[6-9])([smhc])-([0-9a-z]+)$/.exec(str);
     if (m) return { size: +m[1], difficulty: CHAR_BAND[m[2]], seed: parseInt(m[3], 36) >>> 0 };
     if (/^\d+$/.test(str)) return { seed: (+str) >>> 0 };  // bare number = seed only
     return null;
@@ -456,6 +480,21 @@
   }
   function saveAssist(v) { sset("assist", v); }
 
+  // stakes: how strictly a heart is docked, a player preference like assist.
+  // 'gentle' (default) only docks for a rule broken against pigs already on
+  // the board. 'honest' adds a pig that's legal right now but doesn't match
+  // the field's actual solution, and starving a pen (even via your own
+  // hoofprints). 'stern' adds a hoofprint dropped on a cell that's actually
+  // correct. Each tier docks at most one heart per pointer gesture.
+  var STAKES_MODES = ["gentle", "honest", "stern"];
+  var STAKES_RANK = { gentle: 0, honest: 1, stern: 2 };
+  function loadStakes() {
+    var v = sget("stakes");
+    return STAKES_MODES.indexOf(v) >= 0 ? v : "gentle";
+  }
+  function saveStakes(v) { sset("stakes", v); }
+  function stakesAtLeast(level) { return STAKES_RANK[game.stakes] >= STAKES_RANK[level]; }
+
   // ---- generation with a small retry so we never hand back a null puzzle ----
   function makeBoard(size, reqDiff, seed) {
     for (var i = 0; i < 6; i++) {
@@ -488,10 +527,15 @@
       puzzle: puzzle, mode: opts.mode || "amble", reqDifficulty: reqDiff,
       code: boardCode(size, reqDiff, seed),
       piggies: new Set(), hoofprints: new Set(), revealed: new Set(),
-      hearts: cfg.hearts, maxHearts: cfg.hearts,
+      // the gauntlet carries its heart pool forward between its three fields
+      // instead of each field starting fresh — the whole point is one shared,
+      // dwindling line of hearts.
+      hearts: opts.carryHearts != null ? opts.carryHearts : cfg.hearts,
+      maxHearts: opts.carryMaxHearts != null ? opts.carryMaxHearts : cfg.hearts,
       slow: false, assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
+      stakes: cfg.stakes || loadStakes(), lockedStakes: !!cfg.stakes,
       solved: false, recorded: false, ladderRung: opts.ladderRung || 0,
-      campaignCode: opts.campaignCode || null,
+      campaignCode: opts.campaignCode || null, gauntletStep: opts.gauntletStep || 0,
       metrics: newMetrics(), undo: [],
     };
     lastTick = Date.now();
@@ -500,6 +544,19 @@
   }
   function startDaily(size)      { beginGame({ mode: "daily",  size: size || 8, difficulty: "meadow", seed: dailySeed() }); }
   function startAmble(size, dif) { beginGame({ mode: "amble",  size: size || curSize(), difficulty: dif || curReqDiff(), seed: randomSeed() }); }
+  function startGauntlet() {
+    var g = gauntletStage(0);
+    beginGame({ mode: "gauntlet", size: g.size, difficulty: g.difficulty, seed: randomSeed(), gauntletStep: 0 });
+  }
+  // called only after the just-solved field is still the live `game` object,
+  // so carrying its hearts forward reads the remaining count, not a fresh one.
+  function nextGauntletField() {
+    var next = (game.gauntletStep || 0) + 1;
+    if (next >= GAUNTLET.length) return; // the gauntlet's already complete
+    var g = gauntletStage(next);
+    beginGame({ mode: "gauntlet", size: g.size, difficulty: g.difficulty, seed: randomSeed(),
+                gauntletStep: next, carryHearts: game.hearts, carryMaxHearts: game.maxHearts });
+  }
   function startLadder(rung) {
     rung = rung || 0; var lc = ladderRung(rung);
     beginGame({ mode: "ladder", size: lc.size, difficulty: lc.difficulty, seed: randomSeed(), ladderRung: rung });
@@ -568,6 +625,7 @@
       hearts: game.hearts, maxHearts: game.maxHearts, slow: game.slow,
       solved: !!game.solved, recorded: !!game.recorded,
       ladderRung: game.ladderRung || 0, campaignCode: game.campaignCode || null,
+      gauntletStep: game.gauntletStep || 0,
       metrics: game.metrics, undo: game.undo || [],
     });
   }
@@ -589,7 +647,9 @@
         maxHearts: s.maxHearts || cfg.hearts || MAX_HEARTS,
         slow: !!s.slow, solved: !!s.solved, recorded: !!s.recorded,
         assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
+        stakes: cfg.stakes || loadStakes(), lockedStakes: !!cfg.stakes,
         ladderRung: s.ladderRung || 0, campaignCode: s.campaignCode || null,
+        gauntletStep: s.gauntletStep || 0,
         metrics: s.metrics || newMetrics(),
         undo: Array.isArray(s.undo) ? s.undo : [],
       };
@@ -609,10 +669,24 @@
   // material a campaign mode sorts pre-tested fields by.
   function getHiScores() { return sget("hiScores") || {}; }
 
+  // quiet accolades: not scored achievements with fireworks, just a plain read
+  // of what a run actually was. "clean" already shows up as "0 slips" in the
+  // outcome line, so it's not repeated here — tidy and unaided aren't
+  // otherwise visible in the history card.
+  function accoladesFor(rec) {
+    if (!rec.solved) return [];
+    var a = [];
+    if (!rec.hoofprints) a.push({ key: "tidy", label: "tidy", title: "solved without a single hoofprint" });
+    if (!rec.hints && rec.assist === "manual") a.push({ key: "unaided", label: "unaided", title: "no peeks, no auto-shading" });
+    return a;
+  }
+
   // a single run's points. Cozy, not cutthroat: a clean, unhurried solve scores
   // well; slips and peeks cost the most; time nudges gently. Bigger, knottier
   // boards are worth more, so the leaderboard rewards the fields worth tending.
-  var DIFF_MUL = { sunbeam: 0.85, meadow: 1, hilltop: 1.35, unfair: 1.6 };
+  // Tidy and unaided nudge the score up a little — the positive mirror of the
+  // slip/peek penalties, not a separate mechanic.
+  var DIFF_MUL = { sunbeam: 0.85, meadow: 1, hilltop: 1.35, crag: 1.75, unfair: 2 };
   function playScore(rec) {
     if (!rec.solved) return 0;
     var size = rec.size || 8;
@@ -620,7 +694,9 @@
     var slipPen = (rec.mistakes || 0) * 60;
     var hintPen = (rec.hints || 0) * 90;
     var timePen = Math.min(base * 0.45, ((rec.playMs || 0) / 1000) * 2);
-    var raw = (base - slipPen - hintPen - timePen) * (DIFF_MUL[rec.band] || 1);
+    var tidyBonus = !rec.hoofprints ? 40 : 0;
+    var unaidedBonus = (!rec.hints && rec.assist === "manual") ? 60 : 0;
+    var raw = (base - slipPen - hintPen - timePen + tidyBonus + unaidedBonus) * (DIFF_MUL[rec.band] || 1);
     return Math.max(50, Math.round(raw));                     // a finished field always scores
   }
 
@@ -658,7 +734,9 @@
       moves: m.moves, placements: m.placements, mistakes: m.mistakes,
       hoofprints: m.hoofprints, clears: m.clears, hints: m.hints,
       assist: game.lockedAssist ? game.assist : loadAssist(), slow: game.slow,
+      stakes: game.lockedStakes ? game.stakes : loadStakes(),
       solved: !!solved, placed: game.piggies.size, ladderRung: game.ladderRung || 0,
+      gauntletStep: game.gauntletStep || 0,
       heartsLeft: game.slow ? null : game.hearts,
       aScore: Sowdoku.humanScore(p.size, profile, p.difficulty),
     };
@@ -695,6 +773,18 @@
     st.played++; if (rec.solved) st.solved++;
     st.mistakes += rec.mistakes; st.playMs += rec.playMs;
     if (rec.mode === "ladder" && rec.solved) st.bestLadder = Math.max(st.bestLadder || 0, rec.ladderRung + 1);
+    // only the gauntlet's last field, solved, counts as the whole gauntlet cleared
+    if (rec.mode === "gauntlet" && rec.solved && rec.gauntletStep >= GAUNTLET.length - 1) {
+      st.gauntletsCleared = (st.gauntletsCleared || 0) + 1;
+    }
+    // a quiet streak: consecutive fields solved with zero slips. Any mistake,
+    // or leaving a field unsolved, resets it — no shame, just back to zero.
+    if (rec.solved && !rec.mistakes) {
+      st.cleanStreak = (st.cleanStreak || 0) + 1;
+      st.bestCleanStreak = Math.max(st.bestCleanStreak || 0, st.cleanStreak);
+    } else {
+      st.cleanStreak = 0;
+    }
     sset("stats", st);
   }
 
@@ -731,17 +821,39 @@
   function haptic(pattern) { if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) {} } }
 
   // is the auto-shading of impossible cells active right now?
+  var GATED_OFF_BANDS = { hilltop: true, crag: true };
   function assistOn() {
     if (game.assist === "manual") return false;
     if (game.assist === "auto") return true;
-    return game.puzzle.difficulty !== "hilltop"; // gated: on for sunbeam/meadow, off for hilltop
+    return !GATED_OFF_BANDS[game.puzzle.difficulty]; // gated: on for sunbeam/meadow, off for hilltop/crag
   }
 
   // ---- mutations ----
+  // stakes strictness is capped to one heart per pointer gesture (a tap, a
+  // long-press, a whole drag run, or a right-click), so painting across a run
+  // of wrong hoofprints — or one that happens to starve a pen — never machine
+  // -guns the hearts. Reset at the start of each gesture, checked before docking.
+  var gestureDocked = false;
+  function resetGestureDock() { gestureDocked = false; }
+  function dockStrictHeart() {
+    if (gestureDocked) return false;
+    gestureDocked = true;
+    game.metrics.mistakes++;
+    if (!game.slow) game.hearts = Math.max(0, game.hearts - 1);
+    return true;
+  }
+
   function placePiggy(r, c) {
     var k = key(r, c);
     touchMove(); game.metrics.moves++;
     if (Sowdoku.isLegalPlacement(game.puzzle.size, game.puzzle.regions, game.piggies, r, c)) {
+      // honest+: legal against the board so far isn't enough — it has to be
+      // this piggy's actual patch, or it's a mistake same as any other.
+      if (stakesAtLeast("honest") && game.puzzle.solution[r] !== c) {
+        if (dockStrictHeart()) toast("not quite this piggy’s patch");
+        haptic([10, 40, 10]); flashBad(r, c);
+        return;
+      }
       game.piggies.add(k); game.hoofprints.delete(k); game.metrics.placements++;
       game.revealed.add(game.puzzle.regions[r][c]);   // misty-morning: this pen's colour settles in
       haptic(8);
@@ -757,8 +869,28 @@
   function setHoofprint(r, c, on) {
     var k = key(r, c);
     if (game.piggies.has(k)) return;          // never mark over a settled piggy
-    if (on) { if (!game.hoofprints.has(k)) game.metrics.hoofprints++; game.hoofprints.add(k); }
-    else game.hoofprints.delete(k);
+    if (!on) { game.hoofprints.delete(k); return; }
+
+    // stern: fencing off the cell a piggy actually belongs in is a mistake,
+    // not scratch work — rejected outright, same as a wrong pig placement.
+    if (stakesAtLeast("stern") && game.puzzle.solution[r] === c) {
+      if (dockStrictHeart()) toast("that patch was the piggy’s own");
+      haptic([10, 40, 10]); flashBad(r, c);
+      return;
+    }
+    // honest+: a hoofprint that freshly boxes a whole pen out of room is the
+    // same mistake as starving it any other way — checked against the state
+    // just before this mark, so a pen already stuck from earlier never re-docks.
+    var before = stakesAtLeast("honest")
+      ? starvedByFences(game.puzzle.size, game.puzzle.regions, game.piggies, game.hoofprints) : null;
+    if (!game.hoofprints.has(k)) game.metrics.hoofprints++;
+    game.hoofprints.add(k);
+    if (before) {
+      var after = starvedByFences(game.puzzle.size, game.puzzle.regions, game.piggies, game.hoofprints);
+      for (var id in after) {
+        if (!before[id]) { if (dockStrictHeart()) toast("that fences a whole pen out"); haptic([10, 40, 10]); break; }
+      }
+    }
   }
 
   // ---- undo ----
@@ -839,6 +971,7 @@
     if (e.pointerType === "mouse" && e.button !== 0) return; // right-click handled by contextmenu
     var cell = e.target.closest && e.target.closest(".cell"); if (!cell) return;
     try { board.setPointerCapture(e.pointerId); } catch (x) {}
+    resetGestureDock();          // a fresh gesture, a fresh chance to dock at most one strict-mode heart
     ps = { id: e.pointerId, r: +cell.dataset.r, c: +cell.dataset.c, x: e.clientX, y: e.clientY,
            dragged: false, longFired: false, mode: null, painted: new Set(), timer: null,
            before: boardSnap() };  // whole gesture is one undo step
@@ -894,6 +1027,7 @@
     var cell = e.target.closest && e.target.closest(".cell"); if (!cell) return;
     var r = +cell.dataset.r, c = +cell.dataset.c;
     var before = boardSnap();
+    resetGestureDock();          // right-click is its own gesture, not backed by pointerdown
     setHoofprint(r, c, !game.hoofprints.has(key(r, c))); commitUndo(before); haptic(6); persist(); render();
   });
 
@@ -910,12 +1044,14 @@
       var order = curatedOrdered(), idx = order.findIndex(function (x) { return x.code === game.campaignCode; });
       climb.hidden = false; climb.textContent = "field " + (idx >= 0 ? idx + 1 : "?") + "/" + order.length;
     }
+    else if (game.mode === "gauntlet") { climb.hidden = false; climb.textContent = "field " + ((game.gauntletStep || 0) + 1) + "/" + GAUNTLET.length; }
     else climb.hidden = true;
 
     document.getElementById("undoBtn").disabled = !canUndo();
 
     // reflect current state inside the ⚙ menu
     segOn("assistSeg", "assist", game.assist);
+    segOn("stakesSeg", "stakes", game.stakes);
     var slowT = document.getElementById("slowToggle");
     slowT.textContent = game.slow ? "on" : "off";
     slowT.classList.toggle("on", game.slow);
@@ -931,6 +1067,10 @@
     // pens that can no longer take a piggy: none placed in them, every cell
     // ruled out. Only meaningful once the board is helping with the bookkeeping.
     var starved = shade ? starvedPens(n, reg, game.piggies) : {};
+    // at honest+ stakes, a pen the player has fenced shut with their own
+    // hoofprints costs a heart same as any other starve — flag it even with
+    // assist off, so the dock is never a mystery.
+    var fenceStarved = stakesAtLeast("honest") ? starvedByFences(n, reg, game.piggies, game.hoofprints) : {};
 
     board.style.gridTemplateColumns = "repeat(" + n + ", 1fr)";
     var same = function (r1, c1, r2, c2) { return r2 >= 0 && r2 < n && c2 >= 0 && c2 < n && reg[r1][c1] === reg[r2][c2]; };
@@ -951,8 +1091,11 @@
         cell.style.borderBottom = same(r, c, r + 1, c) ? thin : thick;
         var k = key(r, c);
         if (game.piggies.has(k)) { cell.classList.add("placed"); cell.innerHTML = pigSVG(); }
-        else if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) { cell.classList.add(starved[id] ? "starved" : "shade"); } // ruled-out overrides a manual hoofprint; a starved pen blushes instead of fading
-        else if (game.hoofprints.has(k)) { cell.innerHTML = '<div class="hoofprint"><i></i><i></i><i></i></div>'; }
+        else {
+          if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) cell.classList.add(starved[id] ? "starved" : "shade"); // ruled-out overrides a manual hoofprint; a starved pen blushes instead of fading
+          else if (game.hoofprints.has(k)) cell.innerHTML = '<div class="hoofprint"><i></i><i></i><i></i></div>';
+          if (fenceStarved[id]) cell.classList.add("starved");
+        }
         if (k === badCell) cell.classList.add("bad");
         if (k === hintCell) cell.classList.add("peek");
         board.appendChild(cell);
@@ -962,13 +1105,21 @@
     // when a pen has been starved out, say so plainly — the blushing cells show
     // *which* colour, this line says the field is stuck and can be backed out of.
     var note = document.getElementById("stuckNote");
-    var stuck = Object.keys(starved).length;
+    var starvedIds = mergeIds(starved, fenceStarved);
+    var stuck = Object.keys(starvedIds).length;
     note.hidden = stuck === 0;
     if (stuck) note.textContent = stuck === 1
       ? "🐷 A pen has no room left for its piggy — back up and look again."
       : "🐷 " + stuck + " pens have no room left for a piggy — back up and look again.";
 
     renderVeil();
+  }
+
+  function mergeIds(a, b) {
+    var out = {};
+    for (var k1 in a) out[k1] = true;
+    for (var k2 in b) out[k2] = true;
+    return out;
   }
 
   // regions that can never be filled from here: no piggy placed inside and no
@@ -981,6 +1132,28 @@
         var id = reg[r][c];
         if (piggies.has(key(r, c))) hasPig[id] = true;
         else if (Sowdoku.isLegalPlacement(n, reg, piggies, r, c)) hasRoom[id] = true;
+      }
+    }
+    var starved = {};
+    for (var r2 = 0; r2 < n; r2++)
+      for (var c2 = 0; c2 < n; c2++) {
+        var id2 = reg[r2][c2];
+        if (!hasPig[id2] && !hasRoom[id2]) starved[id2] = true;
+      }
+    return starved;
+  }
+
+  // like starvedPens, but a hoofprint counts as "no room" too — the honest+
+  // stakes check: a pen the player has fenced shut with their own marks is
+  // just as stuck as one the board's constraints ruled out.
+  function starvedByFences(n, reg, piggies, hoofprints) {
+    var hasPig = {}, hasRoom = {};
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        var id = reg[r][c];
+        var k = key(r, c);
+        if (piggies.has(k)) hasPig[id] = true;
+        else if (!hoofprints.has(k) && Sowdoku.isLegalPlacement(n, reg, piggies, r, c)) hasRoom[id] = true;
       }
     }
     var starved = {};
@@ -1017,6 +1190,19 @@
           addVeilBtn("a fresh amble", function () { startAmble(); }, true);
           addVeilBtn("walk it again", function () { startCampaign(true); }, false);
         }
+      } else if (game.mode === "gauntlet") {
+        var gNext = (game.gauntletStep || 0) + 1, gDone = gNext >= GAUNTLET.length;
+        document.getElementById("veilText").textContent = gDone
+          ? "All " + GAUNTLET.length + " fields tended, hearts to spare. The gauntlet, cleared."
+          : "Field " + gNext + " of " + GAUNTLET.length + " down, hearts steady. The next one asks a little more.";
+        btns.innerHTML = "";
+        if (gDone) {
+          addVeilBtn("a fresh amble", function () { startAmble(); }, true);
+          addVeilBtn("run it again", function () { startGauntlet(); }, false);
+        } else {
+          addVeilBtn("keep going →", function () { nextGauntletField(); }, true);
+          addVeilBtn("step away", function () { startAmble(); }, false);
+        }
       } else {
         document.getElementById("veilText").textContent = "Every piggy has its patch. Nothing to do now but enjoy the quiet snuffle.";
         btns.innerHTML = "";
@@ -1025,13 +1211,23 @@
       }
       v.classList.add("show");
     } else if (!game.slow && game.hearts === 0) {
-      document.getElementById("veilTitle").textContent = "The field got a little crowded.";
-      document.getElementById("veilText").textContent = "No harm done. Shall we settle the piggies again from the start?";
-      btns.innerHTML = "";
-      addVeilBtn("fresh start", function () {
-        game.piggies.clear(); game.hoofprints.clear(); game.hearts = game.maxHearts; game.solved = false;
-        persist(); render();
-      }, true);
+      if (game.mode === "gauntlet") {
+        // the shared pool is spent — the whole run ends here, not just this field
+        document.getElementById("veilTitle").textContent = "The gauntlet ends here.";
+        document.getElementById("veilText").textContent = "Field " + ((game.gauntletStep || 0) + 1) + " of " +
+          GAUNTLET.length + " — hearts spent. No harm done; the gauntlet waits whenever you're ready to run it again.";
+        btns.innerHTML = "";
+        addVeilBtn("run it again", function () { startGauntlet(); }, true);
+        addVeilBtn("a fresh amble", function () { startAmble(); }, false);
+      } else {
+        document.getElementById("veilTitle").textContent = "The field got a little crowded.";
+        document.getElementById("veilText").textContent = "No harm done. Shall we settle the piggies again from the start?";
+        btns.innerHTML = "";
+        addVeilBtn("fresh start", function () {
+          game.piggies.clear(); game.hoofprints.clear(); game.hearts = game.maxHearts; game.solved = false;
+          persist(); render();
+        }, true);
+      }
       v.classList.add("show");
     } else {
       v.classList.remove("show");
@@ -1055,7 +1251,10 @@
     var before = boardSnap();                 // a swept board is recoverable with one undo
     if (game.metrics) game.metrics.clears++;
     game.piggies.clear(); game.hoofprints.clear(); game.revealed.clear(); game.solved = false;
-    if (!game.slow) game.hearts = game.maxHearts; commitUndo(before); persist(); render();
+    // gauntlet's hearts are a shared pool across three fields, not a per-field
+    // allowance — a clear must not hand back hearts already spent earlier in the run.
+    if (!game.slow && game.mode !== "gauntlet") game.hearts = game.maxHearts;
+    commitUndo(before); persist(); render();
   };
   document.getElementById("undoBtn").onclick = function () { undo(); };
 
@@ -1085,6 +1284,10 @@
   document.getElementById("assistSeg").onclick = function (e) {
     var b = e.target.closest("button[data-assist]"); if (!b) return;
     game.assist = b.dataset.assist; game.lockedAssist = false; saveAssist(game.assist); persist(); render();
+  };
+  document.getElementById("stakesSeg").onclick = function (e) {
+    var b = e.target.closest("button[data-stakes]"); if (!b) return;
+    game.stakes = b.dataset.stakes; game.lockedStakes = false; saveStakes(game.stakes); persist(); render();
   };
   document.getElementById("peekBtn").onclick = function () { peek(); };
 
@@ -1117,10 +1320,10 @@
 
   function openCreate() {
     closeMenu();
-    cState = { mode: game ? (game.mode === "ladder" ? "amble" : game.mode) : "amble",
-               size: curSize(), diff: game ? curReqDiff() : "meadow", seed: randomSeed() };
+    var carryMode = game && game.mode !== "ladder" && game.mode !== "gauntlet" ? game.mode : "amble";
+    cState = { mode: carryMode, size: curSize(), diff: game ? curReqDiff() : "meadow", seed: randomSeed() };
     if (cState.mode === "daily") cState.diff = "meadow";
-    if (cState.mode === "wallow") cState.diff = "hilltop";
+    if (cState.mode === "wallow") cState.diff = "crag";
     document.getElementById("cSeed").value = "";
     document.getElementById("cSeed").classList.remove("bad");
     updateCreate();
@@ -1133,8 +1336,9 @@
   function resolveCreate() {
     var mode = cState.mode, size = cState.size, diff = cState.diff, seed = cState.seed;
     if (mode === "daily")  { diff = "meadow"; seed = dailySeed(); }
-    else if (mode === "wallow") { diff = "hilltop"; }
+    else if (mode === "wallow") { diff = "crag"; }
     else if (mode === "ladder") { var lc = ladderRung(0); size = lc.size; diff = lc.difficulty; }
+    else if (mode === "gauntlet") { var gc = gauntletStage(0); size = gc.size; diff = gc.difficulty; }
     if (seed == null) seed = randomSeed();
     return { mode: mode, size: size, diff: diff, seed: seed };
   }
@@ -1147,9 +1351,9 @@
     document.getElementById("cModeNote").textContent = modeCfg(cState.mode).note;
 
     // which rows are relevant to this mode
-    show("cSizeRow", cState.mode !== "ladder");
+    show("cSizeRow", cState.mode !== "ladder" && cState.mode !== "gauntlet");
     show("cDiffRow", cState.mode === "amble" || cState.mode === "fog");
-    show("cSeedRow", cState.mode !== "daily" && cState.mode !== "ladder");
+    show("cSeedRow", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet");
 
     // live preview + predicted difficulty — the actual board this will tend
     var pz = makeBoard(r.size, r.diff, r.seed);
@@ -1157,13 +1361,15 @@
     var aScore = Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
     document.getElementById("cCode").textContent =
       r.mode === "ladder" ? "the ladder · begins gently" :
+      r.mode === "gauntlet" ? "the gauntlet · three fields, one line of hearts" :
       r.mode === "daily" ? "today’s field · " + boardCode(r.size, r.diff, r.seed) :
       boardCode(r.size, r.diff, r.seed);
     document.getElementById("cBand").textContent = pz.difficulty + " · effort " + aScore + "/100";
     document.getElementById("cBar").style.width = aScore + "%";
     var pr = pz.profile || {};
     document.getElementById("cProfile").textContent =
-      "logic: " + (pr.l1 || 0) + " singles · " + (pr.l2 || 0) + " confinements · " + (pr.l3 || 0) + " deeper";
+      "logic: " + (pr.l1 || 0) + " singles · " + (pr.l2 || 0) + " confinements · " +
+      ((pr.l3 || 0) + (pr.l4 || 0)) + " deeper";
   }
   function show(id, on) { document.getElementById(id).hidden = !on; }
 
@@ -1220,6 +1426,7 @@
     var r = resolveCreate();
     closeSheet("createBack");
     if (r.mode === "ladder") { startLadder(0); return; }
+    if (r.mode === "gauntlet") { startGauntlet(); return; }
     beginGame({ mode: r.mode, size: r.size, difficulty: r.diff, seed: r.seed });
   };
   document.getElementById("createBtn").onclick = openCreate;
@@ -1246,7 +1453,10 @@
     document.getElementById("hStats").innerHTML =
       "<b>" + (st.solved || 0) + "</b> fields tended · <b>" + (st.played || 0) + "</b> played · " +
       "~" + avg.toFixed(1) + " slips each" +
-      (st.bestLadder ? " · best climb <b>rung " + st.bestLadder + "</b>" : "");
+      (st.bestLadder ? " · best climb <b>rung " + st.bestLadder + "</b>" : "") +
+      (st.gauntletsCleared ? " · <b>" + st.gauntletsCleared + "</b> gauntlet" + (st.gauntletsCleared > 1 ? "s" : "") + " cleared" : "") +
+      // a quiet streak, surfaced only once it's actually a streak worth minding
+      (st.cleanStreak >= 2 ? " · <b>" + st.cleanStreak + "</b> clean in a row" : "");
 
     var list = document.getElementById("hList");
     var curatedTab = hTab === "curated";
@@ -1313,10 +1523,12 @@
 
     // recent cards report the run; curated cards describe the field itself, so
     // they lean on the badge + high score rather than a single run's outcome
+    var acc = accoladesFor(rec);
+    var accText = acc.length ? " · " + acc.map(function (a) { return a.label; }).join(" · ") : "";
     var outcome = curatedTab ? ""
       : rec.solved
         ? '<div class="houtcome">settled · ' + fmtTime(rec.playMs) + " · " + slips(rec.mistakes || 0) +
-          (rec.hints ? " · " + rec.hints + " peek" + (rec.hints > 1 ? "s" : "") : "") + "</div>"
+          (rec.hints ? " · " + rec.hints + " peek" + (rec.hints > 1 ? "s" : "") : "") + accText + "</div>"
         : '<div class="houtcome miss">left at ' + (rec.placed || 0) + "/" + rec.size + " · " + slips(rec.mistakes || 0) + "</div>";
 
     var hi = bestScore(rec);

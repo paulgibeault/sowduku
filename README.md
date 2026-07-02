@@ -18,7 +18,7 @@ attention.
 
 ## The rules
 
-A square board — start at **6×6**, scale up to **9×9** — is divided into
+A square board — start at **6×6**, scale up to **10×10** — is divided into
 irregular, watercolor-tinted **pens**, each one a single soft, earthy color.
 Settle exactly one piggy onto the field so that:
 
@@ -60,8 +60,8 @@ board helps with the bookkeeping:
   column, pen, and the eight it touches), distinct from your own hoof-print
   fences. The board's facts vs. your hypotheses.
 - **manual** — you fence everything yourself; most aligned with rigorous play.
-- **gated** — auto on Sunbeam and Meadow, off by Hilltop. The game teaches the
-  technique, then takes the training wheels off.
+- **gated** — auto on Sunbeam and Meadow, off by Hilltop and Crag. The game
+  teaches the technique, then takes the training wheels off.
 
 ### Gentle failure
 
@@ -72,6 +72,25 @@ that this piggy wouldn't actually be comfortable there. Run out of hearts and
 the field simply offers a fresh start. Losing is soft here. The reward was never
 a high score; it's the *pure puzzle-solving satisfaction* of the last piggy
 settling in.
+
+### Stakes — how strictly a heart is held to account
+
+**Stakes** (a player setting, in the ⚙ menu) decides which mistakes actually
+cost a heart, on top of the base rule-breaks above:
+
+- **gentle** — the default. Only a placement that breaks a rule against pigs
+  already on the field costs a heart.
+- **honest** — also costs a heart for a piggy that's *legal right now* but
+  isn't where it truly belongs, and for fencing a whole pen out of room with
+  your own hoofprints (blocking off a color so no piggy can ever land there).
+- **stern** — also costs a heart for a hoofprint dropped on the one cell a
+  piggy actually belongs in. Scratch work stops being free; every mark is a
+  claim you stand behind.
+
+At most one heart is docked per gesture — a whole drawn-out drag or a single
+long-press never costs more than one, however many cells it touches. **The
+Wallow** pairs its single heart with stern stakes by default, so that one
+heart finally means what it says.
 
 ---
 
@@ -103,18 +122,24 @@ mood, watch the live preview, and settle in. Each slants the same gentle
 deduction a different way:
 
 - **The Amble** — an endless supply of hand-warm, unique puzzles. Pick a board
-  size, pick a difficulty (*Sunbeam → Meadow → Hilltop*), and wander.
+  size, pick a difficulty (*Sunbeam → Meadow → Hilltop → Crag*), and wander.
 - **One Field a Day** — a single shared daily layout for everyone, seeded by the
   date. No streak-shaming, no push notifications begging you back. It's there if
   you want it; the field doesn't mind if you skip a day.
 - **The Ladder** — a gentle climb. Begin on a small Sunbeam field; each field you
-  tend nudges the next a notch harder, up through 9×9 Hilltops. Your best rung is
-  quietly remembered. Stop whenever; the ladder waits.
+  tend nudges the next a notch harder, up through a 9×9 Crag at the very top.
+  Your best rung is quietly remembered. Stop whenever; the ladder waits.
 - **Misty Morning** — the pens hide in fog, drawn only in outline. A pen's colour
   settles in the moment its piggy does. Same fair puzzle, read entirely from the
   fences — a slower, more spatial kind of seeing.
-- **The Wallow** — one heart, no assist, the knottier Hilltop fields. For a
-  focused, deliberate sit where every placement is yours to stand behind.
+- **The Wallow** — one heart, no assist, stern stakes, the knottiest Crag
+  fields. For a focused, deliberate sit where every placement — and every
+  mark — is yours to stand behind.
+- **The Gauntlet** — three fields, back to back, escalating from Meadow to
+  Hilltop to Crag — but only **three hearts total**, shared across all
+  three. A slip on field one is a slip you're playing field three without.
+  Clearing the whole gauntlet with any hearts left is worth noticing;
+  running dry ends the whole run, not just the field you're on.
 - **Slow Mode** — a toggle over any field: no hearts, no failure, infinite
   markers. For when you want the ritual without the stakes.
 
@@ -124,6 +149,15 @@ pieces for.
 
 Difficulty is shaped by *pen geometry and deduction depth*, never by hidden
 timers or trick layouts. A hard puzzle rewards patience; it doesn't punish you.
+Four bands, each asking a little more of the same four gentle rules:
+
+- **Sunbeam** — forced singles only; the field mostly fills itself.
+- **Meadow** — the odd confinement (a pen or a row/column narrowed to one
+  possibility) alongside the singles.
+- **Hilltop** — at least one contradiction chain: a "if this piggy went here,
+  a pen would run dry — so it can't" leap.
+- **Crag** — several contradiction chains stacked, sometimes one nested inside
+  another. Still pure logic, never a guess — just a longer walk to get there.
 
 ### Every field has a code
 
@@ -147,6 +181,22 @@ When the two disagree, the card says so — *"played tougher than it looks"* or
 *"gentler than it looks"* — which is exactly the signal for **curation**: star
 (☆) the fields worth keeping, and the curated list becomes a hand-picked set of
 layouts whose real-world difficulty you've verified, not just guessed.
+
+### Quiet accolades
+
+No fireworks, just a plain read of what a run actually was. A solved field
+can quietly earn:
+
+- **tidy** — solved without a single hoofprint.
+- **unaided** — solved with manual assist and no peeks — nothing but you and
+  the field.
+
+("Clean" — zero slips — isn't a separate accolade; it's already right there
+as "0 slips" in the outcome line.) Tidy and unaided nudge a run's score up a
+touch, the positive mirror of the slip and peek penalties. And once you've
+strung together a couple of clean solves in a row, the history header says
+so quietly — *"3 clean in a row"* — a number worth protecting, with no shame
+when a slip resets it to zero.
 
 ---
 
