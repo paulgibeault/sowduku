@@ -116,6 +116,11 @@
   .stuck { font-size: .8rem; color: #b07d5f; margin: 0;
     display: flex; align-items: center; gap: .4rem; line-height: 1.4; }
   .stuck[hidden] { display: none; }
+
+  /* a campaign field's per-field teaching line, when the pack authored one */
+  .teach { font-size: .8rem; color: var(--ink-soft); margin: 0; line-height: 1.4;
+    max-width: 34rem; }
+  .teach[hidden] { display: none; }
   .cell { position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: filter .15s ease, background .3s ease; }
   .cell:hover { filter: brightness(.97); }
   .cell svg.pig, .cell img.pig { width: 74%; height: 74%; object-fit: contain; }
@@ -190,6 +195,7 @@
   .seg button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
   .seg.wrap { flex-wrap: wrap; justify-content: flex-end; }
   .seg button .mode-badge { width: 1rem; height: 1rem; vertical-align: -.15rem; margin-right: .25rem; }
+  .seg button .packn { opacity: .65; font-size: .92em; }
 
   /* the "how to play" entry point, ahead of the settings rows in the ⚙ menu */
   .infobtn { display: flex; align-items: center; gap: .5rem; width: 100%; font: inherit;
@@ -304,6 +310,8 @@
   .primary { background: #efe6d3; color: var(--ink); }
   .ghost { background: transparent; color: var(--ink-soft); border-color: var(--line); }
   .primary:hover { border-color: #c9b89b; } .ghost:hover { color: var(--ink); border-color: #d8ccb5; }
+  .primary:disabled, .ghost:disabled { opacity: .4; cursor: default; }
+  .primary:disabled:hover, .ghost:disabled:hover { border-color: #d8ccb5; }
 
   .sheet-tabs { display: flex; gap: .4rem; margin-bottom: .8rem; }
   .sheet-tabs button { font: inherit; font-size: .82rem; cursor: pointer; border: 1px solid var(--line); background: var(--bg);
@@ -317,9 +325,13 @@
   .cbtext { font-size: .8rem; color: var(--ink-soft); line-height: 1.4; min-width: 0; }
   .cbtext b { color: var(--ink); font-weight: 600; }
   .cbtext .lead { display: block; color: var(--ink); font-family: "Fraunces",Georgia,serif; font-size: .95rem; }
+  .cbacts { flex: 0 0 auto; display: flex; align-items: center; gap: .5rem; }
   #campBtn { flex: 0 0 auto; font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; white-space: nowrap;
     border: 1px solid #d8ccb5; background: #efe6d3; color: var(--ink); border-radius: 999px; padding: .5rem 1.1rem; }
   #campBtn:hover { border-color: #c9b89b; }
+  .cbghost { flex: 0 0 auto; font: inherit; font-size: .76rem; cursor: pointer; white-space: nowrap;
+    border: 1px solid var(--line); background: transparent; color: var(--ink-soft); border-radius: 999px; padding: .5rem .9rem; }
+  .cbghost:hover { color: var(--ink); border-color: #d8ccb5; }
   .hlist { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1rem; }
   .hcard { border: 1px solid var(--line); border-radius: .8rem; padding: .7rem .85rem; background: var(--bg); }
   /* editable name — curated fields only */
@@ -453,6 +465,7 @@
 
   <div class="below-board">
     <p class="stuck" id="stuckNote" hidden></p>
+    <p class="teach" id="teachNote" hidden></p>
   </div>
 
   <div class="action-bar">
@@ -480,8 +493,11 @@
           <button data-mode="fog"><img class="mode-badge" src="assets/illustration/misty-badge.png" alt="">misty</button>
           <button data-mode="wallow">wallow</button>
           <button data-mode="gauntlet">gauntlet</button>
+          <button data-mode="campaign">campaign</button>
         </div></div>
       <p class="modeNote" id="cModeNote"></p>
+      <div class="orow" id="cPackRow"><span class="lab">pack</span>
+        <div class="seg wrap" id="cPack"></div></div>
       <div class="orow" id="cSizeRow"><span class="lab">size</span>
         <div class="seg" id="cSize">
           <button data-size="6">6</button><button data-size="7">7</button>
@@ -533,7 +549,10 @@
       <div class="stats" id="hStats"></div>
       <div class="campaign" id="campaignBar" hidden>
         <div class="cbtext" id="campText"></div>
-        <button id="campBtn">play campaign</button>
+        <div class="cbacts">
+          <button id="campExport" class="cbghost" title="copy this trail as pack JSON, ready to paste into campaigns.js">export pack</button>
+          <button id="campBtn">play campaign</button>
+        </div>
       </div>
       <div class="hlist" id="hList"></div>
       <div class="sheet-actions">
@@ -592,6 +611,7 @@
   <div class="toast" id="toast"></div>
 
 <script src="sowdoku.js"></script>
+<script src="campaigns.js"></script>
 <script>
 (function () {
   "use strict";
@@ -968,9 +988,12 @@
     // assist is chosen once, in the create sheet, when the field is tended —
     // not a live mid-game toggle. An explicit choice becomes the new default
     // for next time, unless the mode forced it (Wallow's always-off shouldn't
-    // quietly change what the next amble field defaults to).
-    var assist = cfg.assist || opts.assist || loadAssist();
-    if (!cfg.assist && opts.assist != null) saveAssist(opts.assist);
+    // quietly change what the next amble field defaults to) or it's a campaign
+    // field's authored suggestion applied outside the create sheet (veil
+    // auto-advance, first-run) — those shouldn't contaminate the default either,
+    // since the player never actually chose it.
+    var assist = cfg.assist || opts.forcedAssist || opts.assist || loadAssist();
+    if (!cfg.assist && opts.forcedAssist == null && opts.assist != null) saveAssist(opts.assist);
     game = {
       puzzle: puzzle, mode: opts.mode || "amble", reqDifficulty: reqDiff,
       code: boardCode(size, reqDiff, seed),
@@ -983,7 +1006,8 @@
       assist: assist, lockedAssist: !!cfg.assist,
       stakes: cfg.stakes || loadStakes(), lockedStakes: !!cfg.stakes,
       solved: false, recorded: false, revealedSolution: false, ladderRung: opts.ladderRung || 0,
-      campaignCode: opts.campaignCode || null, gauntletStep: opts.gauntletStep || 0,
+      campaignPack: opts.campaignPack || null, campaignCode: opts.campaignCode || null,
+      gauntletStep: opts.gauntletStep || 0,
       metrics: newMetrics(), undo: [],
     };
     lastTick = Date.now();
@@ -1023,16 +1047,24 @@
     beginGame({ mode: "ladder", size: lc.size, difficulty: lc.difficulty, seed: seed != null ? seed : randomSeed(), ladderRung: rung });
   }
   function replayBoard(d) {
+    // a history record's own `code` doubles as its campaignCode when it was
+    // played in campaign mode (both are boardCode(size,band,seed) for the
+    // same field) — no separate field needed to carry it through.
     beginGame({ mode: d.mode || "amble", size: d.size, difficulty: d.reqDifficulty || d.difficulty || "meadow",
-                seed: d.seed, ladderRung: d.ladderRung || 0 });
+                seed: d.seed, ladderRung: d.ladderRung || 0,
+                campaignPack: d.campaignPack || null,
+                campaignCode: d.mode === "campaign" ? (d.campaignCode || d.code || null) : null });
   }
   function curSize()    { return (game && game.puzzle && game.puzzle.size) || 8; }
   function curReqDiff() { return (game && game.reqDifficulty) || "meadow"; }
 
-  // ---- campaign: the curated list played through in order ----
-  // Order is the sorted "difficulty curve" — gentlest first — so a campaign is a
-  // pre-tested progression, not a random pile. Progress is tracked by code, so
-  // curating or removing a field reshapes the trail without losing what's done.
+  // ---- campaign packs: curated series of fixed-seed fields, played in order ----
+  // Built-in packs (campaigns.js) are authored order — no re-sort. The player's
+  // own curated list is a second, virtual pack ("curated" / "my trail"), ordered
+  // by the sorted "difficulty curve" (gentlest first) same as it always was.
+  // Progress is tracked per-pack, by code, so curating/removing a field reshapes
+  // "my trail" without losing what's done, and each built-in pack keeps its own
+  // independent progress.
   var CAT_RANK = { easy: 0, medium: 1, hard: 2, difficult: 3, "lost-cause": 4 };
   function curatedOrdered() {
     return getCurated().slice().sort(function (a, b) {
@@ -1045,32 +1077,74 @@
       return (a.addedAt || 0) - (b.addedAt || 0);
     });
   }
-  function getCampaignDone()   { return sget("campaignDone") || []; }
-  function isCampaignDone(code){ return getCampaignDone().indexOf(code) >= 0; }
-  function markCampaignDone(code) {
-    var d = getCampaignDone();
-    if (d.indexOf(code) < 0) { d.push(code); sset("campaignDone", d); }
+  // a built-in pack field is just { code, name, note, assist } — size/band/seed
+  // round-trip from the code itself via parseCode, so campaigns.js never has to
+  // repeat them. Curated entries already carry size/seed/band directly (they
+  // came from a played history record), so they pass through unchanged.
+  function normalizePackField(f) {
+    if (f.size != null && f.seed != null) return f;
+    var pc = parseCode(f.code) || {};
+    return { code: f.code, name: f.name || "", note: f.note || "", assist: f.assist,
+             size: pc.size, reqDifficulty: pc.difficulty, band: pc.difficulty, seed: pc.seed };
   }
-  function resetCampaign() { sset("campaignDone", []); }
-  function campaignDoneCount() {
-    var done = getCampaignDone();
-    return curatedOrdered().reduce(function (n, x) { return n + (done.indexOf(x.code) >= 0 ? 1 : 0); }, 0);
+  function curatedPack() {
+    return { id: "curated", name: "my trail",
+             note: "Your own curated fields, tended gentlest to knottiest.",
+             fields: curatedOrdered() };
   }
-  function nextCampaign() {
-    var order = curatedOrdered(), done = getCampaignDone();
-    for (var i = 0; i < order.length; i++) if (done.indexOf(order[i].code) < 0) return order[i];
-    return null; // whole trail tended
+  function builtinPacks() { return (typeof CAMPAIGNS !== "undefined" ? CAMPAIGNS : []); }
+  function allPacks() { return builtinPacks().concat([curatedPack()]); }
+  function findPack(packId) {
+    if (packId === "curated") return curatedPack();
+    var p = builtinPacks().filter(function (x) { return x.id === packId; });
+    return p.length ? p[0] : null;
   }
-  function beginCampaignField(f) {
+  // a malformed code (typo'd in campaigns.js) fails parseCode and normalizes
+  // to a field with no size/seed — dropped here rather than silently starting
+  // a random field under the wrong field's name/code.
+  function packFields(pack) {
+    if (!pack) return [];
+    return (pack.fields || []).map(normalizePackField).filter(function (f) { return f.size != null && f.seed != null; });
+  }
+
+  // ---- per-pack progress: { packId: [codes] } — migrated once from an older
+  // flat array, which only ever tracked the curated list's own progress.
+  function loadCampaignDone() {
+    var d = sget("campaignDone");
+    if (Array.isArray(d)) { d = { curated: d }; sset("campaignDone", d); } // one-time migration
+    return d || {};
+  }
+  function getCampaignDone(packId)    { return loadCampaignDone()[packId] || []; }
+  function isCampaignDone(packId, code) { return getCampaignDone(packId).indexOf(code) >= 0; }
+  function markCampaignDone(packId, code) {
+    var d = loadCampaignDone();
+    var arr = d[packId] || (d[packId] = []);
+    if (arr.indexOf(code) < 0) { arr.push(code); sset("campaignDone", d); }
+  }
+  function resetCampaign(packId) {
+    var d = loadCampaignDone();
+    d[packId] = [];
+    sset("campaignDone", d);
+  }
+  function campaignDoneCount(packId) {
+    var done = getCampaignDone(packId);
+    return packFields(findPack(packId)).reduce(function (n, x) { return n + (done.indexOf(x.code) >= 0 ? 1 : 0); }, 0);
+  }
+  function nextCampaign(packId) {
+    var fields = packFields(findPack(packId)), done = getCampaignDone(packId);
+    for (var i = 0; i < fields.length; i++) if (done.indexOf(fields[i].code) < 0) return fields[i];
+    return null; // whole pack tended
+  }
+  function beginCampaignField(packId, f) {
     beginGame({ mode: "campaign", size: f.size, difficulty: f.reqDifficulty || f.band || "meadow",
-                seed: f.seed, campaignCode: f.code });
+                seed: f.seed, forcedAssist: f.assist, campaignPack: packId, campaignCode: f.code });
   }
-  function startCampaign(reset) {
-    if (reset) resetCampaign();
-    var f = nextCampaign();
+  function startCampaign(packId, reset) {
+    if (reset) resetCampaign(packId);
+    var f = nextCampaign(packId);
     if (!f) return;                      // nothing curated, or already complete
     closeSheet("histBack");
-    beginCampaignField(f);
+    beginCampaignField(packId, f);
   }
 
   // ---- persistence (in-progress field) ----
@@ -1083,9 +1157,10 @@
       difficulty: game.puzzle.difficulty, profile: game.puzzle.profile,
       piggies: Array.from(game.piggies), hoofprints: Array.from(game.hoofprints),
       revealed: Array.from(game.revealed),
-      hearts: game.hearts, maxHearts: game.maxHearts,
+      hearts: game.hearts, maxHearts: game.maxHearts, assist: game.assist,
       solved: !!game.solved, recorded: !!game.recorded,
-      ladderRung: game.ladderRung || 0, campaignCode: game.campaignCode || null,
+      ladderRung: game.ladderRung || 0,
+      campaignPack: game.campaignPack || null, campaignCode: game.campaignCode || null,
       gauntletStep: game.gauntletStep || 0,
       metrics: game.metrics, undo: game.undo || [],
     });
@@ -1107,11 +1182,20 @@
         hearts: s.hearts != null ? s.hearts : (s.maxHearts || cfg.hearts),
         maxHearts: s.maxHearts || cfg.hearts || MAX_HEARTS,
         solved: !!s.solved, recorded: !!s.recorded, revealedSolution: false,
-        assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
+        // a campaign field's authored assist (or any other forced value) was
+        // already baked into `s.assist` when this field was first begun, so
+        // restoring it directly (rather than re-reading loadAssist()) keeps a
+        // reloaded field showing the same assist it started with.
+        assist: cfg.assist || (s.assist != null ? s.assist : loadAssist()), lockedAssist: !!cfg.assist,
         // migrate an old separate "slow mode" flag into the stakes spectrum;
         // a mode-forced stakes value (e.g. Wallow's "stern") still wins.
         stakes: cfg.stakes || (s.slow ? "slow" : loadStakes()), lockedStakes: !!cfg.stakes,
-        ladderRung: s.ladderRung || 0, campaignCode: s.campaignCode || null,
+        ladderRung: s.ladderRung || 0,
+        // pre-pack saves never had campaignPack — every campaign field back
+        // then was necessarily the curated list, so a bare campaignCode with
+        // no pack migrates to "curated".
+        campaignPack: s.campaignPack || (s.campaignCode ? "curated" : null),
+        campaignCode: s.campaignCode || null,
         gauntletStep: s.gauntletStep || 0,
         metrics: s.metrics || newMetrics(),
         undo: Array.isArray(s.undo) ? s.undo : [],
@@ -1199,6 +1283,7 @@
       assist: game.assist, // fixed per-field since it's a create-time choice, not a live toggle
       stakes: game.lockedStakes ? game.stakes : loadStakes(),
       solved: !!solved, placed: game.piggies.size, ladderRung: game.ladderRung || 0,
+      campaignPack: game.campaignPack || null,
       gauntletStep: game.gauntletStep || 0,
       heartsLeft: isSlow() ? null : game.hearts,
       aScore: Sowdoku.humanScore(p.size, profile, p.difficulty),
@@ -1269,7 +1354,7 @@
 
   function onSolved() {
     flushTick();
-    if (game.mode === "campaign" && game.campaignCode) markCampaignDone(game.campaignCode);
+    if (game.mode === "campaign" && game.campaignPack && game.campaignCode) markCampaignDone(game.campaignPack, game.campaignCode);
     finalizeGame(true);
     playSnuffle();
   }
@@ -1570,13 +1655,22 @@
     document.getElementById("dailyChip").hidden = game.mode === "daily" || !dailyUntouched();
 
     var climb = document.getElementById("climbChip");
+    var activePackField = null;
     if (game.mode === "ladder") { climb.hidden = false; climb.textContent = "rung " + ((game.ladderRung || 0) + 1) + "/" + LADDER.length; }
     else if (game.mode === "campaign") {
-      var order = curatedOrdered(), idx = order.findIndex(function (x) { return x.code === game.campaignCode; });
-      climb.hidden = false; climb.textContent = "field " + (idx >= 0 ? idx + 1 : "?") + "/" + order.length;
+      var packFieldList = packFields(findPack(game.campaignPack));
+      var idx = packFieldList.findIndex(function (x) { return x.code === game.campaignCode; });
+      activePackField = idx >= 0 ? packFieldList[idx] : null;
+      climb.hidden = false; climb.textContent = "field " + (idx >= 0 ? idx + 1 : "?") + "/" + packFieldList.length;
     }
     else if (game.mode === "gauntlet") { climb.hidden = false; climb.textContent = "field " + ((game.gauntletStep || 0) + 1) + "/" + GAUNTLET.length; }
     else climb.hidden = true;
+
+    // a campaign field's teaching note, when the pack authored one — survives
+    // reload with zero extra persistence since it's derived fresh every render.
+    var teach = document.getElementById("teachNote");
+    teach.hidden = !(activePackField && activePackField.note);
+    if (!teach.hidden) teach.textContent = activePackField.note;
 
     document.getElementById("undoBtn").disabled = !canUndo();
 
@@ -1853,20 +1947,23 @@
           addVeilBtn("a fresh amble", function () { startAmble(curSize(), curReqDiff(), topSeed); }, true);
         }
       } else if (game.mode === "campaign") {
-        var nxt = nextCampaign(), total = curatedOrdered().length, dcount = campaignDoneCount();
+        var packId = game.campaignPack || "curated";
+        var pack = findPack(packId);
+        var nxt = nextCampaign(packId), total = packFields(pack).length, dcount = campaignDoneCount(packId);
+        var packName = pack ? pack.name : "curated";
         document.getElementById("veilText").textContent = nxt
-          ? dcount + " of " + total + " curated fields tended. The trail winds gently on."
-          : "Every curated field tended — the whole campaign, done. Beautifully quiet work.";
+          ? dcount + " of " + total + " " + packName + " fields tended. The trail winds gently on."
+          : "Every " + packName + " field tended — the whole pack, done. Beautifully quiet work.";
         if (nxt) {
-          // curated fields already have a fixed seed — the preview is the exact field, no locking needed
+          // pack fields already have a fixed seed — the preview is the exact field, no locking needed
           showResultPreview(nxt.size, nxt.reqDifficulty || nxt.band || "meadow", nxt.seed);
-          addVeilBtn("next field →", function () { beginCampaignField(nxt); }, true);
+          addVeilBtn("next field →", function () { beginCampaignField(packId, nxt); }, true);
           addVeilBtn("pause the trail", function () { startAmble(); }, false);
         } else {
           var campDoneSeed = randomSeed();
           showResultPreview(curSize(), curReqDiff(), campDoneSeed);
           addVeilBtn("a fresh amble", function () { startAmble(curSize(), curReqDiff(), campDoneSeed); }, true);
-          addVeilBtn("walk it again", function () { startCampaign(true); }, false);
+          addVeilBtn("walk it again", function () { startCampaign(packId, true); }, false);
         }
       } else if (game.mode === "gauntlet") {
         var gNext = (game.gauntletStep || 0) + 1, gDone = gNext >= GAUNTLET.length;
@@ -2044,12 +2141,26 @@
     render();
   };
 
+  // copy text to the clipboard, with a plain textarea+execCommand fallback for
+  // contexts where the async Clipboard API isn't available (older browsers,
+  // non-secure contexts) — always ends in a toast either way.
+  function copyToClipboard(text, msg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast(msg); }, function () { legacyCopy(text, msg); });
+    } else { legacyCopy(text, msg); }
+  }
+  function legacyCopy(text, msg) {
+    var ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand("copy"); toast(msg); }
+    catch (e) { toast("copy failed — select and copy manually"); }
+    document.body.removeChild(ta);
+  }
+
   // copy this field's code
   document.getElementById("codeChip").onclick = function () {
-    var code = game.code;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(code).then(function () { toast("field code copied · " + code); }, function () { toast("field code · " + code); });
-    } else { toast("field code · " + code); }
+    copyToClipboard(game.code, "field code copied · " + game.code);
   };
   document.getElementById("dailyChip").onclick = function () { startDaily(8); };
 
@@ -2072,7 +2183,27 @@
   // ======================================================================
   //  CREATE A FIELD
   // ======================================================================
-  var cState = { mode: "amble", size: 8, diff: "meadow", assist: "on", seed: null };
+  var cState = { mode: "amble", size: 8, diff: "meadow", assist: "on", seed: null, pack: null };
+
+  // a fresh, incomplete pack if one exists (built-ins first, authored order),
+  // else whichever pack is first — a completed pack still resolves to
+  // something sane ("walk it again") rather than nothing selectable.
+  function defaultPackId() {
+    if (game && game.mode === "campaign" && game.campaignPack) return game.campaignPack;
+    var packs = allPacks();
+    for (var i = 0; i < packs.length; i++) if (nextCampaign(packs[i].id)) return packs[i].id;
+    return packs.length ? packs[0].id : "curated";
+  }
+  // the assist a campaign field suggests when reached outside the create sheet
+  // (veil auto-advance, first-run) — also the create sheet's *starting* value,
+  // since "respects a per-field override" means editable, not forced.
+  function packSuggestedAssist(packId) {
+    // once a pack is fully done, its "next" field is null — but "walk it
+    // again" always restarts from field 0, so fall back to that field's own
+    // suggestion rather than silently losing it to the generic default.
+    var nxt = nextCampaign(packId) || packFields(findPack(packId))[0];
+    return (nxt && nxt.assist != null) ? nxt.assist : loadAssist();
+  }
 
   function openCreate() {
     closeMenu();
@@ -2081,9 +2212,10 @@
     // beginGame() saves it there itself, skipping mode-forced values like
     // Wallow's — so no special carry-forward logic is needed here.
     cState = { mode: carryMode, size: curSize(), diff: game ? curReqDiff() : "meadow",
-               assist: loadAssist(), seed: randomSeed() };
+               assist: loadAssist(), seed: randomSeed(), pack: defaultPackId() };
     if (cState.mode === "daily") cState.diff = "meadow";
     if (cState.mode === "wallow") cState.diff = "crag";
+    if (cState.mode === "campaign") cState.assist = packSuggestedAssist(cState.pack);
     document.getElementById("cSeed").value = "";
     document.getElementById("cSeed").classList.remove("bad");
     updateCreate();
@@ -2095,12 +2227,52 @@
   // and ladder ignore the chosen seed and fix their own layout.
   function resolveCreate() {
     var mode = cState.mode, size = cState.size, diff = cState.diff, assist = cState.assist, seed = cState.seed;
+    var nxt = null, packDone = false, packEmpty = false;
     if (mode === "daily")  { diff = "meadow"; seed = dailySeed(); }
     else if (mode === "wallow") { diff = "crag"; assist = "off"; }
     else if (mode === "ladder") { var lc = ladderRung(0); size = lc.size; diff = lc.difficulty; }
     else if (mode === "gauntlet") { var gc = gauntletStage(0); size = gc.size; diff = gc.difficulty; }
+    else if (mode === "campaign") {
+      var fieldCount = packFields(findPack(cState.pack)).length;
+      packEmpty = fieldCount === 0;
+      nxt = nextCampaign(cState.pack);
+      packDone = !packEmpty && !nxt;
+      if (nxt) { size = nxt.size; diff = nxt.reqDifficulty || nxt.band || "meadow"; seed = nxt.seed; }
+    }
     if (seed == null) seed = randomSeed();
-    return { mode: mode, size: size, diff: diff, assist: assist, seed: seed };
+    return { mode: mode, size: size, diff: diff, assist: assist, seed: seed,
+             pack: cState.pack, campaignCode: nxt ? nxt.code : null,
+             packDone: packDone, packEmpty: packEmpty };
+  }
+
+  function renderPackPicker() {
+    var el = document.getElementById("cPack");
+    var packs = allPacks();
+    el.innerHTML = packs.map(function (p) {
+      var total = packFields(p).length, done = campaignDoneCount(p.id);
+      return '<button data-pack="' + p.id + '">' + p.name +
+        ' <span class="packn">' + done + '/' + total + '</span></button>';
+    }).join("");
+    segOn("cPack", "pack", cState.pack);
+  }
+
+  function showPackComplete(r) {
+    var pack = findPack(r.pack);
+    document.getElementById("cPreview").innerHTML = "";
+    document.getElementById("cCode").textContent = (pack ? pack.name : "pack") + " tended 🌾";
+    document.getElementById("cBand").textContent = "every field tended, in order";
+    document.getElementById("cBar").style.width = "100%";
+    document.getElementById("cProfile").textContent = "walk it again to replay from the start";
+  }
+
+  function showPackEmpty(r) {
+    document.getElementById("cPreview").innerHTML = "";
+    document.getElementById("cCode").textContent = "no fields yet";
+    document.getElementById("cBand").textContent = r.pack === "curated"
+      ? "star a field you loved from the recent list to start your own trail"
+      : "this pack has no fields yet";
+    document.getElementById("cBar").style.width = "0";
+    document.getElementById("cProfile").textContent = "";
   }
 
   function updateCreate() {
@@ -2109,14 +2281,26 @@
     segOn("cSize", "size", String(r.size));
     segOn("cDiff", "diff", r.diff);
     segOn("cAssist", "assist", r.assist);
-    document.getElementById("cModeNote").textContent = modeCfg(cState.mode).note;
+    // campaign mode's note describes the *selected pack*, not campaign mode in
+    // general — "your curated fields..." is only true for the "curated" pack.
+    document.getElementById("cModeNote").textContent = cState.mode === "campaign"
+      ? ((findPack(cState.pack) || {}).note || modeCfg(cState.mode).note)
+      : modeCfg(cState.mode).note;
 
     // which rows are relevant to this mode
-    show("cSizeRow", cState.mode !== "ladder" && cState.mode !== "gauntlet");
+    show("cPackRow", cState.mode === "campaign");
+    if (cState.mode === "campaign") renderPackPicker();
+    show("cSizeRow", cState.mode !== "ladder" && cState.mode !== "gauntlet" && cState.mode !== "campaign");
     show("cDiffRow", cState.mode === "amble" || cState.mode === "fog");
-    show("cAssistRow", cState.mode !== "wallow");
-    show("cSeedRow", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet");
-    show("cSurprise", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet");
+    show("cAssistRow", cState.mode !== "wallow" && !(cState.mode === "campaign" && r.packEmpty));
+    show("cSeedRow", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet" && cState.mode !== "campaign");
+    show("cSurprise", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet" && cState.mode !== "campaign");
+    var tendBtn = document.getElementById("cTend");
+    tendBtn.textContent = (cState.mode === "campaign" && r.packDone) ? "walk it again" : "tend this field";
+    tendBtn.disabled = !!(cState.mode === "campaign" && r.packEmpty);
+
+    if (cState.mode === "campaign" && r.packEmpty) { showPackEmpty(r); return; }
+    if (cState.mode === "campaign" && r.packDone) { showPackComplete(r); return; }
 
     // live preview + predicted difficulty — the actual board this will tend
     var pz = makeBoard(r.size, r.diff, r.seed);
@@ -2156,7 +2340,18 @@
 
   document.getElementById("cMode").onclick = function (e) {
     var b = e.target.closest("button[data-mode]"); if (!b) return;
-    cState.mode = b.dataset.mode; updateCreate();
+    cState.mode = b.dataset.mode;
+    if (cState.mode === "campaign") {
+      cState.pack = cState.pack || defaultPackId();
+      cState.assist = packSuggestedAssist(cState.pack);
+    }
+    updateCreate();
+  };
+  document.getElementById("cPack").onclick = function (e) {
+    var b = e.target.closest("button[data-pack]"); if (!b) return;
+    cState.pack = b.dataset.pack;
+    cState.assist = packSuggestedAssist(cState.pack);
+    updateCreate();
   };
   document.getElementById("cSize").onclick = function (e) {
     var b = e.target.closest("button[data-size]"); if (!b) return;
@@ -2193,6 +2388,19 @@
     closeSheet("createBack");
     if (r.mode === "ladder") { startLadder(0); return; }
     if (r.mode === "gauntlet") { startGauntlet(); return; }
+    if (r.mode === "campaign") {
+      // resolved through the create sheet, so the assist choice is the
+      // player's own (possibly edited away from the pack's suggestion) — it
+      // flows through opts.assist like any other explicit sheet choice,
+      // unlike the veil's auto-advance which applies the pack's suggestion
+      // without touching the saved default.
+      if (r.packDone) resetCampaign(r.pack);
+      var f = nextCampaign(r.pack);
+      if (!f) return; // pack has no fields at all
+      beginGame({ mode: "campaign", size: f.size, difficulty: f.reqDifficulty || f.band || "meadow",
+                  seed: f.seed, assist: r.assist, campaignPack: r.pack, campaignCode: f.code });
+      return;
+    }
     beginGame({ mode: r.mode, size: r.size, difficulty: r.diff, assist: r.assist, seed: r.seed });
   }
   document.getElementById("cCancel").onclick = function () { closeSheet("createBack"); };
@@ -2257,7 +2465,7 @@
     var order = curatedOrdered();
     if (!curatedTab || !order.length) { bar.hidden = true; return; }
     bar.hidden = false;
-    var total = order.length, dcount = campaignDoneCount(), nxt = nextCampaign();
+    var total = order.length, dcount = campaignDoneCount("curated"), nxt = nextCampaign("curated");
     var txt = document.getElementById("campText"), btn = document.getElementById("campBtn");
     if (!nxt) {
       txt.innerHTML = '<span class="lead">Campaign tended 🌾</span>all <b>' + total + '</b> curated fields, in order';
@@ -2267,8 +2475,18 @@
         '</b> tended · next ' + (nxt.name ? nxt.name : nxt.code);
       btn.textContent = dcount ? "continue" : "play in order";
     }
-    btn.onclick = function () { startCampaign(!nxt); };
+    btn.onclick = function () { startCampaign("curated", !nxt); };
   }
+
+  // "export pack": turns the curated list into ready-to-paste pack JSON — the
+  // pipeline for promoting a curated trail into a built-in campaigns.js pack.
+  // Carries each field's code and whatever name the player gave it; the id/
+  // name/note at the pack level are left as placeholders for hand-editing.
+  document.getElementById("campExport").onclick = function () {
+    var fields = curatedOrdered().map(function (f) { return { code: f.code, name: f.name || "" }; });
+    var pack = { id: "my-pack", name: "my trail", note: "", fields: fields };
+    copyToClipboard(JSON.stringify(pack, null, 2), "pack JSON copied · paste into campaigns.js");
+  };
 
   // One card per board in the recent list — a field replayed five times is still
   // one field. Keep it in most-recent order, but let its best solved run stand in
@@ -2295,7 +2513,7 @@
     var el = document.createElement("div"); el.className = "hcard";
     var band = rec.band || rec.reqDifficulty || "meadow";
     var cat = curatedTab ? (rec.category || diffCategory(rec)) : diffCategory(rec);
-    var badge = (curatedTab && isCampaignDone(rec.code) ? '<span class="tended" title="tended in this campaign">✓</span>' : "") +
+    var badge = (curatedTab && isCampaignDone("curated", rec.code) ? '<span class="tended" title="tended in this campaign">✓</span>' : "") +
                 '<span class="badge ' + (cat === "lost-cause" ? "lostcause" : cat) + '">' +
                 (CAT_LABEL[cat] || cat) + "</span>";
 
@@ -2518,9 +2736,18 @@
   // not as a persistent footer competing with the board for space.
   function pickSaying() { return SAYINGS[Math.floor(Math.random() * SAYINGS.length)]; }
 
-  // ---- boot: resume in-progress field, else today's ----
+  // ---- boot: resume in-progress field, else today's — unless this is a
+  // genuinely new player's very first visit, who starts on the intro pack's
+  // first field instead (the how-to-play sheet opens on top of it below).
+  // Computed before `seenIntro` is set, so both this and the onboarding check
+  // below agree on who counts as "new."
   var hadSavedField = restore();
-  if (!hadSavedField) startDaily(8);
+  var isNewPlayer = !hadSavedField && !sget("seenIntro") && getHistory().length === 0 && getStats().played === 0;
+  if (!hadSavedField) {
+    var introField = isNewPlayer ? nextCampaign("intro") : null;
+    if (introField) beginCampaignField("intro", introField);
+    else startDaily(8);
+  }
   render();
 
   // ---- first-run onboarding: open "how to play" once, automatically ----
@@ -2529,8 +2756,7 @@
   // them seen without interrupting whatever they came back to do.
   if (!sget("seenIntro")) {
     sset("seenIntro", true);
-    var isReturning = hadSavedField || getHistory().length > 0 || getStats().played > 0;
-    if (!isReturning) openSheet("infoBack");
+    if (isNewPlayer) openSheet("infoBack");
   }
 
   // offline shell — registered last, after the game is already up and

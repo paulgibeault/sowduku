@@ -546,107 +546,176 @@ Implementation notes:
       the streak line entirely.
 - [ ] **I. Daily modifier rotation** — fog Wed / stern Fri / gauntlet Sun, etc.
 
-**Recommended build order** (revised 2026-07-02, campaigns first): B3
-(campaign packs, below) → D (mud puddles — also an on-brand pack ingredient
-later) → E (limited hoofprints) / F (settled means settled — small variants,
-possible future pack modifiers) → I (daily modifier rotation) → C (twin
-litters, stays its own milestone).
+**Recommended build order** (revised 2026-07-02, campaigns first): ~~B3
+(campaign packs, below)~~ **done** → D (mud puddles — also an on-brand pack
+ingredient later) → E (limited hoofprints) / F (settled means settled —
+small variants, possible future pack modifiers) → I (daily modifier
+rotation) → C (twin litters, stays its own milestone).
 *(Original order, for the record: B1 stakes → A crag → H accolades → G
-gauntlet → B bigger boards → D → C. Everything before D shipped.)*
+gauntlet → B bigger boards → D → C. Everything before D shipped, plus B3
+campaign packs landed out of that original order per the 2026-07-02
+re-plan.)*
 
-### B3. Campaign packs — **planned 2026-07-02, not started**
+### B3. Campaign packs — **done** (2026-07-02)
 
 Curated series of fixed-seed fields, selectable in the create sheet. The
 existing single-list "campaign" mode (play your curated list in difficulty
-order, launched from the history sheet) becomes the *authoring loop* for
+order, launched from the history sheet) is now the *authoring loop* for
 packs; a new intro/first-time pack ships as campaign #1.
 
 **Data model**
-- [ ] New `campaigns.js` (script-tagged before the main inline script; added
-      to `sw.js` precache + cache version bump) holding
+- [x] New `campaigns.js` (script-tagged before the main inline script; added
+      to `sw.js` precache + cache version bump to `v2`) holding
       `var CAMPAIGNS = [{ id, name, note, fields: [{ code, name, note?,
       assist? }] }]`. A field is identified by its board code (round-trips
       via the existing `parseCode`/`boardCode`); optional per-field `assist`
-      override and teaching `note`.
-- [ ] The player's own curated list appears as a virtual pack (`id:
+      override and teaching `note`. `packFields()` normalizes a field's
+      code → size/band/seed via `parseCode` and drops any field whose code
+      fails to parse, rather than silently starting a random/mismatched
+      field under the wrong name.
+- [x] The player's own curated list appears as a virtual pack (`id:
       "curated"`, "my trail"), ordered by the existing `curatedOrdered()`.
       Built-in packs play in authored order — no re-sort.
-- [ ] Progress: `campaignDone` migrates from a flat code array to
+- [x] Progress: `campaignDone` migrates from a flat code array to
       `{ packId: [codes] }` — one-time migration maps the old array to
       `{ curated: [...] }` (same pattern as the slow→stakes and assist
       migrations). `markCampaignDone`/`isCampaignDone`/`nextCampaign`/
-      `campaignDoneCount` gain a pack parameter.
-- [ ] `game.campaignPack` alongside the existing `game.campaignCode`,
+      `campaignDoneCount`/`resetCampaign`/`startCampaign`/`beginCampaignField`
+      all gained a leading pack-id parameter.
+- [x] `game.campaignPack` alongside the existing `game.campaignCode`,
       threaded through `beginGame` opts, `persist()`/`restore()`, and
-      `buildRecord`.
-- [ ] **Arcade-export constraint:** every persisted key stays on
-      `sget`/`sset` (the `arcade.v1.sowduku.*` namespace), so campaign
-      progress and curated packs ride the launcher's save-file export/import
-      automatically. Nothing new to build — just don't bypass it.
+      `buildRecord`. A per-field `assist` override applies via a new
+      `opts.forcedAssist` in `beginGame()` — distinct from `opts.assist` so
+      it never contaminates the player's saved default the way a real
+      create-sheet choice does (mirrors how Wallow's forced assist already
+      worked). `restore()` also now persists/reads back `game.assist`
+      directly instead of re-deriving it from the live default, since a
+      forced/suggested assist can now legitimately diverge from it.
+- [x] **Arcade-export constraint honored:** every persisted key stayed on
+      `sget`/`sset` (the `arcade.v1.sowduku.*` namespace) — nothing new to
+      build for cross-device save-file export.
 
 **UI**
-- [ ] Create sheet: `data-mode="campaign"` button in `#cMode`. When
+- [x] Create sheet: `data-mode="campaign"` button in `#cMode`. When
       selected: size/diff/seed/surprise rows hidden (fixed by the pack); a
-      new pack-picker row (`cPackRow`) lists built-in packs + "my trail",
-      each with progress ("3 of 6 tended"). Preview shows the *next
-      untended field* of the selected pack — WYSIWYG like every other mode.
-      Assist row respects a per-field override. Tend →
-      `startCampaign(pack)`; a fully-tended pack offers "walk it again"
-      (reset + restart).
-- [ ] Teaching-note display: a quiet line in `.below-board` (next to
-      `#stuckNote`), populated from the active pack field's `note` during
-      `render()` — derived from `game.campaignPack` + `campaignCode`, so it
-      survives reload with zero extra persistence.
-- [ ] Win veil campaign branch generalized from `curatedOrdered()` to the
+      new pack-picker row (`cPackRow`/`cPack`, dynamically rendered) lists
+      built-in packs + "my trail", each with progress ("3/6"). Preview shows
+      the *next untended field* of the selected pack — WYSIWYG like every
+      other mode — with two extra states: `showPackComplete()` (fully
+      tended → tend button relabels "walk it again") and `showPackEmpty()`
+      (zero fields, e.g. an uncurated "my trail" → tend button disabled,
+      explanatory copy instead of a mini-board). The mode note under the
+      picker now shows the *selected pack's own* note (fixed post-review —
+      it was showing the "curated"-pack-specific note for every pack,
+      including "first steps"). Assist row is pre-filled from the pack's
+      next field's suggested `assist` but stays editable — an explicit
+      create-sheet choice always saves as the new default, same as any
+      other mode. `packSuggestedAssist()` falls back to the pack's *first*
+      field once the pack is done, since "walk it again" restarts there
+      (fixed post-review — it was falling back to the player's generic
+      default instead).
+- [x] Teaching-note display: `#teachNote`, a quiet line in `.below-board`
+      (next to `#stuckNote`), populated from the active pack field's `note`
+      during `render()` — derived from `game.campaignPack` + `campaignCode`,
+      so it survives reload with zero extra persistence.
+- [x] Win veil campaign branch generalized from `curatedOrdered()` to the
       active pack's ordered list; progress copy names the pack.
-- [ ] History sheet, curated tab: campaign bar stays as the "my trail"
-      launcher; new **"export pack"** button beside it copies
-      pretty-printed, ready-to-paste pack JSON (placeholder id/name/note +
-      ordered fields carrying `code` and the player's edited `name`) via
-      `navigator.clipboard.writeText`, textarea-select fallback, confirming
-      toast. This is the pipeline for building future built-in packs:
-      curate → order → export → paste into `campaigns.js`.
-- [ ] First-run: extend the existing genuinely-new-player gate (`seenIntro`
-      — no in-progress field, history, or stats): instead of a random
-      amble, a brand-new player starts on intro field 1 (how-to-play sheet
-      still auto-opens on top). Existing players untouched.
+- [x] History sheet, curated tab: campaign bar stays as the "my trail"
+      launcher (now explicit about packId `"curated"`); new **"export
+      pack"** button (`#campExport`) beside it copies pretty-printed,
+      ready-to-paste pack JSON (placeholder id/name/note + ordered fields
+      carrying `code` and the player's edited `name`) via a new shared
+      `copyToClipboard()` helper (async Clipboard API with a textarea +
+      `execCommand` fallback, confirming toast either way — the existing
+      "copy field code" chip was refactored onto the same helper). This is
+      the pipeline for building future built-in packs: curate → order →
+      export → paste into `campaigns.js`.
+- [x] First-run: extended the existing genuinely-new-player gate
+      (`seenIntro` — no in-progress field, history, or stats): instead of a
+      random amble, a brand-new player starts on intro field 1 (how-to-play
+      sheet still auto-opens on top). Existing players untouched.
+- [x] **Post-implementation review caught a third bug, since fixed:**
+      `replayBoard()` (used by the "play" button on every recent-history
+      card, including a campaign field replayed from the recent tab — not
+      just the curated tab) never forwarded `campaignPack`/`campaignCode`,
+      so replaying a campaign field silently dropped it into
+      `campaignPack: null`. The climb chip then showed "field ?/0", the win
+      veil fell back to crediting the *curated* pack instead of the one
+      actually being replayed, and `onSolved()`'s pack-completion guard
+      silently no-opped. Fixed by having `replayBoard()` forward
+      `campaignPack` and derive `campaignCode` from the record's own `code`
+      (the two are always equal for a campaign-mode record, so no extra
+      persisted field was needed).
 
-**Intro pack — six designed fields (seeds picked at build time)**
-Seed selection is scripted: a Node script drives `sowdoku.js` to generate
-candidates per (size, band), filters on the profile/region criteria below,
-then each finalist is hand-played before its code is locked into
-`campaigns.js`.
-1. [ ] "settling in" — 6×6 sunbeam, assist on. Lesson: tap to settle; one
-       piggy per pen/row/column. Criteria: a 1-cell pen (obvious first
-       move), near-pure L1 profile (`l2 === 0`).
-2. [ ] "good neighbors" — 6×6 sunbeam, assist on. Lesson: piggies never
-       settle adjacent (even diagonally); tap a settled piggy to lift it.
-       Criteria: an early forced piggy whose neighborhood visibly carves up
-       an adjacent pen.
-3. [ ] "leaving hoofprints" — 6×6 meadow, assist on. Lesson: long-press /
-       Space marks a hoofprint. Criteria: `l2 >= 2` — the opening stalls
-       without marking impossible cells.
-4. [ ] "reading the field" — 6×6 meadow. Lesson: confinement — a pen
-       squeezed into one row/column claims it. Criteria: an L2 confinement
-       near the start; assist reverts to player preference from here on.
-5. [ ] "a helping hand" — 7×7 meadow. Lesson: peek (H) and undo (⌘Z) exist
-       and cost nothing but pride. Criteria: first size step-up, mid-band
-       effort score.
-6. [ ] "out into the meadow" — 7×7 meadow, high-effort end of the band.
-       Lesson: none — "this one's all yours." Capstone, no new mechanics.
+**Intro pack — six designed fields**
+Seed selection was scripted (`scripts/pick_intro_seeds.js`): drives
+`sowdoku.js` to generate candidates per (size, band), filters on the
+profile/region criteria below, prints an ASCII render of finalists. Each
+locked-in code was then re-verified (`scripts/verify_intro_seeds.js`):
+confirmed a unique solution, confirmed the requested band, and traced the
+solver's own step-by-step `hint()` sequence to confirm it fully solves at
+the intended logic level with no stuck state. **Correction found while
+tuning the criteria:** `sowdoku.js`'s `rate()` draws the sunbeam/meadow line
+at `l2 <= 3` vs. `l2 >= 4` — meadow is *defined* as needing at least 4
+confinements, so "a gentle meadow puzzle" means `l2` close to 4, not some
+small count as the original criteria below assumed; adjusted the filters
+accordingly (documented inline in `pick_intro_seeds.js`).
+1. [x] "settling in" — `6s-1`, 6×6 sunbeam, assist on. Lesson: tap to
+       settle; one piggy per pen/row/column. Criteria: a 1-cell pen,
+       near-pure L1 profile (`l2 === 0`) — met exactly.
+2. [x] "good neighbors" — `6s-6`, 6×6 sunbeam, assist on. Lesson: piggies
+       never settle adjacent; tap a settled piggy to lift it. Criteria
+       loosened from "entirely swallows a ≤2-cell pen" (found nothing in
+       20k tries — this generator's region growth is streaky, not
+       balanced, per existing project memory) to "≥60% of a ≤3-cell pen's
+       cells sit in a forced piggy's 8-neighborhood"; the picked field has
+       a genuine 3-cell pen squeezed by an early forced placement.
+3. [x] "leaving hoofprints" — `6m-8z`, 6×6 meadow (`l2=6`), assist on.
+       Lesson: long-press / Space marks a hoofprint. Re-targeted to the
+       grindier end of meadow (`l2 >= 6`) so it actually stalls without
+       marking dead cells, now that "meadow" alone no longer implies that.
+4. [x] "reading the field" — `6m-1`, 6×6 meadow (`l2=4`, the minimum
+       possible for the band). Lesson: confinement — a pen squeezed into
+       one row/column claims it. Re-targeted to exactly the meadow floor so
+       it reads as one clear confinement moment, not a grind; assist
+       reverts to player preference from here on (no `assist` key).
+5. [x] "a helping hand" — `7m-2`, 7×7 meadow (`l2=5`). Lesson: peek (H) and
+       undo (⌘Z) exist and cost nothing but pride. First size step-up,
+       gentle side of meadow at 7×7.
+6. [x] "out into the meadow" — `7m-2ix`, 7×7 meadow (`l2=7`, score 56,
+       high-effort end of the band). Lesson: none — "No new mechanic here —
+       this one's all yours." Capstone, no new mechanics.
 
-**Verification (when built)**
-- [ ] Playwright: campaign mode in create sheet; pack picker shows both
-      packs with correct progress; preview code === the field actually
-      started; teaching note renders and survives reload; win veil advances
-      within the right pack; old `campaignDone` array migrates; a
+**Verification**
+- [x] Recreated Playwright coverage from scratch as three scripts (repo had
+      none committed — prior sessions' were session-scratch, per the
+      caveat recorded below):
+      `scripts/test_b3_campaigns.js` (31 checks — campaign mode in create
+      sheet; pack picker shows both packs with correct progress; preview
+      code === the field actually started; teaching note renders and
+      survives reload; win veil advances within the right pack; full pack
+      completion → "walk it again"; old `campaignDone` array migrates;
       fresh-profile run lands on intro field 1 with the how-to-play sheet
-      open; an existing-player profile is untouched; export puts valid JSON
-      on the clipboard that round-trips through `parseCode`; curated-tab
-      campaign bar still works. WebKit spot-check for the new sheet rows
-      (house policy). Note: prior sessions' Playwright regression scripts
-      were session-scratch files, not in the repo — recreate coverage as
-      part of this milestone.
+      open; existing-player profile untouched; export puts valid JSON on
+      the clipboard that round-trips through the code regex; curated-tab
+      campaign bar still works; WebKit spot-check for the new sheet rows),
+      `scripts/test_b3_regression.js` (10 checks — assist save-as-default,
+      Wallow's forced assist not contaminating the default, ladder/gauntlet
+      start flows, amble persist/restore, daily+keyboard shortcuts, honest-
+      stakes heart docking), and `scripts/test_b3_fixes.js` (4 targeted
+      checks for the two bugs a post-implementation review caught: replaying
+      a campaign field from the recent tab keeps its pack identity and
+      credits the pack on a win; "walk it again" from the create sheet uses
+      field 1's authored assist, not the player's generic default). All
+      45 checks green, Chromium + a WebKit spot-check.
+- [x] Independent code review (fresh context, no access to my reasoning)
+      run against the full diff before calling this done; it surfaced two
+      real bugs beyond what the test-writing pass had caught — both fixed
+      and covered by `test_b3_fixes.js` above — plus the dead/misleading
+      mode-note copy (also fixed) and confirmed no stale no-arg call sites
+      of the newly pack-id'd helpers, no `campaignPack` leakage into
+      non-campaign modes, and no duplicate/malformed codes in
+      `campaigns.js`.
 
 ---
 
@@ -910,3 +979,27 @@ then each finalist is hand-played before its code is locked into
   design captured as B3 above; build order revised to put B3 first, ahead of
   mud puddles / limited hoofprints / settled-means-settled / daily rotation /
   twin litters.
+- 2026-07-02 — **B3 (campaign packs) implemented and verified.** Built the
+  full data model (`campaigns.js`, per-pack progress with a one-time flat-
+  array migration, `game.campaignPack` threading, a `forcedAssist` path so a
+  pack field's authored assist never contaminates the player's saved
+  default), the create-sheet UI (campaign mode, dynamic pack picker,
+  pack-complete/pack-empty preview states), the teaching-note line, the
+  generalized win veil, and the history sheet's "export pack" clipboard
+  pipeline. Selected and hand-verified the six intro-pack fields via two new
+  scripts (`scripts/pick_intro_seeds.js`, `scripts/verify_intro_seeds.js`) —
+  along the way, corrected a wrong assumption in the original per-field
+  criteria (meadow is *defined* as `l2 >= 4`, not some small confinement
+  count, per `sowdoku.js`'s own `rate()`). Wrote three from-scratch Playwright
+  suites (45 checks total, Chromium + a WebKit spot-check) since the repo had
+  no committed coverage. Then ran an independent code review (fresh context)
+  against the full diff before calling this done — it caught two real bugs
+  the test-writing pass had missed (`replayBoard()` silently dropping a
+  replayed campaign field's pack identity; the create sheet's "walk it
+  again" using the player's generic assist default instead of the done
+  pack's own field-1 assist) plus a dead/misleading mode-note string; all
+  three fixed, with new targeted regression checks
+  (`scripts/test_b3_fixes.js`) confirming the fixes. Full 45-check suite
+  green after the fixes. B3 is the only item recommended ahead of mud
+  puddles / limited hoofprints / settled-means-settled / daily rotation /
+  twin litters, and it's now done — see the top of Part B2 for what's left.
