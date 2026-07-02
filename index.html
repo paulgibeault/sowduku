@@ -4,6 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sowdoku</title>
+<link rel="icon" type="image/x-icon" href="assets/favicon/favicon.ico" />
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="assets/favicon/favicon-192x192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="assets/favicon/favicon-512x512.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png" />
+<link rel="manifest" href="assets/favicon/site.webmanifest" />
 <!-- Paul's Arcade SDK: same-origin storage, settings, lifecycle. Root-relative
      so it resolves both in production and the local dev harness. -->
 <script src="/arcade-sdk.js"></script>
@@ -30,10 +37,11 @@
   .topbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
     gap: .75rem; padding: .8rem 1rem .5rem; }
   .topbar-right { display: flex; align-items: center; gap: .7rem; }
-  .title { font-family: Georgia,"Iowan Old Style",serif; font-weight: 600; font-size: 1.5rem; margin: 0; line-height: 1; }
-  .hearts { display: flex; gap: .3rem; }
-  .hearts svg { width: 1.15rem; height: 1.15rem; transition: transform .25s ease; }
-  .hearts svg.lost { transform: scale(.85); }
+  .title { font-family: Georgia,"Iowan Old Style",serif; font-weight: 600; font-size: 1.5rem; margin: 0; line-height: 1; display: flex; align-items: center; }
+  .title img.logo { height: 1.8rem; display: block; }
+  .hearts { display: flex; gap: .3rem; align-items: center; }
+  .hearts svg, .hearts img { width: 1.15rem; height: 1.15rem; transition: transform .25s ease; }
+  .hearts svg.lost, .hearts img.lost { transform: scale(.85); }
 
   .settings-wrap { position: relative; }
   .iconbtn { width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center;
@@ -89,14 +97,12 @@
   .stuck[hidden] { display: none; }
   .cell { position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: filter .15s ease, background .3s ease; }
   .cell:hover { filter: brightness(.97); }
-  .cell svg.pig { width: 74%; height: 74%; }
-  .cell.placed svg.pig { filter: drop-shadow(0 3px 0 var(--thud)); animation: thud .25s ease; }
+  .cell svg.pig, .cell img.pig { width: 74%; height: 74%; object-fit: contain; }
+  .cell.placed svg.pig, .cell.placed img.pig { filter: drop-shadow(0 3px 0 var(--thud)); animation: thud .25s ease; }
   .cell.bad { animation: nope .4s ease; }
   @keyframes thud { 0%{transform:translateY(-14%) scale(.9);} 60%{transform:translateY(2%) scale(1.02);} 100%{transform:translateY(0) scale(1);} }
   @keyframes nope { 0%,100%{box-shadow:none;} 30%{box-shadow:inset 0 0 0 99px rgba(207,138,126,.35);} }
-  .hoofprint { display: flex; gap: 2px; opacity: .5; }
-  .hoofprint i { width: .32rem; height: .42rem; border-radius: 50% 50% 45% 45%; background: var(--ink-soft); }
-  .hoofprint i:nth-child(1){ transform: translateY(2px) rotate(-12deg);} .hoofprint i:nth-child(3){ transform: translateY(2px) rotate(12deg);}
+  .hoofprint { pointer-events: none; }
 
   /* auto-shaded "impossible" cells recede toward parchment so the open cells —
      where a piggy can still go — clearly pop. The faint hatch keeps the "ruled
@@ -215,7 +221,7 @@
     font-size: .85rem; margin: 1rem 0 0; line-height: 1.5; }
   .veilsaying:empty { display: none; }
   /* a faded ghost pig on "show me where it went wrong" — the answer, not a placement */
-  .cell.reveal svg.pig { opacity: .42; filter: grayscale(.35); }
+  .cell.reveal svg.pig, .cell.reveal img.pig { opacity: .42; filter: grayscale(.35); }
 
   /* ---- sheets (create a field · history) ---- */
   .sheet-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
@@ -323,14 +329,14 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .cell.placed svg.pig, .cell.bad, .cell.peek::after, .cell.starved::after { animation: none; }
+    .cell.placed svg.pig, .cell.placed img.pig, .cell.bad, .cell.peek::after, .cell.starved::after { animation: none; }
     .veil .card { animation: none; opacity: 1; transform: none; }
   }
 </style>
 </head>
 <body>
   <header class="topbar">
-    <h1 class="title">Sowdoku 🐖</h1>
+    <h1 class="title"><img src="assets/logo/wordmark.svg" alt="Sowdoku" class="logo"></h1>
     <div class="topbar-right">
       <div class="hearts" id="hearts"></div>
       <div class="settings-wrap">
@@ -628,17 +634,57 @@
   }
 
   function pigSVG() {
-    return '<svg class="pig" viewBox="0 0 64 64" fill="none" stroke="#6c6358" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-      '<path d="M14 30c0-9 8-15 18-15s18 6 18 15c0 10-8 17-18 17S14 40 14 30Z" fill="#fff8f4"/>' +
-      '<path d="M16 20c-3-4-2-8 1-8 2 0 5 3 6 7" fill="#fdeede"/>' +
-      '<path d="M48 20c3-4 2-8-1-8-2 0-5 3-6 7" fill="#fdeede"/>' +
-      '<ellipse cx="32" cy="33" rx="9" ry="7" fill="#fbe1d8"/>' +
-      '<path d="M29 33h.2M35 33h.2" stroke-width="3.2"/>' +
-      '<path d="M23 26c1.6 1.4 3.6 1.4 5 0"/><path d="M36 26c1.6 1.4 3.6 1.4 5 0"/></svg>';
+    return '<img class="pig" src="assets/piggy/settled.svg" alt="Piggy" aria-hidden="true">';
   }
   function heartSVG(filled) {
-    return '<svg viewBox="0 0 24 24" class="' + (filled ? "" : "lost") + '" fill="' + (filled ? "var(--heart)" : "var(--heart-off)") +
-      '"><path d="M12 21s-7.5-4.6-10-9.2C.3 8.3 2 4.5 5.6 4.5c2 0 3.4 1.2 4.4 2.7C11 5.7 12.4 4.5 14.4 4.5 18 4.5 19.7 8.3 22 11.8 19.5 16.4 12 21 12 21Z"/></svg>';
+    if (filled) {
+      return '<img src="assets/board/heart-full.svg" class="heart" alt="Heart">';
+    } else {
+      return '<img src="assets/board/heart-empty.svg" class="heart lost" alt="Spent Heart">';
+    }
+  }
+  function hoofprintHTML(r, c) {
+    // Deterministic walk direction angle (theta) between -45 and +45 degrees
+    var angleDeg = -45 + ((r * 13 + c * 37) % 90);
+    var angleRad = angleDeg * Math.PI / 180;
+    
+    // Stride separation along the path (distance from center)
+    var stride = 14; 
+    // Lateral separation perpendicular to the path (width of the walk)
+    var lateral = 8;
+    
+    // Left foot (shifted back and left relative to the walk direction)
+    var lx = -stride;
+    var ly = -lateral;
+    // Right foot (shifted forward and right relative to the walk direction)
+    var rx = stride;
+    var ry = lateral;
+    
+    // Rotate these coordinates by the walk angle (standard 2D rotation matrix)
+    var cos = Math.cos(angleRad);
+    var sin = Math.sin(angleRad);
+    
+    var dx1 = lx * cos - ly * sin;
+    var dy1 = lx * sin + ly * cos;
+    
+    var dx2 = rx * cos - ry * sin;
+    var dy2 = rx * sin + ry * cos;
+    
+    // Individual footprint rotation matches walk angle plus minor variation
+    var rot1 = angleDeg + -5 + ((r * 7 + c * 11) % 10);
+    var rot2 = angleDeg + -5 + ((r * 11 + c * 7) % 10);
+    
+    // Scale of the prints (slightly wobbly)
+    var sc1 = 0.52 + ((r * 5 + c * 3) % 10) / 200;
+    var sc2 = 0.52 + ((r * 3 + c * 5) % 10) / 200;
+    
+    var style1 = 'position:absolute; width:34%; height:34%; left:50%; top:50%; margin-left:-17%; margin-top:-17%; ' +
+                 'transform: translate(' + dx1 + '%, ' + dy1 + '%) rotate(' + rot1 + 'deg) scale(' + sc1 + '); opacity:0.8;';
+    var style2 = 'position:absolute; width:34%; height:34%; left:50%; top:50%; margin-left:-17%; margin-top:-17%; ' +
+                 'transform: translate(' + dx2 + '%, ' + dy2 + '%) rotate(' + rot2 + 'deg) scale(' + sc2 + '); opacity:0.72;';
+                 
+    return '<img class="hoofprint" src="assets/board/hoofprint.svg" alt="" style="' + style1 + '">' +
+           '<img class="hoofprint" src="assets/board/hoofprint.svg" alt="" style="' + style2 + '">';
   }
 
   // "one field a day" seed — same layout for everyone on a given date
@@ -1304,7 +1350,7 @@
           cell.classList.add("reveal"); cell.innerHTML = pigSVG();
         } else {
           if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) cell.classList.add(starved[id] ? "starved" : "shade"); // ruled-out overrides a manual hoofprint; a starved pen blushes instead of fading
-          else if (game.hoofprints.has(k)) cell.innerHTML = '<div class="hoofprint"><i></i><i></i><i></i></div>';
+          else if (game.hoofprints.has(k)) cell.innerHTML = hoofprintHTML(r, c);
           if (fenceStarved[id]) cell.classList.add("starved");
         }
         if (k === badCell) cell.classList.add("bad");
