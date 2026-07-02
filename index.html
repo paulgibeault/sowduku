@@ -11,6 +11,14 @@
 <link rel="icon" type="image/png" sizes="512x512" href="assets/favicon/favicon-512x512.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png" />
 <link rel="manifest" href="assets/favicon/site.webmanifest" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Sowdoku" />
+<meta property="og:description" content="A field of contented little piggies, and the quiet logic of giving each one its own patch of mud." />
+<meta property="og:image" content="assets/social/og-image.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Sowdoku" />
+<meta name="twitter:description" content="A field of contented little piggies, and the quiet logic of giving each one its own patch of mud." />
+<meta name="twitter:image" content="assets/social/og-image.png" />
 <!-- Paul's Arcade SDK: same-origin storage, settings, lifecycle. Root-relative
      so it resolves both in production and the local dev harness. -->
 <script src="/arcade-sdk.js"></script>
@@ -221,11 +229,6 @@
     background: #f6efdd; color: #cc9a3a; font-size: .72rem; font-weight: 700; letter-spacing: .02em; }
   /* win: "looks like" vs "played like" difficulty verdict, only when they diverge */
   .vverdict { font-size: .8rem; color: var(--ink-soft); margin: -.3rem 0 .9rem; font-style: italic; }
-  /* the rotating saying, relocated here from the old persistent footer — flavor
-     for the pause a solve already earns, not competing with board space anymore */
-  .veilsaying { font-family: Georgia,serif; font-style: italic; color: var(--ink-soft);
-    font-size: .85rem; margin: 1rem 0 0; line-height: 1.5; }
-  .veilsaying:empty { display: none; }
   /* a faded ghost pig on "show me where it went wrong" — the answer, not a placement */
   .cell.reveal svg.pig, .cell.reveal img.pig { opacity: .42; filter: grayscale(.35); }
 
@@ -392,7 +395,6 @@
           </div>
         </div>
         <div class="vbtns" id="veilBtns"></div>
-        <p class="veilsaying" id="veilSaying"></p>
       </div></div>
     </div>
   </main>
@@ -648,6 +650,10 @@
 
   function pigSVG() {
     return '<img class="pig" src="assets/piggy/settled.png" alt="Piggy" aria-hidden="true">';
+  }
+  // the brief "not here" reaction shown on a rejected piggy placement
+  function unimpressedSVG() {
+    return '<img class="pig" src="assets/piggy/unimpressed.png" alt="" aria-hidden="true">';
   }
   function heartSVG(filled) {
     if (filled) {
@@ -1116,7 +1122,7 @@
       // this piggy's actual patch, or it's a mistake same as any other.
       if (stakesAtLeast("honest") && game.puzzle.solution[r] !== c) {
         if (dockStrictHeart()) toast("not quite this piggy’s patch");
-        haptic([10, 40, 10]); flashBad(r, c);
+        haptic([10, 40, 10]); flashBad(r, c, true);
         return;
       }
       game.piggies.add(k); game.hoofprints.delete(k); game.metrics.placements++;
@@ -1128,7 +1134,7 @@
     } else {
       game.metrics.mistakes++;
       if (!isSlow()) game.hearts = Math.max(0, game.hearts - 1);
-      haptic([10, 40, 10]); flashBad(r, c);
+      haptic([10, 40, 10]); flashBad(r, c, true);
     }
   }
   function setHoofprint(r, c, on) {
@@ -1189,14 +1195,18 @@
     game.piggies = new Set(s.piggies);
     game.hoofprints = new Set(s.hoofprints);
     game.revealed = new Set(s.revealed);
-    clearTimeout(hintTimer); hintCell = null; badCell = null;
+    clearTimeout(hintTimer); hintCell = null; badCell = null; badCellIsPig = false;
     haptic(4); persist(); render();
   }
 
-  var badCell = null, hintCell = null, hintTimer = null;
-  function flashBad(r, c) {
+  var badCell = null, badCellIsPig = false, hintCell = null, hintTimer = null;
+  // wasPig: true for a rejected *piggy* placement (shows the unimpressed
+  // pose) vs a rejected hoofprint (just the red flash — no piggy was
+  // ever attempted there)
+  function flashBad(r, c, wasPig) {
     badCell = key(r, c);
-    setTimeout(function () { badCell = null; render(); }, 420);
+    badCellIsPig = !!wasPig;
+    setTimeout(function () { badCell = null; badCellIsPig = false; render(); }, 420);
   }
 
   // a gentle hint: glow the next logically-forced piggy for a moment
@@ -1366,7 +1376,12 @@
           else if (game.hoofprints.has(k)) cell.innerHTML = hoofprintHTML(r, c);
           if (fenceStarved[id]) cell.classList.add("starved");
         }
-        if (k === badCell) cell.classList.add("bad");
+        if (k === badCell) {
+          cell.classList.add("bad");
+          // a rejected piggy placement gets a quick "not here" reaction; a
+          // rejected hoofprint (never a piggy attempt) is just the red flash
+          if (badCellIsPig) cell.innerHTML = unimpressedSVG();
+        }
         if (k === hintCell) cell.classList.add("peek");
         board.appendChild(cell);
       }
@@ -1502,11 +1517,9 @@
 
   function renderVeil() {
     var v = document.getElementById("veil"), btns = document.getElementById("veilBtns");
-    var saying = document.getElementById("veilSaying");
     veilPeeking = false; v.classList.remove("peeking"); // any fresh render starts un-peeked
     if (game.solved) {
       document.getElementById("veilTitle").textContent = "A perfect field.";
-      saying.textContent = pickSaying();
       renderWinStats(lastRecord);
       showVeilVignette("assets/illustration/win-vignette.png");
       btns.innerHTML = "";
@@ -1558,7 +1571,7 @@
           addVeilBtn("step away", function () { startAmble(); }, false);
         }
       } else {
-        document.getElementById("veilText").textContent = "Every piggy has its patch. Nothing to do now but enjoy the quiet snuffle.";
+        document.getElementById("veilText").textContent = pickSaying();
         var ambleSeed = randomSeed();
         showResultPreview(curSize(), curReqDiff(), ambleSeed);
         addVeilBtn("tend another", function () { startAmble(curSize(), curReqDiff(), ambleSeed); }, true);
@@ -1566,7 +1579,6 @@
       }
       v.classList.add("show");
     } else if (!isSlow() && game.hearts === 0 && !game.revealedSolution) {
-      saying.textContent = "";
       renderFailStats();
       showVeilVignette("assets/illustration/fail-vignette.png");
       hideResultPreview();
@@ -2163,11 +2175,12 @@
     "The quiet after a solved field is the whole reward.",
     "Hoofprints are how a field thinks aloud.",
     "…one more piggy, one more peaceful row.",
-    "Tend the field gently; it remembers kindness."
+    "Tend the field gently; it remembers kindness.",
+    "Every piggy has its patch. Nothing to do now but enjoy the quiet snuffle."
   ];
   // picked fresh each time a field is solved — lives on the win veil now,
   // not as a persistent footer competing with the board for space.
-  function pickSaying() { return "“" + SAYINGS[Math.floor(Math.random() * SAYINGS.length)] + "”"; }
+  function pickSaying() { return SAYINGS[Math.floor(Math.random() * SAYINGS.length)]; }
 
   // ---- boot: resume in-progress field, else today's ----
   if (!restore()) startDaily(8);

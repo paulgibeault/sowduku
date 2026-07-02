@@ -220,24 +220,36 @@ reinvented). Full prior regression suite (16 test files) re-run clean.
 - [x] Favicon / app icon (512/192/180/32/16 + `.ico`) — full `<link>` set
       + manifest added to `<head>` (there were none before)
 - [x] Piggy sprite: settled — wired into `pigSVG()`
-- [ ] Piggy sprite: unimpressed — not generated. Still needs a *new*
-      transient state, not a pure swap (see Phase 3 note below)
-- [ ] Piggy sprite: dozing — not generated, no call site
-- [ ] Piggy sprite: celebrating — not generated, no call site
+- [ ] Piggy sprite: unimpressed — **code done, art pending.** A rejected
+      piggy placement (illegal square, or a legal-but-wrong-patch mistake
+      under Honest+/Stern) shows this pose in the cell for 420ms via a new
+      `unimpressedSVG()` + `badCellIsPig` flag on the shared `flashBad()`
+      mechanism, alongside the existing red flash. A rejected hoofprint
+      still shows only the flash. `<img src="assets/piggy/unimpressed.png">`
+      is already live in the render path — will just start working once
+      the file exists.
+- [ ] Piggy sprite: dozing — **on hold**, no call site (deferred, see
+      Phase 3 scope note below)
+- [ ] Piggy sprite: celebrating — **on hold**, win vignette already covers
+      the celebration moment
 - [x] Hoofprint marker — wired in via a new `hoofprintHTML(r, c)` helper
       that positions two rotated hoofprint images per cell with a
       deterministic per-cell angle (reads as a little walking trail),
       replacing the old three-dot `<i>` markup
 - [x] Hearts (full / empty) — wired into `heartSVG(filled)`
-- [ ] Board paper texture — not generated, no call site
-- [ ] Background farm-horizon border — not generated, no call site
+- [ ] Board paper texture — **on hold**, no call site
+- [ ] Background farm-horizon border — **on hold**, no call site
 - [x] Win vignette — wired into the win veil, between the title and the
       descriptive text
 - [x] Fail vignette — wired into the fail veil, same slot
 - [x] Empty-state spots — history + curated wired into the `.hempty`
       blocks in the history sheet; first-run generated but unwired (no
       first-run flow exists yet)
-- [ ] OG / social share image — not generated, no call site
+- [ ] OG / social share image — **code done, art pending.** `og:title` /
+      `og:description` / `og:image` + matching `twitter:*` tags are live
+      in `<head>`, `og:description` pulled from the README's own opening
+      line. Will render in link previews once `assets/social/og-image.png`
+      exists.
 - [x] Misty Morning badge — wired into the `data-mode="fog"` button in the
       create sheet's mode picker
 
@@ -248,13 +260,18 @@ pure swaps:
    logo, settled piggy, hearts, hoofprint.
 2. **Phase 2 — win/fail vignettes + empty states + misty badge. Done**
    (except empty-firstrun, deferred — no UI hook yet).
-3. **Phase 3 — the open-ended ones. Not started.**
-   Unimpressed/dozing/celebrating piggy poses, paper texture, horizon
-   border, OG image. These either need new code to trigger a new state
-   (unimpressed/celebrating) or are pure ambiance calls with real risk of
-   cluttering the "calm clarity" house style if overdone — worth a design
-   gut-check per `STYLE.md` before committing, not just dropping in
-   because the asset exists.
+3. **Phase 3 — the open-ended ones. Trimmed scope, in progress.** Asked
+   the user how much of Phase 3 to pursue given the mixed risk/value (win
+   vignette already covers "celebration"; several items have no natural
+   UI hook). Chose the trimmed option: **only Unimpressed and OG image.**
+   Both now have their code-side hook fully wired — designed and built
+   the "unimpressed" transient state myself (a genuinely new mechanic, not
+   just an asset swap), added the OG/Twitter meta tags — so both will
+   start working the instant the art exists. Dozing, Celebrating, paper
+   texture, and horizon border are on hold: no natural call site for any
+   of them, and forcing one in risks cluttering the "calm clarity" house
+   style just because the asset could exist. Revisit if a concrete use
+   surfaces later (e.g. Dozing for a first-run flow).
 
 **How Phase 1/2 actually got built:** generated via Antigravity IDE (used
 purely for image generation, at the user's preference — not for wiring
@@ -588,3 +605,28 @@ puddles) → C (twin litters, own milestone).
   the piggy pose variants, texture, horizon border, and OG image, all of
   which need either new code (a transient "unimpressed" state) or a
   deliberate design gut-check before adding ambient art.
+- 2026-07-02 — Merged the win veil's fixed "Every piggy has its patch..."
+  line into the `SAYINGS` rotation pool, and removed the separate
+  `#veilSaying` element that used to show a second, independently-rotating
+  quote under the buttons. One rotating line now, in the slot the fixed
+  text used to occupy (between the vignette and the stats), not two texts
+  competing for the same "flavor" job. `pickSaying()` no longer wraps its
+  pick in curly quotes, since it now feeds a plain descriptive sentence
+  slot rather than an italic aside. Only the plain-win branch uses it —
+  ladder/campaign/gauntlet keep their own progress-specific text, since
+  that's functional information, not flavor. Full regression suite clean.
+- 2026-07-02 — Asked the user to scope Phase 3 (6 remaining items, very
+  mixed risk/value) rather than guess; they chose the trimmed option —
+  Unimpressed + OG image only. Built both code-side hooks myself (per the
+  user's Antigravity-for-images-only preference): the "unimpressed"
+  transient state (new `badCellIsPig` flag threaded through `flashBad()`,
+  shown for 420ms on a rejected piggy placement, verified via Playwright
+  that a rejected hoofprint correctly shows no piggy since none was
+  attempted there) and the OG/Twitter meta tag set in `<head>`. Both
+  reference asset paths that don't exist yet — intentional, they'll start
+  working the moment Antigravity generates the files. Updated
+  `ASSET_PROMPTS.md`'s two active prompts to reference the real generated
+  `settled.png`/`wordmark.png` for style consistency, and marked
+  Dozing/Celebrating/texture/horizon-border clearly on-hold so they aren't
+  generated without a call site decided first. Full regression suite
+  clean.

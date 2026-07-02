@@ -5,15 +5,31 @@ prompt below is meant to be used **with the style preamble prepended** —
 paste it once as a system/style instruction if your tool supports one, or
 prepend it to each prompt individually.
 
-**Status:** Phase 1 and Phase 2 assets below are generated and wired into
-`index.html`. All final files are `.png`, not `.svg` — the image tool
-output ".svg" files that were actually raster PNGs wrapped in an SVG
-container (`<image href="data:image/png;base64,...">`), which inflates
-size (base64 + XML overhead) without any of the benefits of a real vector.
-Those were unwrapped, right-sized for their actual display dimensions, and
+**Status:** Phase 1 and Phase 2 are generated and wired into `index.html`.
+All final files are `.png`, not `.svg` — the image tool output ".svg"
+files that were actually raster PNGs wrapped in an SVG container (`<image
+href="data:image/png;base64,...">`), which inflates size (base64 + XML
+overhead) without any of the benefits of a real vector. Those were
+unwrapped, right-sized for their actual display dimensions, and
 palette-quantized before being committed (3.7MB → ~250KB total). Generate
 any remaining assets the same way, and apply the same fix if the tool
 outputs another fake-`.svg`.
+
+**Phase 3 scope (decided 2026-07-02):** only **Unimpressed** and **OG /
+social share image** below are still active — both have real value
+(clearer negative feedback; a shareable link preview). Dozing, Celebrating,
+Board paper texture, and Background farm-horizon border are **on hold**:
+none has a natural place to live in the current UI, and forcing one in
+risks cluttering `STYLE.md`'s "calm clarity" over showing genuine
+restraint. Their prompts are left below for whenever a concrete use
+surfaces (e.g. a first-run flow for Dozing) — don't generate them without
+a call site decided first.
+
+The **Unimpressed** and **OG image** prompts below have been updated to
+reference the actual generated files for consistency (Antigravity should
+use `assets/piggy/settled.png` / `assets/logo/wordmark.png` as an
+image-to-image reference where its tool supports that, or match their
+proportions and line weight by eye otherwise).
 
 ## Style preamble (prepend to every prompt)
 
@@ -71,28 +87,38 @@ three so the set actually matches.
 > Transparent background, flat pastel fill with charcoal line, no cast
 > shadow.
 
-### Unimpressed — not yet generated
-`assets/piggy/unimpressed.png` — **no existing call site**, see integration notes
+### Unimpressed — code ready, art not yet generated
+`assets/piggy/unimpressed.png` — **call site already wired**: a rejected
+piggy placement (illegal square, or a legal-but-wrong-patch mistake under
+Honest+/Stern stakes) briefly shows this pose in the cell for 420ms via
+`unimpressedSVG()`, alongside the existing red flash. A rejected
+*hoofprint* still shows only the flash — no piggy was ever attempted
+there. The `<img>` reference already points at this exact path, so it'll
+just start working the moment the file exists — no further code changes
+needed.
 
-> The same piglet as reference, identical proportions and line weight,
-> cracking one skeptical half-open eye, one ear tilted back. Same framing
-> and canvas size so it can swap in-place with the settled pose.
-> Transparent background.
+> Reference `assets/piggy/settled.png` for exact proportions, line weight,
+> and camera angle. The same piglet, cracking one skeptical half-open eye,
+> one ear tilted back — a shrug, not a scold. Same framing and canvas size
+> so it swaps in-place with the settled pose. Transparent background.
 
-### Dozing — not yet generated
-`assets/piggy/dozing.png` — **no existing call site**, see integration notes
+### Dozing — on hold, no call site
+`assets/piggy/dozing.png`
 
-> The same piglet as reference, fast asleep, two tiny "z z" marks drifting
-> up, a slow-breath posture (chest very slightly raised). Same framing and
+> Reference `assets/piggy/settled.png` for proportions and line weight.
+> The same piglet, fast asleep, two tiny "z z" marks drifting up, a
+> slow-breath posture (chest very slightly raised). Same framing and
 > canvas size as the set. Transparent background.
 
-### Celebrating — not yet generated
-`assets/piggy/celebrating.png` — **no existing call site**, see integration notes
+### Celebrating — on hold, no call site
+`assets/piggy/celebrating.png` — the win vignette (below) already covers
+the "celebration" moment; revisit only if a specific new spot for this
+comes up.
 
-> The same piglet as reference, on its back, trotters up, utterly content,
-> eyes closed in a happy squint, a small warm sun-glow patch under it.
-> Slightly larger canvas is fine — this is the win-screen hero, not a board
-> piece. Transparent background.
+> Reference `assets/piggy/settled.png` for proportions and line weight.
+> The same piglet, on its back, trotters up, utterly content, eyes closed
+> in a happy squint, a small warm sun-glow patch under it. Slightly larger
+> canvas is fine. Transparent background.
 
 ---
 
@@ -125,16 +151,16 @@ mark.
 
 ## Environment & texture
 
-### Board paper texture
-`assets/texture/paper-tile.png` — **no existing call site**, see integration notes
+### Board paper texture — on hold, no call site
+`assets/texture/paper-tile.png`
 
 > A very subtle watercolor-paper texture tile: warm off-white with the
 > faintest visible fiber grain and occasional soft pastel bloom at 3–4%
 > opacity. Must tile seamlessly edge to edge. Nearly invisible at normal
 > viewing size — texture only, no imagery, no vignette.
 
-### Background farm-horizon border
-`assets/illustration/horizon-border.svg` — **no existing call site**, see integration notes
+### Background farm-horizon border — on hold, no call site
+`assets/illustration/horizon-border.png`
 
 > A whisper-quiet farm horizon as a bottom-edge border illustration: a
 > simple fence line, two distant trees, tall grass tufts, drawn in
@@ -200,11 +226,18 @@ button in the create sheet's mode picker
 
 ## Marketing
 
-### OG / social share image
-`assets/social/og-image.png`, 1200×630 px — **no existing call site**, see integration notes
+### OG / social share image — code ready, art not yet generated
+`assets/social/og-image.png`, 1200×630 px — **call site already wired**:
+`og:image` and `twitter:image` meta tags in `<head>` already point at
+this exact path, alongside `og:title`/`og:description` pulled from the
+README's own opening line. Will just start rendering in link previews the
+moment the file exists.
 
-> A 1200×630 banner: the Sowdoku wordmark placed left-of-center, a 6×6
-> pastel pen-grid with three settled piglets to the right, empty space
-> below the wordmark reserved for a tagline (leave text out of the image).
-> Parchment background, calm and uncluttered composition, matching the
-> game's own watercolor-pastel pen colors.
+> Reference `assets/logo/wordmark.png` for the exact wordmark treatment —
+> reuse it directly rather than redrawing it. A 1200×630 banner: the
+> wordmark placed left-of-center, a 6×6 pastel pen-grid with three settled
+> piglets to the right (reference `assets/piggy/settled.png` for the
+> piglet), empty space below the wordmark reserved for a tagline (leave
+> text out of the image). Parchment background (#f4eee1), calm and
+> uncluttered composition, matching the game's own watercolor-pastel pen
+> colors.
