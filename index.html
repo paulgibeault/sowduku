@@ -184,20 +184,38 @@
 
   /* solved + out-of-hearts overlays */
   .veil { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
-    background: rgba(251,247,238,.82); border-radius: 1.4rem; text-align: center; padding: 2rem; }
+    background: rgba(70,62,52,.32); border-radius: 1.4rem; text-align: center; padding: 2rem;
+    overflow: auto; cursor: pointer; }
   .veil.show { display: flex; }
-  .veil .card { max-width: 22rem; }
+  /* tap the backdrop to peek at the board underneath; tap anywhere to bring
+     the card back. Higher specificity than .veil.show so it wins regardless
+     of rule order, even if renderVeil() re-adds "show" while peeking. */
+  .veil.show.peeking { display: none; }
+  .veil .card { max-width: 26rem; cursor: default;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 1.1rem;
+    padding: 1.5rem 1.6rem; box-shadow: 0 1px 0 #fff inset, 0 20px 50px -24px rgba(70,62,52,.4);
+    opacity: 0; transform: translateY(10px); animation: veilIn .32s ease forwards; }
+  @keyframes veilIn { to { opacity: 1; transform: translateY(0); } }
   .veil h2 { font-family: Georgia,serif; font-weight: 600; font-size: 1.6rem; margin: 0 0 .5rem; }
   .veil p { color: var(--ink-soft); margin: 0 0 1.2rem; line-height: 1.5; }
   .veil .vbtns { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
   .veil button { font: inherit; cursor: pointer; border: 1px solid #d8ccb5; background: #efe6d3;
     color: var(--ink); border-radius: 999px; padding: .5rem 1.2rem; }
   .veil button.soft { background: transparent; color: var(--ink-soft); }
+  /* win: quiet stats + a new-high-score callout, no fireworks */
+  .vstats { font-size: .85rem; color: var(--ink-soft); margin: .1rem 0 .6rem; line-height: 1.6; }
+  .vstats b { color: var(--ink); font-weight: 600; }
+  .vstats .hi { display: inline-block; margin-left: .4rem; padding: .1rem .55rem; border-radius: 999px;
+    background: #f6efdd; color: #cc9a3a; font-size: .72rem; font-weight: 700; letter-spacing: .02em; }
+  /* win: "looks like" vs "played like" difficulty verdict, only when they diverge */
+  .vverdict { font-size: .8rem; color: var(--ink-soft); margin: -.3rem 0 .9rem; font-style: italic; }
   /* the rotating saying, relocated here from the old persistent footer — flavor
      for the pause a solve already earns, not competing with board space anymore */
   .veilsaying { font-family: Georgia,serif; font-style: italic; color: var(--ink-soft);
     font-size: .85rem; margin: 1rem 0 0; line-height: 1.5; }
   .veilsaying:empty { display: none; }
+  /* a faded ghost pig on "show me where it went wrong" — the answer, not a placement */
+  .cell.reveal svg.pig { opacity: .42; filter: grayscale(.35); }
 
   /* ---- sheets (create a field · history) ---- */
   .sheet-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
@@ -306,6 +324,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .cell.placed svg.pig, .cell.bad, .cell.peek::after, .cell.starved::after { animation: none; }
+    .veil .card { animation: none; opacity: 1; transform: none; }
   }
 </style>
 </head>
@@ -325,11 +344,6 @@
               <button data-stakes="honest">honest</button>
               <button data-stakes="stern">stern</button>
             </div></div>
-          <div class="row"><span class="lab">assist</span>
-            <div class="seg" id="assistSeg">
-              <button data-assist="on">on</button>
-              <button data-assist="off">off</button>
-            </div></div>
         </div>
       </div>
     </div>
@@ -348,6 +362,16 @@
       <div class="veil" id="veil"><div class="card">
         <h2 id="veilTitle"></h2>
         <p id="veilText"></p>
+        <div class="vstats" id="vStats" hidden></div>
+        <p class="vverdict" id="vVerdict" hidden></p>
+        <div class="preview" id="vPreview" hidden>
+          <div class="miniboard" id="vPreviewMini"></div>
+          <div class="pmeta">
+            <div class="pcode" id="vPreviewCode">—</div>
+            <div class="pband" id="vPreviewBand">—</div>
+            <div class="bar pbar"><i id="vPreviewBar" style="width:0"></i></div>
+          </div>
+        </div>
         <div class="vbtns" id="veilBtns"></div>
         <p class="veilsaying" id="veilSaying"></p>
       </div></div>
@@ -397,6 +421,11 @@
           <button data-diff="meadow">meadow</button>
           <button data-diff="hilltop">hilltop</button>
           <button data-diff="crag">crag</button>
+        </div></div>
+      <div class="orow" id="cAssistRow"><span class="lab" title="shades cells a pen can no longer use, once a piggy is placed">assist</span>
+        <div class="seg" id="cAssist">
+          <button data-assist="on">on</button>
+          <button data-assist="off">off</button>
         </div></div>
       <div class="orow" id="cSeedRow"><span class="lab">seed</span>
         <div class="seedbox">
@@ -474,10 +503,10 @@
           <b>stern</b> — also a heart for fencing off the one cell a piggy
           actually belongs in.</p>
         <h3>Assist</h3>
-        <p><b>On</b> softly shades cells a pen can no longer use — active
-          through Sunbeam and Meadow, off by Hilltop and Crag, so the field
-          teaches the technique before taking the training wheels off.
-          <b>Off</b> leaves all the bookkeeping to you.</p>
+        <p>Chosen once, when you tend a field (in the ✚ create sheet), not a
+          mid-game toggle. <b>On</b> softly shades cells a pen can no longer
+          use, on any difficulty. <b>Off</b> leaves all the bookkeeping to
+          you.</p>
       </div>
       <div class="sheet-actions">
         <button class="primary" id="infoClose">close</button>
@@ -682,6 +711,12 @@
     var reqDiff = opts.difficulty || "meadow";
     var seed = (opts.seed != null ? opts.seed : (opts.mode === "daily" ? dailySeed() : randomSeed())) >>> 0;
     var puzzle = makeBoard(size, reqDiff, seed);
+    // assist is chosen once, in the create sheet, when the field is tended —
+    // not a live mid-game toggle. An explicit choice becomes the new default
+    // for next time, unless the mode forced it (Wallow's always-off shouldn't
+    // quietly change what the next amble field defaults to).
+    var assist = cfg.assist || opts.assist || loadAssist();
+    if (!cfg.assist && opts.assist != null) saveAssist(opts.assist);
     game = {
       puzzle: puzzle, mode: opts.mode || "amble", reqDifficulty: reqDiff,
       code: boardCode(size, reqDiff, seed),
@@ -691,9 +726,9 @@
       // dwindling line of hearts.
       hearts: opts.carryHearts != null ? opts.carryHearts : cfg.hearts,
       maxHearts: opts.carryMaxHearts != null ? opts.carryMaxHearts : cfg.hearts,
-      assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
+      assist: assist, lockedAssist: !!cfg.assist,
       stakes: cfg.stakes || loadStakes(), lockedStakes: !!cfg.stakes,
-      solved: false, recorded: false, ladderRung: opts.ladderRung || 0,
+      solved: false, recorded: false, revealedSolution: false, ladderRung: opts.ladderRung || 0,
       campaignCode: opts.campaignCode || null, gauntletStep: opts.gauntletStep || 0,
       metrics: newMetrics(), undo: [],
     };
@@ -702,23 +737,28 @@
     persist(); render();
   }
   function startDaily(size)      { beginGame({ mode: "daily",  size: size || 8, difficulty: "meadow", seed: dailySeed() }); }
-  function startAmble(size, dif) { beginGame({ mode: "amble",  size: size || curSize(), difficulty: dif || curReqDiff(), seed: randomSeed() }); }
-  function startGauntlet() {
+  // `seed`, when given, lets a caller lock in the exact field a win-veil
+  // preview already showed — so what you saw is exactly what you get, not a
+  // fresh reroll the moment you tap through.
+  function startAmble(size, dif, seed) {
+    beginGame({ mode: "amble", size: size || curSize(), difficulty: dif || curReqDiff(), seed: seed != null ? seed : randomSeed() });
+  }
+  function startGauntlet(seed) {
     var g = gauntletStage(0);
-    beginGame({ mode: "gauntlet", size: g.size, difficulty: g.difficulty, seed: randomSeed(), gauntletStep: 0 });
+    beginGame({ mode: "gauntlet", size: g.size, difficulty: g.difficulty, seed: seed != null ? seed : randomSeed(), gauntletStep: 0 });
   }
   // called only after the just-solved field is still the live `game` object,
   // so carrying its hearts forward reads the remaining count, not a fresh one.
-  function nextGauntletField() {
+  function nextGauntletField(seed) {
     var next = (game.gauntletStep || 0) + 1;
     if (next >= GAUNTLET.length) return; // the gauntlet's already complete
     var g = gauntletStage(next);
-    beginGame({ mode: "gauntlet", size: g.size, difficulty: g.difficulty, seed: randomSeed(),
+    beginGame({ mode: "gauntlet", size: g.size, difficulty: g.difficulty, seed: seed != null ? seed : randomSeed(),
                 gauntletStep: next, carryHearts: game.hearts, carryMaxHearts: game.maxHearts });
   }
-  function startLadder(rung) {
+  function startLadder(rung, seed) {
     rung = rung || 0; var lc = ladderRung(rung);
-    beginGame({ mode: "ladder", size: lc.size, difficulty: lc.difficulty, seed: randomSeed(), ladderRung: rung });
+    beginGame({ mode: "ladder", size: lc.size, difficulty: lc.difficulty, seed: seed != null ? seed : randomSeed(), ladderRung: rung });
   }
   function replayBoard(d) {
     beginGame({ mode: d.mode || "amble", size: d.size, difficulty: d.reqDifficulty || d.difficulty || "meadow",
@@ -804,7 +844,7 @@
         revealed: new Set(s.revealed || []),
         hearts: s.hearts != null ? s.hearts : (s.maxHearts || cfg.hearts),
         maxHearts: s.maxHearts || cfg.hearts || MAX_HEARTS,
-        solved: !!s.solved, recorded: !!s.recorded,
+        solved: !!s.solved, recorded: !!s.recorded, revealedSolution: false,
         assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
         // migrate an old separate "slow mode" flag into the stakes spectrum;
         // a mode-forced stakes value (e.g. Wallow's "stern") still wins.
@@ -894,7 +934,7 @@
       startedAt: m.startedAt, endedAt: Date.now(), playMs: m.playMs,
       moves: m.moves, placements: m.placements, mistakes: m.mistakes,
       hoofprints: m.hoofprints, clears: m.clears, hints: m.hints,
-      assist: game.lockedAssist ? game.assist : loadAssist(),
+      assist: game.assist, // fixed per-field since it's a create-time choice, not a live toggle
       stakes: game.lockedStakes ? game.stakes : loadStakes(),
       solved: !!solved, placed: game.piggies.size, ladderRung: game.ladderRung || 0,
       gauntletStep: game.gauntletStep || 0,
@@ -905,8 +945,13 @@
     rec.score = playScore(rec);
     rec.category = diffCategory(rec);
     rec.id = rec.code + "@" + rec.endedAt;
+    lastRecord = rec; // the win veil reads this — it's the same object finalizeGame() mutates
     return rec;
   }
+
+  // the most recently built record, for the win veil's stats — set inside
+  // buildRecord() so it's already current by the time onSolved() -> render() runs.
+  var lastRecord = null;
 
   // record the current field into history (once). Only fields the player
   // actually touched are kept, so history stays meaningful, not cluttered.
@@ -927,6 +972,7 @@
                          playMs: rec.playMs, mistakes: rec.mistakes, hints: rec.hints };
         sset("hiScores", hs);
         syncCuratedScore(rec.code, hs[rec.code]);
+        rec.isNewHigh = true; // rec === lastRecord, so the win veil picks this up too
       }
     }
 
@@ -981,14 +1027,12 @@
   var key = function (r, c) { return r + "," + c; };
   function haptic(pattern) { if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) {} } }
 
-  // is the auto-shading of impossible cells active right now? assist "off"
-  // never shades; "on" shades through Sunbeam/Meadow and steps back for
-  // Hilltop/Crag, teaching the technique before taking the training wheels off.
-  var ASSIST_OFF_BANDS = { hilltop: true, crag: true };
-  function assistOn() {
-    if (game.assist === "off") return false;
-    return !ASSIST_OFF_BANDS[game.puzzle.difficulty];
-  }
+  // is the auto-shading of impossible cells active right now? A plain,
+  // unconditional on/off, chosen once when the field is tended (in the
+  // create sheet) — it used to also quietly turn itself off past Meadow
+  // regardless of the setting, which just made "on" look broken on harder
+  // fields. If you want assist on a Crag field, "on" now means on.
+  function assistOn() { return game.assist === "on"; }
 
   // ---- mutations ----
   // stakes strictness is capped to one heart per pointer gesture (a tap, a
@@ -1212,7 +1256,6 @@
     document.getElementById("undoBtn").disabled = !canUndo();
 
     // reflect current state inside the ⚙ menu
-    segOn("assistSeg", "assist", game.assist);
     segOn("stakesSeg", "stakes", game.stakes);
 
     // hearts (hidden at the "slow" stakes tier — no failure, so nothing to count)
@@ -1255,7 +1298,11 @@
         cell.style.borderBottom = same(r, c, r + 1, c) ? thin : thick;
         var k = key(r, c);
         if (game.piggies.has(k)) { cell.classList.add("placed"); cell.innerHTML = pigSVG(); }
-        else {
+        else if (game.revealedSolution && p.solution[r] === c) {
+          // "show me where it went wrong": the honest answer, not a placement —
+          // faded, and it overrides hoofprints/shading since play is already over.
+          cell.classList.add("reveal"); cell.innerHTML = pigSVG();
+        } else {
           if (shade && !Sowdoku.isLegalPlacement(n, reg, game.piggies, r, c)) cell.classList.add(starved[id] ? "starved" : "shade"); // ruled-out overrides a manual hoofprint; a starved pen blushes instead of fading
           else if (game.hoofprints.has(k)) cell.innerHTML = '<div class="hoofprint"><i></i><i></i><i></i></div>';
           if (fenceStarved[id]) cell.classList.add("starved");
@@ -1329,31 +1376,102 @@
     return starved;
   }
 
+  // ---- win/fail results screen (the veil) ----
+
+  // shows the exact field a "next" button will start — the seed is locked in
+  // by the caller *before* this renders, so the preview is never a lie about
+  // what tapping through actually gives you.
+  function showResultPreview(size, diff, seed) {
+    var pz = makeBoard(size, diff, seed);
+    renderMini(document.getElementById("vPreviewMini"), pz);
+    var aScore = Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
+    document.getElementById("vPreviewCode").textContent = boardCode(size, diff, seed);
+    document.getElementById("vPreviewBand").textContent = pz.difficulty + " · effort " + aScore + "/100";
+    document.getElementById("vPreviewBar").style.width = aScore + "%";
+    document.getElementById("vPreview").hidden = false;
+  }
+  function hideResultPreview() { document.getElementById("vPreview").hidden = true; }
+
+  // "looks like" (a-priori) vs "played like" (empirical) — only worth a line
+  // when they meaningfully disagree; most solves don't need the callout.
+  function verdictText(rec) {
+    if (rec.eScore == null) return null;
+    var gap = rec.eScore - rec.aScore;
+    if (gap >= 14) return "…played tougher than it looks.";
+    if (gap <= -14) return "…gentler than it looks.";
+    return null;
+  }
+
+  function renderWinStats(rec) {
+    var statsEl = document.getElementById("vStats"), verdictEl = document.getElementById("vVerdict");
+    if (!rec) { statsEl.hidden = true; verdictEl.hidden = true; return; }
+    var hi = bestScore(rec);
+    statsEl.innerHTML = "<b>" + fmtTime(rec.playMs) + "</b> to settle · " + slips(rec.mistakes || 0) +
+      (rec.hints ? " · " + rec.hints + " peek" + (rec.hints > 1 ? "s" : "") : "") +
+      " · score <b>" + rec.score.toLocaleString() + "</b>" +
+      (rec.isNewHigh ? '<span class="hi">new high score!</span>'
+        : (hi != null ? " · best " + hi.toLocaleString() : ""));
+    statsEl.hidden = false;
+    var v = verdictText(rec);
+    if (v) { verdictEl.textContent = v; verdictEl.hidden = false; } else verdictEl.hidden = true;
+  }
+
+  function renderFailStats() {
+    flushTick();
+    var statsEl = document.getElementById("vStats");
+    document.getElementById("vVerdict").hidden = true;
+    statsEl.innerHTML = "left at <b>" + game.piggies.size + "/" + game.puzzle.size + "</b> · " +
+      slips(game.metrics.mistakes || 0) + " · <b>" + fmtTime(game.metrics.playMs) + "</b> so far";
+    statsEl.hidden = false;
+  }
+
+  // the optional, honest "give up and look" — hides the veil so the board
+  // (and a faded ghost pig on every cell that was actually correct) shows
+  // through; the field stays locked, this is a look, not another attempt.
+  function revealSolution() {
+    game.revealedSolution = true;
+    document.getElementById("veil").classList.remove("show");
+    persist(); render();
+  }
+
   function renderVeil() {
     var v = document.getElementById("veil"), btns = document.getElementById("veilBtns");
     var saying = document.getElementById("veilSaying");
+    veilPeeking = false; v.classList.remove("peeking"); // any fresh render starts un-peeked
     if (game.solved) {
       document.getElementById("veilTitle").textContent = "A perfect field.";
       saying.textContent = pickSaying();
+      renderWinStats(lastRecord);
+      btns.innerHTML = "";
       if (game.mode === "ladder") {
         var next = (game.ladderRung || 0) + 1, top = next >= LADDER.length;
         document.getElementById("veilText").textContent = top
           ? "The very top of the ladder, tended. Nothing above but sky."
           : "Rung " + ((game.ladderRung || 0) + 1) + " tended. The path climbs gently on.";
-        btns.innerHTML = "";
-        if (!top) addVeilBtn("climb higher", function () { startLadder(next); }, true);
-        addVeilBtn("a fresh amble", function () { startAmble(); }, top);
+        if (!top) {
+          var lc = ladderRung(next), lSeed = randomSeed();
+          showResultPreview(lc.size, lc.difficulty, lSeed);
+          addVeilBtn("climb higher", function () { startLadder(next, lSeed); }, true);
+          addVeilBtn("a fresh amble", function () { startAmble(); }, false);
+        } else {
+          var topSeed = randomSeed();
+          showResultPreview(curSize(), curReqDiff(), topSeed);
+          addVeilBtn("a fresh amble", function () { startAmble(curSize(), curReqDiff(), topSeed); }, true);
+        }
       } else if (game.mode === "campaign") {
         var nxt = nextCampaign(), total = curatedOrdered().length, dcount = campaignDoneCount();
         document.getElementById("veilText").textContent = nxt
           ? dcount + " of " + total + " curated fields tended. The trail winds gently on."
           : "Every curated field tended — the whole campaign, done. Beautifully quiet work.";
-        btns.innerHTML = "";
         if (nxt) {
+          // curated fields already have a fixed seed — the preview is the exact field, no locking needed
+          showResultPreview(nxt.size, nxt.reqDifficulty || nxt.band || "meadow", nxt.seed);
           addVeilBtn("next field →", function () { beginCampaignField(nxt); }, true);
           addVeilBtn("pause the trail", function () { startAmble(); }, false);
         } else {
-          addVeilBtn("a fresh amble", function () { startAmble(); }, true);
+          var campDoneSeed = randomSeed();
+          showResultPreview(curSize(), curReqDiff(), campDoneSeed);
+          addVeilBtn("a fresh amble", function () { startAmble(curSize(), curReqDiff(), campDoneSeed); }, true);
           addVeilBtn("walk it again", function () { startCampaign(true); }, false);
         }
       } else if (game.mode === "gauntlet") {
@@ -1361,40 +1479,47 @@
         document.getElementById("veilText").textContent = gDone
           ? "All " + GAUNTLET.length + " fields tended, hearts to spare. The gauntlet, cleared."
           : "Field " + gNext + " of " + GAUNTLET.length + " down, hearts steady. The next one asks a little more.";
-        btns.innerHTML = "";
         if (gDone) {
-          addVeilBtn("a fresh amble", function () { startAmble(); }, true);
+          var gDoneSeed = randomSeed();
+          showResultPreview(curSize(), curReqDiff(), gDoneSeed);
+          addVeilBtn("a fresh amble", function () { startAmble(curSize(), curReqDiff(), gDoneSeed); }, true);
           addVeilBtn("run it again", function () { startGauntlet(); }, false);
         } else {
-          addVeilBtn("keep going →", function () { nextGauntletField(); }, true);
+          var gStage = gauntletStage(gNext), gSeed = randomSeed();
+          showResultPreview(gStage.size, gStage.difficulty, gSeed);
+          addVeilBtn("keep going →", function () { nextGauntletField(gSeed); }, true);
           addVeilBtn("step away", function () { startAmble(); }, false);
         }
       } else {
         document.getElementById("veilText").textContent = "Every piggy has its patch. Nothing to do now but enjoy the quiet snuffle.";
-        btns.innerHTML = "";
-        addVeilBtn("tend another", function () { startAmble(); }, true);
+        var ambleSeed = randomSeed();
+        showResultPreview(curSize(), curReqDiff(), ambleSeed);
+        addVeilBtn("tend another", function () { startAmble(curSize(), curReqDiff(), ambleSeed); }, true);
         addVeilBtn("choose a field", function () { openCreate(); }, false);
       }
       v.classList.add("show");
-    } else if (!isSlow() && game.hearts === 0) {
+    } else if (!isSlow() && game.hearts === 0 && !game.revealedSolution) {
       saying.textContent = "";
+      renderFailStats();
+      hideResultPreview();
+      btns.innerHTML = "";
       if (game.mode === "gauntlet") {
         // the shared pool is spent — the whole run ends here, not just this field
         document.getElementById("veilTitle").textContent = "The gauntlet ends here.";
         document.getElementById("veilText").textContent = "Field " + ((game.gauntletStep || 0) + 1) + " of " +
           GAUNTLET.length + " — hearts spent. No harm done; the gauntlet waits whenever you're ready to run it again.";
-        btns.innerHTML = "";
         addVeilBtn("run it again", function () { startGauntlet(); }, true);
         addVeilBtn("a fresh amble", function () { startAmble(); }, false);
       } else {
         document.getElementById("veilTitle").textContent = "The field got a little crowded.";
         document.getElementById("veilText").textContent = "No harm done. Shall we settle the piggies again from the start?";
-        btns.innerHTML = "";
         addVeilBtn("fresh start", function () {
-          game.piggies.clear(); game.hoofprints.clear(); game.hearts = game.maxHearts; game.solved = false;
+          game.piggies.clear(); game.hoofprints.clear();
+          game.hearts = game.maxHearts; game.solved = false; game.revealedSolution = false;
           persist(); render();
         }, true);
       }
+      addVeilBtn("show me where it went wrong", function () { revealSolution(); }, false);
       v.classList.add("show");
     } else {
       v.classList.remove("show");
@@ -1405,6 +1530,28 @@
     b.textContent = label; if (!primary) b.className = "soft"; b.onclick = fn;
     document.getElementById("veilBtns").appendChild(b);
   }
+
+  // tap the backdrop (not the card) to peek at the board underneath the
+  // results screen; tap *anywhere* afterward brings the card straight back.
+  // Captured at the document level so "anywhere" really means anywhere —
+  // including cells and action-bar buttons — without also triggering
+  // whatever that tap would normally do (the game's locked at this point
+  // regardless, so nothing real is lost by swallowing it).
+  var veilPeeking = false;
+  document.getElementById("veil").addEventListener("click", function (e) {
+    if (veilPeeking) return; // the capture-phase listener below handles this click
+    var card = e.currentTarget.querySelector(".card");
+    if (card && !card.contains(e.target)) {
+      veilPeeking = true;
+      e.currentTarget.classList.add("peeking");
+    }
+  });
+  document.addEventListener("click", function (e) {
+    if (!veilPeeking) return;
+    e.preventDefault(); e.stopPropagation();
+    veilPeeking = false;
+    document.getElementById("veil").classList.remove("peeking");
+  }, true);
 
   // ---- controls ----
   function segOn(segId, attr, val) {
@@ -1443,7 +1590,8 @@
     disarmClear();
     var before = boardSnap();                 // a swept board is recoverable with one undo
     if (game.metrics) game.metrics.clears++;
-    game.piggies.clear(); game.hoofprints.clear(); game.revealed.clear(); game.solved = false;
+    game.piggies.clear(); game.hoofprints.clear(); game.revealed.clear();
+    game.solved = false; game.revealedSolution = false;
     // gauntlet's hearts are a shared pool across three fields, not a per-field
     // allowance — a clear must not hand back hearts already spent earlier in the run.
     if (!isSlow() && game.mode !== "gauntlet") game.hearts = game.maxHearts;
@@ -1477,10 +1625,6 @@
     if (e.key === "n" || e.key === "N") openCreate();
   });
 
-  document.getElementById("assistSeg").onclick = function (e) {
-    var b = e.target.closest("button[data-assist]"); if (!b) return;
-    game.assist = b.dataset.assist; game.lockedAssist = false; saveAssist(game.assist); persist(); render();
-  };
   document.getElementById("stakesSeg").onclick = function (e) {
     var b = e.target.closest("button[data-stakes]"); if (!b) return;
     game.stakes = b.dataset.stakes; game.lockedStakes = false; saveStakes(game.stakes);
@@ -1516,12 +1660,16 @@
   // ======================================================================
   //  CREATE A FIELD
   // ======================================================================
-  var cState = { mode: "amble", size: 8, diff: "meadow", seed: null };
+  var cState = { mode: "amble", size: 8, diff: "meadow", assist: "on", seed: null };
 
   function openCreate() {
     closeMenu();
     var carryMode = game && game.mode !== "ladder" && game.mode !== "gauntlet" ? game.mode : "amble";
-    cState = { mode: carryMode, size: curSize(), diff: game ? curReqDiff() : "meadow", seed: randomSeed() };
+    // loadAssist() already reflects the most recent *explicit* choice —
+    // beginGame() saves it there itself, skipping mode-forced values like
+    // Wallow's — so no special carry-forward logic is needed here.
+    cState = { mode: carryMode, size: curSize(), diff: game ? curReqDiff() : "meadow",
+               assist: loadAssist(), seed: randomSeed() };
     if (cState.mode === "daily") cState.diff = "meadow";
     if (cState.mode === "wallow") cState.diff = "crag";
     document.getElementById("cSeed").value = "";
@@ -1534,13 +1682,13 @@
   // concrete, so the preview *is* the exact board you'll tend (WYSIWYG); daily
   // and ladder ignore the chosen seed and fix their own layout.
   function resolveCreate() {
-    var mode = cState.mode, size = cState.size, diff = cState.diff, seed = cState.seed;
+    var mode = cState.mode, size = cState.size, diff = cState.diff, assist = cState.assist, seed = cState.seed;
     if (mode === "daily")  { diff = "meadow"; seed = dailySeed(); }
-    else if (mode === "wallow") { diff = "crag"; }
+    else if (mode === "wallow") { diff = "crag"; assist = "off"; }
     else if (mode === "ladder") { var lc = ladderRung(0); size = lc.size; diff = lc.difficulty; }
     else if (mode === "gauntlet") { var gc = gauntletStage(0); size = gc.size; diff = gc.difficulty; }
     if (seed == null) seed = randomSeed();
-    return { mode: mode, size: size, diff: diff, seed: seed };
+    return { mode: mode, size: size, diff: diff, assist: assist, seed: seed };
   }
 
   function updateCreate() {
@@ -1548,11 +1696,13 @@
     segOn("cMode", "mode", cState.mode);
     segOn("cSize", "size", String(r.size));
     segOn("cDiff", "diff", r.diff);
+    segOn("cAssist", "assist", r.assist);
     document.getElementById("cModeNote").textContent = modeCfg(cState.mode).note;
 
     // which rows are relevant to this mode
     show("cSizeRow", cState.mode !== "ladder" && cState.mode !== "gauntlet");
     show("cDiffRow", cState.mode === "amble" || cState.mode === "fog");
+    show("cAssistRow", cState.mode !== "wallow");
     show("cSeedRow", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet");
     show("cSurprise", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet");
 
@@ -1604,6 +1754,10 @@
     var b = e.target.closest("button[data-diff]"); if (!b) return;
     cState.diff = b.dataset.diff; updateCreate();
   };
+  document.getElementById("cAssist").onclick = function (e) {
+    var b = e.target.closest("button[data-assist]"); if (!b) return;
+    cState.assist = b.dataset.assist; updateCreate();
+  };
   document.getElementById("cSeed").oninput = function () {
     var v = this.value.trim();
     if (!v) { cState.seed = randomSeed(); this.classList.remove("bad"); updateCreate(); return; } // cleared → surprise me
@@ -1627,7 +1781,7 @@
     closeSheet("createBack");
     if (r.mode === "ladder") { startLadder(0); return; }
     if (r.mode === "gauntlet") { startGauntlet(); return; }
-    beginGame({ mode: r.mode, size: r.size, difficulty: r.diff, seed: r.seed });
+    beginGame({ mode: r.mode, size: r.size, difficulty: r.diff, assist: r.assist, seed: r.seed });
   }
   document.getElementById("cCancel").onclick = function () { closeSheet("createBack"); };
   document.getElementById("cTend").onclick = tendCreateForm;

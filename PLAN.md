@@ -153,15 +153,58 @@ persistence, keyboard shortcuts, create-sheet) re-run clean after the
 merge — this session touched a lot of shared state (`game.slow` had 12+
 call sites), so re-running everything wasn't optional.
 
-### A3. Win / fail results screen
-- [ ] Shared results-card component (slots for win vs. fail)
-- [ ] Win: stats row (time · slips · peeks · score), new-high-score callout
-- [ ] Win: "looks like vs. played like" difficulty verdict surfaced
-- [ ] Win: next-field preview (mini board + code + effort bar), one-tap start
-- [ ] Fail: progress (placed N/M), slips, time so far; no score-penalty framing
-- [ ] Fail: optional "show me where it went wrong" (faded solution overlay,
-      clearly forfeits the field)
-- [ ] Shared fade/rise animation, `prefers-reduced-motion` honored
+### A3. Win / fail results screen — **done**
+- [x] Shared results-card component: the existing veil `.card` gained a
+      `#vStats` row, `#vVerdict` line, and `#vPreview` block, all populated
+      by mode-agnostic helpers (`renderWinStats`, `renderFailStats`,
+      `showResultPreview`) called from every win/fail branch — not a
+      separate component, but genuinely shared logic across all of them.
+- [x] Win: stats row — time to settle, slips, peeks (when any), score, and
+      a `new high score!` pill when `finalizeGame()` just beat the stored
+      best (best score shown either way via the existing `bestScore()`).
+- [x] Win: difficulty verdict — compares `rec.eScore` (played) against
+      `rec.aScore` (looks-like); only shown when they diverge by ≥14 points,
+      matching the "not every solve needs a comment" spirit of the accolades
+      work — most solves show no verdict line at all, and that's correct.
+- [x] Win: next-field preview — mini board, code, band, and effort bar for
+      *exactly* the field the primary button starts next. This was the
+      trickiest part: `startAmble`/`startLadder`/`startGauntlet`/
+      `nextGauntletField` all previously called `randomSeed()` internally,
+      so a naive preview would show one field and tap through to a
+      different one. Gave each an optional trailing `seed` param; the veil
+      now locks in `randomSeed()` *once* per render, previews that exact
+      seed, and passes the same seed to the button's handler. Campaign
+      previews needed no locking — curated fields already have a fixed
+      seed. Verified as an explicit WYSIWYG assertion in every mode tested
+      (amble, ladder): preview code === the code of the field you actually
+      land on, not just "a similar one."
+- [x] Fail: progress (`placed N/M`), slips, time-so-far — reads live game
+      state (`flushTick()` first so playMs is current), no score-penalty
+      language, matches the existing "no harm done" copy.
+- [x] Fail: "show me where it went wrong" — hides the veil (board becomes
+      visible again, still locked at 0 hearts) and marks every empty cell
+      that *was* the solution's cell for its row with a faded ghost pig
+      (`.cell.reveal`, 42% opacity + desaturated). `game.revealedSolution`
+      gates this in both `render()`'s cell loop and `renderVeil()` (so the
+      veil doesn't immediately re-cover the board on the next render), and
+      resets on "fresh start" or "clear" — clear still refills hearts for
+      non-slow/non-gauntlet modes exactly as before, so revealing then
+      clearing is a full, honest do-over.
+- [x] Shared fade/rise animation (`veilIn`, opacity+translateY, .32s) on the
+      card; added to the existing `prefers-reduced-motion` block alongside
+      the piggy-thud/bad-flash/starved-pulse rules it already disables.
+
+Verified end-to-end: win stats text includes time/slips/score, new-high-score
+badge appears on a fresh code's first solve, next-field preview shown and
+its code is byte-for-byte identical to the field actually landed on after
+tapping the primary button (checked for both a freeform amble win and a
+ladder climb, including the climb chip advancing to the correct rung); fail
+veil shows progress/slips/time and both action buttons; reveal correctly
+marks 5 cells faded-pig on a 6×6 with one correct placement already down,
+hides the veil, and both the reveal marks and full hearts return after a
+clear. Screenshots confirm the visual design reads clean and matches the
+create-sheet's existing preview language (deliberately reused, not
+reinvented). Full prior regression suite (16 test files) re-run clean.
 
 ### A4. Asset & branding generation (separate image-gen track)
 - [ ] Logo / wordmark
@@ -388,3 +431,67 @@ puddles) → C (twin litters, own milestone).
   location corrected from "⚙ menu" to "docked action bar" — a stale leftover
   from A1/A2's move that hadn't been caught until reading the file closely
   for this edit).
+- 2026-07-02 — A3 (win/fail results screen) implemented and verified — see
+  notes above. This closes out everything from the original UI-overhaul ask
+  except A4 (asset generation — a separate, user-driven image-gen track) and
+  A5 (the polish backlog). Remaining across the whole plan: A4, A5, and from
+  Part B2 — twin litters (its own milestone), mud puddles, limited
+  hoofprints, "settled means settled", daily modifier rotation.
+- 2026-07-02 — User reported assist "doesn't work anymore when turned on."
+  Root cause: the on/off redesign (last session) kept the *old* "gated"
+  behavior baked into "on" — shading was silently forced off past Meadow
+  regardless of the toggle, so "on" looked broken on Hilltop/Crag. Confirmed
+  live (0 shaded cells on Crag with assist "on"). Asked the user to confirm
+  which difficulty, since the fix differs (design change vs. bug). Their
+  answer reframed the whole feature: since assist genuinely can't be changed
+  mid-game in any way that matters (the difficulty-gating meant toggling it
+  live often did nothing), it shouldn't live in the always-visible ⚙ menu
+  implying it always works — it belongs in the create sheet instead, decided
+  once per field like size/difficulty. Implemented: (1) dropped the
+  difficulty-gating from `assistOn()` entirely — "on" is now unconditional,
+  any band; (2) moved the assist control from the ⚙ menu into the create
+  sheet as a new `cAssistRow`, hidden for Wallow (forced off) same as the
+  size/difficulty rows already hide for modes that don't use them; (3)
+  `beginGame()` now takes an explicit `opts.assist` and auto-saves it as the
+  new default preference *unless* it came from a mode-forced override — so
+  Wallow's forced "off" doesn't quietly contaminate what the next amble
+  field defaults to; (4) `openCreate()` simplified to just read
+  `loadAssist()` directly, since `beginGame()` now keeps that preference
+  current on its own. `buildRecord()` simplified too (`assist: game.assist`
+  — no more "locked vs. live preference" branching, since there's no live
+  toggle left to diverge from). Verified end-to-end: the exact repro from
+  the bug report (Crag + assist on) now shades correctly; the settings menu
+  no longer has an assist row; the create sheet's assist row is hidden for
+  Wallow and shows for amble/misty; a Wallow round doesn't contaminate the
+  next amble create's default. This broke assist-dependent preconditions in
+  five other scratch tests (they toggled assist live, mid-game, which no
+  longer does anything) — fixed by setting the precondition via localStorage
+  *before* the field that needs it is created, and retired two tests
+  (`test-crag-gated.js`, `test-crag.js`) that asserted the old, now-
+  intentionally-removed gating behavior. Full 16-file regression suite green.
+- 2026-07-02 — User: the win/fail veil was too transparent to read easily,
+  and asked for a click-outside-to-dismiss / click-anywhere-to-restore
+  interaction. Fixed both: (1) `.veil .card` now has its own opaque
+  `var(--panel)` background, border, padding, and shadow — previously the
+  card was just text floating directly on the translucent backdrop, so
+  legibility depended entirely on the backdrop's opacity. Darkened the
+  backdrop itself too (light cream → dark warm gray at low opacity), since a
+  light backdrop behind a light opaque card gave almost no visual
+  separation — the card needed to visibly read as a *frame*, not blend in.
+  (2) Added a peek/restore interaction: a bubble-phase listener on `#veil`
+  checks whether a click landed outside `.card` and, if so, hides the veil
+  (a `.peeking` class with higher specificity than `.show`, so it wins even
+  if `renderVeil()` re-adds "show" later) — then a capture-phase listener on
+  `document` intercepts the *next* click anywhere, restores the veil, and
+  stops that click from also doing whatever it would normally do (safe here
+  since the game is always `locked()` while the veil is showing anyway, so
+  nothing real is lost by swallowing the click). `renderVeil()` resets the
+  peeking flag on every fresh call, so a new result never inherits a stale
+  dismissed state. Verified: card has a solid background, clicking the
+  backdrop dismisses (verified via computed `display`, not just class
+  presence), clicking anywhere afterward restores it without placing a
+  stray piggy, clicking inside the card never dismisses, and the veil's own
+  buttons still work normally throughout. Full regression suite green (one
+  spurious timeout on a background batch run turned out to be Chromium
+  resource contention, not a real failure — confirmed by re-running that
+  file alone).

@@ -53,13 +53,12 @@ Fences are first-class. Half the pleasure of a cozy puzzle is the slow
 *narrowing down*, and Sowdoku treats your scratch work as lovingly as your
 answers.
 
-**Assist** (a player setting, in the ⚙ menu) is a simple **on/off**: on
-softly hatches every now-impossible cell once a piggy is placed (its row,
-column, pen, and the eight it touches), distinct from your own hoof-print
-fences — the board's facts vs. your hypotheses. It's active through Sunbeam
-and Meadow and steps back by Hilltop and Crag, so the field teaches the
-technique before taking the training wheels off. Off leaves all the
-bookkeeping to you.
+**Assist** is a simple **on/off**, chosen once when you tend a field (in the
+**＋ create** sheet) rather than a live mid-game toggle. On softly hatches
+every now-impossible cell once a piggy is placed (its row, column, pen, and
+the eight it touches), distinct from your own hoof-print fences — the
+board's facts vs. your hypotheses. On means on, at any difficulty, Sunbeam
+through Crag. Off leaves all the bookkeeping to you.
 
 ### Gentle failure
 
@@ -70,6 +69,12 @@ that this piggy wouldn't actually be comfortable there. Run out of hearts and
 the field simply offers a fresh start. Losing is soft here. The reward was never
 a high score; it's the *pure puzzle-solving satisfaction* of the last piggy
 settling in.
+
+Curious where it went sideways? **"Show me where it went wrong"** quietly
+reveals the field's actual answer as a faded, ghostly piggy over every cell
+you hadn't settled correctly — a look, not another guess, and it doesn't
+touch your record. Clear the board when you're ready and the field starts
+fresh, full hearts and all.
 
 ### Stakes — one spectrum, from ritual to rigorous
 
