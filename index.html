@@ -17,45 +17,70 @@
     --fog: #e7dfcf;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; }
+  html, body { margin: 0; height: 100%; }
   body {
     background: radial-gradient(120% 80% at 50% -10%, #fbf6ea 0%, var(--bg) 60%);
     color: var(--ink); font-family: "Inter","Helvetica Neue",system-ui,sans-serif;
-    -webkit-font-smoothing: antialiased; min-height: 100vh;
-    display: flex; align-items: center; justify-content: center; padding: 3rem 1.25rem;
+    -webkit-font-smoothing: antialiased;
+    height: 100dvh; overflow: hidden;
+    display: flex; flex-direction: column;
   }
-  .frame { width: min(40rem, 100%); }
-  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
-  .title { font-family: Georgia,"Iowan Old Style",serif; font-weight: 600; font-size: 2.5rem; margin: 0; line-height: 1; }
-  .tagline { font-size: .95rem; color: var(--ink-soft); margin: .55rem 0 0; max-width: 26rem; line-height: 1.5; }
-  .hearts { display: flex; gap: .35rem; padding-bottom: .3rem; }
-  .hearts svg { width: 1.35rem; height: 1.35rem; transition: transform .25s ease; }
+
+  /* ---- app shell: header · status strip · board (gets everything left) · action bar ---- */
+  .topbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+    gap: .75rem; padding: .8rem 1rem .5rem; }
+  .topbar-right { display: flex; align-items: center; gap: .7rem; }
+  .title { font-family: Georgia,"Iowan Old Style",serif; font-weight: 600; font-size: 1.5rem; margin: 0; line-height: 1; }
+  .hearts { display: flex; gap: .3rem; }
+  .hearts svg { width: 1.15rem; height: 1.15rem; transition: transform .25s ease; }
   .hearts svg.lost { transform: scale(.85); }
 
-  .chip-row { display: flex; gap: .6rem; margin: 1.5rem 0 1rem; align-items: center; flex-wrap: wrap; }
-  .chip { font-size: .8rem; letter-spacing: .04em; color: var(--ink-soft); background: var(--panel);
-    border: 1px solid var(--line); border-radius: 999px; padding: .32rem .8rem; }
+  .settings-wrap { position: relative; }
+  .iconbtn { width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
+    color: var(--ink-soft); border-radius: 999px; }
+  .iconbtn:hover { color: var(--ink); border-color: #d8ccb5; }
+  .iconbtn.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
+
+  .status-strip { flex: 0 0 auto; display: flex; gap: .5rem; margin: 0 0 .5rem; padding: 0 1rem;
+    align-items: center; flex-wrap: wrap; }
+  .chip { font-size: .78rem; letter-spacing: .04em; color: var(--ink-soft); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 999px; padding: .3rem .75rem; }
   .chip strong { color: var(--ink); font-weight: 600; }
   button.chip { cursor: pointer; }
   button.chip:hover { color: var(--ink); border-color: #d8ccb5; }
-  button.chip:disabled { opacity: .38; cursor: default; }
-  button.chip:disabled:hover { color: var(--ink-soft); border-color: var(--line); }
   button.chip.on { background: #efe6d3; color: var(--ink); }
   .codechip { font-family: ui-monospace,"SF Mono",Menlo,monospace; letter-spacing: .02em; cursor: pointer; }
   .codechip:hover { color: var(--ink); border-color: #d8ccb5; }
   .codechip::before { content: "🌱 "; }
   .climbchip[hidden] { display: none; }
 
+  /* the board gets every pixel left between the status strip and the action bar —
+     container query units size the largest square that fits either axis. Top-
+     aligned rather than centered: on a narrow, tall viewport the board is
+     width-bound and can't fill the height, and centering it would leave an
+     equal, aimless gap above *and* below; top-aligning reads as "as big as it
+     can be" instead of "floating with padding on both sides". */
+  .board-area { flex: 1 1 auto; min-height: 0; container-type: size;
+    display: grid; align-items: start; justify-items: center; padding: .6rem 1rem 0; }
+  .board-wrap { position: relative; width: min(100cqw, 100cqh); aspect-ratio: 1;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 1.4rem; padding: 1.1rem; box-shadow: 0 1px 0 #fff inset, 0 18px 40px -28px rgba(70,62,52,.35); }
+  .board { display: grid; border-radius: .7rem; overflow: hidden; width: 100%; height: 100%;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+
+  /* below the board: the stuck note (conditional) and the tap/drag hint — small,
+     out of the way, doesn't compete with the board for space. */
+  .below-board { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
+    gap: .3rem; padding: .4rem 1rem .55rem; text-align: center; }
+  .hint { font-size: .74rem; color: var(--ink-soft); margin: 0; line-height: 1.4; }
+  .hint b { color: var(--ink); font-weight: 600; }
+
   /* surfaced when a pen has been starved out — a gentle, warm nudge that the
      field can no longer be solved from here, pointing at the blushing pen. */
-  .stuck { font-size: .82rem; color: #b07d5f; margin: .9rem 0 0;
+  .stuck { font-size: .8rem; color: #b07d5f; margin: 0;
     display: flex; align-items: center; gap: .4rem; line-height: 1.4; }
   .stuck[hidden] { display: none; }
-
-  .board-wrap { position: relative; background: var(--panel); border: 1px solid var(--line);
-    border-radius: 1.4rem; padding: 1.5rem; box-shadow: 0 1px 0 #fff inset, 0 18px 40px -28px rgba(70,62,52,.35); }
-  .board { display: grid; border-radius: .7rem; overflow: hidden; width: 100%;
-    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .cell { position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: filter .15s ease, background .3s ease; }
   .cell:hover { filter: brightness(.97); }
   .cell svg.pig { width: 74%; height: 74%; }
@@ -96,11 +121,9 @@
     box-shadow: inset 0 0 0 3px rgba(201,139,134,.85); animation: peekpulse 1.1s ease infinite; }
   @keyframes peekpulse { 0%,100%{opacity:.35;} 50%{opacity:1;} }
 
-  .controls { position: relative; display: flex; gap: .5rem; margin-top: 1rem; align-items: center; flex-wrap: wrap; }
-  .controls .spacer { flex: 1; }
-
-  /* the ⚙ popover folds the play controls (slow, assist, hint) out of the main row. */
-  .menu { position: absolute; bottom: calc(100% + .55rem); left: 0; z-index: 30;
+  /* the ⚙ popover folds the play settings (slow, assist, stakes) under the
+     header button — peek lives in the action bar now, it's a play move, not a setting. */
+  .menu { position: absolute; top: calc(100% + .5rem); right: 0; z-index: 30;
     min-width: 16rem; background: var(--panel); border: 1px solid var(--line);
     border-radius: 1rem; padding: .35rem .9rem;
     box-shadow: 0 1px 0 #fff inset, 0 16px 38px -22px rgba(70,62,52,.45); }
@@ -115,9 +138,27 @@
   .seg button:hover { color: var(--ink); border-color: #d8ccb5; }
   .seg button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
   .seg.wrap { flex-wrap: wrap; justify-content: flex-end; }
-  #menuBtn.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
-  .hint { font-size: .78rem; color: var(--ink-soft); margin: .85rem 0 0; text-align: center; line-height: 1.5; }
-  .hint b { color: var(--ink); font-weight: 600; }
+
+  /* ---- docked action bar: play moves (undo · peek · clear) left, session
+     moves (new field · history) right — grouped by how often you reach for them. ---- */
+  .action-bar { flex: 0 0 auto; display: flex; align-items: center; gap: .5rem;
+    padding: .55rem 1rem calc(.55rem + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line); background: var(--panel); }
+  .action-bar .spacer { flex: 1; }
+  .action-group { display: flex; gap: .4rem; }
+  .actbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem;
+    min-width: 3.4rem; min-height: 2.9rem; padding: .35rem .5rem;
+    font: inherit; font-size: .66rem; letter-spacing: .02em; text-transform: none;
+    cursor: pointer; border: 1px solid var(--line); background: var(--bg); color: var(--ink-soft);
+    border-radius: .9rem; transition: background .2s ease, border-color .2s ease, color .2s ease; }
+  .actbtn .icon { font-size: 1.15rem; line-height: 1; }
+  .actbtn:hover { color: var(--ink); border-color: #d8ccb5; }
+  .actbtn:disabled { opacity: .38; cursor: default; }
+  .actbtn:disabled:hover { color: var(--ink-soft); border-color: var(--line); }
+  .actbtn.primary { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; font-weight: 600; }
+  .actbtn.primary:hover { border-color: #c9b89b; }
+  /* a gentle, two-tap confirm on "clear" instead of a jarring native dialog */
+  .actbtn.confirm { background: #f3ded9; border-color: var(--bad); color: #8a4a3f; }
 
   /* solved + out-of-hearts overlays */
   .veil { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
@@ -130,8 +171,11 @@
   .veil button { font: inherit; cursor: pointer; border: 1px solid #d8ccb5; background: #efe6d3;
     color: var(--ink); border-radius: 999px; padding: .5rem 1.2rem; }
   .veil button.soft { background: transparent; color: var(--ink-soft); }
-  footer { margin-top: 1.4rem; font-family: Georgia,serif; font-style: italic; color: var(--ink-soft);
-    font-size: .92rem; text-align: center; line-height: 1.5; }
+  /* the rotating saying, relocated here from the old persistent footer — flavor
+     for the pause a solve already earns, not competing with board space anymore */
+  .veilsaying { font-family: Georgia,serif; font-style: italic; color: var(--ink-soft);
+    font-size: .85rem; margin: 1rem 0 0; line-height: 1.5; }
+  .veilsaying:empty { display: none; }
 
   /* ---- sheets (create a field · history) ---- */
   .sheet-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
@@ -163,7 +207,8 @@
   .bar i { display: block; height: 100%; border-radius: 999px; }
   .pbar i { background: linear-gradient(90deg,#cdd6bb,#e6cdb8,#e3c2cb); }
   .phint { font-size: .72rem; color: var(--ink-soft); margin-top: .5rem; }
-  .sheet-actions { display: flex; gap: .6rem; justify-content: flex-end; margin-top: .4rem; }
+  .sheet-actions { display: flex; align-items: center; gap: .6rem; justify-content: flex-end; margin-top: .4rem; }
+  .sheet-actions .grow { flex: 1; }
   .sheet-actions .primary, .sheet-actions .ghost { font: inherit; cursor: pointer; border-radius: 999px; padding: .5rem 1.1rem; border: 1px solid #d8ccb5; }
   .primary { background: #efe6d3; color: var(--ink); }
   .ghost { background: transparent; color: var(--ink-soft); border-color: var(--line); }
@@ -222,10 +267,20 @@
   .hacts .fav.on { color: #cc9a3a; background: #f6efdd; border-color: #e2d3ac; }
   .hempty { color: var(--ink-soft); font-size: .85rem; text-align: center; padding: 1.6rem 0; line-height: 1.5; }
 
-  .toast { position: fixed; left: 50%; bottom: 2rem; transform: translateX(-50%) translateY(1rem); z-index: 60;
+  /* clears the docked action bar's height so a toast never sits under it */
+  .toast { position: fixed; left: 50%; bottom: calc(5.4rem + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(1rem); z-index: 60;
     background: var(--ink); color: #fbf7ee; font-size: .82rem; padding: .5rem .95rem; border-radius: 999px;
     opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
   .toast.show { opacity: .95; transform: translateX(-50%) translateY(0); }
+
+  /* mobile: let the board go near-full-bleed and keep the action bar in thumb reach */
+  @media (max-width: 480px) {
+    .board-wrap { padding: .65rem; border-radius: 1rem; }
+    .board-area { padding: 0 .5rem; }
+    .topbar, .status-strip { padding-left: .65rem; padding-right: .65rem; }
+    .actbtn { min-width: 3rem; font-size: .62rem; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .cell.placed svg.pig, .cell.bad, .cell.peek::after, .cell.starved::after { animation: none; }
@@ -233,65 +288,67 @@
 </style>
 </head>
 <body>
-  <div class="frame">
-    <header>
-      <div>
-        <h1 class="title">Sowdoku 🐖</h1>
-        <p class="tagline">One piggy per row, column &amp; color,<br /> and never two touching.</p>
-      </div>
+  <header class="topbar">
+    <h1 class="title">Sowdoku 🐖</h1>
+    <div class="topbar-right">
       <div class="hearts" id="hearts"></div>
-    </header>
-
-    <div class="chip-row">
-      <span class="chip" id="fieldChip">today’s field · 8×8 · meadow</span>
-      <button class="chip codechip" id="codeChip" title="copy this field’s code">8m-0</button>
-      <span class="chip climbchip" id="climbChip" hidden>rung 1/8</span>
-      <span class="chip"><strong id="leftChip">8</strong> left</span>
+      <div class="settings-wrap">
+        <button class="iconbtn" id="menuBtn" aria-haspopup="true" aria-expanded="false" title="settings">⚙</button>
+        <div class="menu" id="menu" hidden role="menu" aria-label="Play settings">
+          <div class="row"><span class="lab">slow mode</span>
+            <div class="seg"><button id="slowToggle" data-toggle>off</button></div></div>
+          <div class="row"><span class="lab">assist</span>
+            <div class="seg" id="assistSeg">
+              <button data-assist="auto">auto</button>
+              <button data-assist="gated">gated</button>
+              <button data-assist="manual">manual</button>
+            </div></div>
+          <div class="row"><span class="lab" title="how strictly a heart is docked">stakes</span>
+            <div class="seg" id="stakesSeg">
+              <button data-stakes="gentle">gentle</button>
+              <button data-stakes="honest">honest</button>
+              <button data-stakes="stern">stern</button>
+            </div></div>
+        </div>
+      </div>
     </div>
+  </header>
 
+  <div class="status-strip">
+    <span class="chip" id="fieldChip">today’s field · 8×8 · meadow</span>
+    <button class="chip codechip" id="codeChip" title="copy this field’s code">8m-0</button>
+    <span class="chip climbchip" id="climbChip" hidden>rung 1/8</span>
+    <span class="chip"><strong id="leftChip">8</strong> left</span>
+  </div>
+
+  <main class="board-area">
     <div class="board-wrap">
       <div class="board" id="board"></div>
       <div class="veil" id="veil"><div class="card">
         <h2 id="veilTitle"></h2>
         <p id="veilText"></p>
         <div class="vbtns" id="veilBtns"></div>
+        <p class="veilsaying" id="veilSaying"></p>
       </div></div>
     </div>
+  </main>
 
+  <div class="below-board">
     <p class="stuck" id="stuckNote" hidden></p>
-
-    <div class="controls">
-      <button class="chip" id="newBtn">new field</button>
-      <button class="chip" id="createBtn">＋ create</button>
-      <button class="chip" id="historyBtn">🕘 history</button>
-      <button class="chip" id="menuBtn" aria-haspopup="true" aria-expanded="false">⚙ play</button>
-      <span class="spacer"></span>
-      <button class="chip" id="undoBtn" title="undo the last piggy or hoofprint (⌘Z)">↶ undo</button>
-      <button class="chip" id="clearBtn">clear</button>
-
-      <div class="menu" id="menu" hidden role="menu" aria-label="Play settings">
-        <div class="row"><span class="lab">slow mode</span>
-          <div class="seg"><button id="slowToggle" data-toggle>off</button></div></div>
-        <div class="row"><span class="lab">assist</span>
-          <div class="seg" id="assistSeg">
-            <button data-assist="auto">auto</button>
-            <button data-assist="gated">gated</button>
-            <button data-assist="manual">manual</button>
-          </div></div>
-        <div class="row"><span class="lab" title="how strictly a heart is docked">stakes</span>
-          <div class="seg" id="stakesSeg">
-            <button data-stakes="gentle">gentle</button>
-            <button data-stakes="honest">honest</button>
-            <button data-stakes="stern">stern</button>
-          </div></div>
-        <div class="row"><span class="lab">a gentle hint</span>
-          <div class="seg"><button id="peekBtn">peek</button></div></div>
-      </div>
-    </div>
-
     <p class="hint"><b>Tap</b> to settle a piggy · <b>long-press</b> or <b>right-click</b> to mark a hoofprint · <b>drag</b> to track a run</p>
+  </div>
 
-    <footer id="saying">“…a cup of coffee going cold because you’re one piggy away from a perfect field.”</footer>
+  <div class="action-bar">
+    <div class="action-group">
+      <button class="actbtn" id="undoBtn" title="undo the last piggy or hoofprint (⌘Z)"><span class="icon">↶</span>undo</button>
+      <button class="actbtn" id="peekBtn" title="a gentle hint (H)"><span class="icon">👁</span>peek</button>
+      <button class="actbtn" id="clearBtn" title="clear the board"><span class="icon">⌫</span><span class="lbl">clear</span></button>
+    </div>
+    <span class="spacer"></span>
+    <div class="action-group">
+      <button class="actbtn primary" id="newBtn" title="new field (N)"><span class="icon">＋</span>new field</button>
+      <button class="actbtn" id="historyBtn"><span class="icon">🕘</span>history</button>
+    </div>
   </div>
 
   <!-- Create a field -->
@@ -336,6 +393,8 @@
         </div>
       </div>
       <div class="sheet-actions">
+        <button class="ghost" id="cSurprise" title="reroll the seed and tend it right away">🎲 surprise me</button>
+        <span class="grow"></span>
         <button class="ghost" id="cCancel">cancel</button>
         <button class="primary" id="cTend">tend this field</button>
       </div>
@@ -1167,8 +1226,10 @@
 
   function renderVeil() {
     var v = document.getElementById("veil"), btns = document.getElementById("veilBtns");
+    var saying = document.getElementById("veilSaying");
     if (game.solved) {
       document.getElementById("veilTitle").textContent = "A perfect field.";
+      saying.textContent = pickSaying();
       if (game.mode === "ladder") {
         var next = (game.ladderRung || 0) + 1, top = next >= LADDER.length;
         document.getElementById("veilText").textContent = top
@@ -1211,6 +1272,7 @@
       }
       v.classList.add("show");
     } else if (!game.slow && game.hearts === 0) {
+      saying.textContent = "";
       if (game.mode === "gauntlet") {
         // the shared pool is spent — the whole run ends here, not just this field
         document.getElementById("veilTitle").textContent = "The gauntlet ends here.";
@@ -1246,8 +1308,34 @@
     for (var i = 0; i < btns.length; i++) btns[i].classList.toggle("on", btns[i].dataset[attr] === val);
   }
 
-  document.getElementById("newBtn").onclick = function () { startAmble(); };
-  document.getElementById("clearBtn").onclick = function () {
+  // "new field" and the old "＋ create" are the same action now — one button
+  // that opens the sheet; an instant reroll lives inside it as "🎲 surprise me".
+  document.getElementById("newBtn").onclick = openCreate;
+
+  // clearing is a two-tap, gentle confirm rather than a native dialog: the
+  // first tap arms it ("sure?"), a second tap within a couple seconds clears,
+  // anything else disarms it. A swept board is still recoverable with undo.
+  // mutate only the label's textContent, never the button's innerHTML — replacing
+  // innerHTML would destroy whichever child node the click actually landed on
+  // (e.g. the icon span), detaching it from the DOM mid-dispatch. The outside-click
+  // listener below then checks clearBtnEl.contains(e.target) against that now-
+  // detached node and (wrongly) disarms the very click that armed it.
+  var clearBtnEl = document.getElementById("clearBtn"), clearLbl = clearBtnEl.querySelector(".lbl");
+  var clearArmed = false, clearArmTimer = null;
+  function disarmClear() {
+    clearArmed = false; clearTimeout(clearArmTimer);
+    clearBtnEl.classList.remove("confirm");
+    clearLbl.textContent = "clear";
+  }
+  clearBtnEl.onclick = function () {
+    if (!clearArmed) {
+      clearArmed = true;
+      clearBtnEl.classList.add("confirm");
+      clearLbl.textContent = "sure?";
+      clearArmTimer = setTimeout(disarmClear, 2200);
+      return;
+    }
+    disarmClear();
     var before = boardSnap();                 // a swept board is recoverable with one undo
     if (game.metrics) game.metrics.clears++;
     game.piggies.clear(); game.hoofprints.clear(); game.revealed.clear(); game.solved = false;
@@ -1258,7 +1346,7 @@
   };
   document.getElementById("undoBtn").onclick = function () { undo(); };
 
-  // ⚙ menu: open/close + the folded-away play controls
+  // ⚙ menu: open/close + the folded-away play settings (slow, assist, stakes)
   var menu = document.getElementById("menu"), menuBtn = document.getElementById("menuBtn");
   function openMenu(open) {
     menu.hidden = !open;
@@ -1269,13 +1357,19 @@
   menuBtn.onclick = function (e) { e.stopPropagation(); openMenu(menu.hidden); };
   document.addEventListener("click", function (e) {
     if (!menu.hidden && !menu.contains(e.target) && e.target !== menuBtn) openMenu(false);
+    if (clearArmed && !clearBtnEl.contains(e.target)) disarmClear();
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") { openMenu(false); closeSheet("createBack"); closeSheet("histBack"); }
+    if (e.key === "Escape") { openMenu(false); closeSheet("createBack"); closeSheet("histBack"); disarmClear(); }
     if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
       var t = e.target; if (t && /^(INPUT|TEXTAREA)$/.test(t.tagName)) return;  // leave text fields alone
       e.preventDefault(); undo();
+      return;
     }
+    var tgt = e.target;
+    if (tgt && /^(INPUT|TEXTAREA)$/.test(tgt.tagName)) return;                  // leave text fields alone
+    if (e.key === "h" || e.key === "H") peek();
+    if (e.key === "n" || e.key === "N") openCreate();
   });
 
   document.getElementById("slowToggle").onclick = function () {
@@ -1354,6 +1448,7 @@
     show("cSizeRow", cState.mode !== "ladder" && cState.mode !== "gauntlet");
     show("cDiffRow", cState.mode === "amble" || cState.mode === "fog");
     show("cSeedRow", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet");
+    show("cSurprise", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet");
 
     // live preview + predicted difficulty — the actual board this will tend
     var pz = makeBoard(r.size, r.diff, r.seed);
@@ -1421,15 +1516,21 @@
     var i = document.getElementById("cSeed"); i.value = ""; i.classList.remove("bad");
     updateCreate();
   };
-  document.getElementById("cCancel").onclick = function () { closeSheet("createBack"); };
-  document.getElementById("cTend").onclick = function () {
+  function tendCreateForm() {
     var r = resolveCreate();
     closeSheet("createBack");
     if (r.mode === "ladder") { startLadder(0); return; }
     if (r.mode === "gauntlet") { startGauntlet(); return; }
     beginGame({ mode: r.mode, size: r.size, difficulty: r.diff, seed: r.seed });
+  }
+  document.getElementById("cCancel").onclick = function () { closeSheet("createBack"); };
+  document.getElementById("cTend").onclick = tendCreateForm;
+  // "surprise me": one tap, a fresh seed, tended right away — the instant-reroll
+  // shortcut the old standalone "new field" button used to be, folded in here.
+  document.getElementById("cSurprise").onclick = function () {
+    cState.seed = randomSeed();
+    tendCreateForm();
   };
-  document.getElementById("createBtn").onclick = openCreate;
 
   // ======================================================================
   //  HISTORY & CURATION
@@ -1735,8 +1836,9 @@
     "…one more piggy, one more peaceful row.",
     "Tend the field gently; it remembers kindness."
   ];
-  document.getElementById("saying").textContent =
-    "“" + SAYINGS[Math.floor(Math.random() * SAYINGS.length)] + "”";
+  // picked fresh each time a field is solved — lives on the win veil now,
+  // not as a persistent footer competing with the board for space.
+  function pickSaying() { return "“" + SAYINGS[Math.floor(Math.random() * SAYINGS.length)] + "”"; }
 
   // ---- boot: resume in-progress field, else today's ----
   if (!restore()) startDaily(8);

@@ -7,22 +7,78 @@ mid-implementation so the doc stays a true record, not just an aspiration.
 
 ## Part A — UI polish & layout
 
-### A1. Layout: let the board own the screen
-- [ ] Convert `body`/`.frame` to a column app-shell filling `100dvh`
-- [ ] Board sizes itself off the tighter viewport axis, `aspect-ratio: 1`
-- [ ] Slim header (wordmark + hearts + ⚙), status strip above board, docked
+### A1. Layout: let the board own the screen — **done**
+- [x] Converted `body` to a column app-shell filling `100dvh` (dropped the old
+      centered `.frame` card entirely — header/status-strip/board-area/
+      below-board/action-bar are now direct flex children)
+- [x] Board sizes itself off the tighter viewport axis via `container-type:
+      size` on `.board-area` + `width: min(100cqw, 100cqh); aspect-ratio: 1`
+      on `.board-wrap` — no JS resize logic needed
+- [x] Slim header (wordmark + hearts + ⚙), status strip above board, docked
       action bar below
-- [ ] Mobile: near-full-bleed board, action bar in thumb reach
-- [ ] Move tagline / rotating saying off the main play screen
+- [x] Mobile: board goes near-full-bleed (tighter padding under a
+      `max-width: 480px` query), action bar docked at the bottom (thumb
+      reach is automatic — it's the last flex child, pinned to the viewport
+      bottom by the column layout)
+- [x] Tagline dropped (rules are already taught by the hint line + create-
+      sheet mode notes); the rotating saying **relocated** rather than
+      deleted — it now appears on the win veil (`#veilSaying`, freshly picked
+      each solve via `pickSaying()`) instead of a persistent footer eating
+      board space on every screen
+- [x] Board top-aligned, not centered, within `.board-area` — on a narrow-tall
+      viewport the board is width-bound and can't fill the height; centering
+      it left an unexplained-looking gap above *and* below, top-aligning
+      pushes all the leftover space below the board where it reads as
+      intentional, not like the board is "floating"
 
-### A2. Controls: group by frequency
-- [ ] Header: wordmark · hearts · ⚙ settings
-- [ ] Status strip: mode · size · difficulty · 🌱 code · "N left" (merged, quiet)
-- [ ] Action bar: ↶ undo · 👁 peek · ⌫ clear ‖ ＋ new field · 🕘 history
-- [ ] Peek graduates from ⚙ menu to the action bar (it's a play move)
-- [ ] Consistent ≥44px touch targets, icon + label
-- [ ] Confirm step on "clear" (currently one-tap destructive)
-- [ ] Keyboard shortcuts: `H` peek, `N` new field (⌘Z undo, `Esc` already work)
+### A2. Controls: group by frequency — **done**
+- [x] Header: wordmark · hearts · ⚙ settings (settings button + popover live
+      in a `.settings-wrap`, menu now opens *downward* anchored under the
+      button instead of upward from a bottom toolbar)
+- [x] Status strip: mode · size · difficulty · 🌱 code · "N left" — unchanged
+      content, just relocated above the board as its own row
+- [x] Action bar: ↶ undo · 👁 peek · ⌫ clear ‖ ＋ new field · 🕘 history,
+      docked to the bottom, icon-over-label `.actbtn`s
+- [x] Peek graduated from the ⚙ menu to the action bar
+- [x] `.actbtn` sized `min-width: 3.4rem; min-height: 2.9rem` (both axes
+      clear 44px at the default font scale)
+- [x] "＋ create" and "new field" merged into one action-bar button (opens
+      the create sheet); the old instant-reroll shortcut moved *into* the
+      sheet as a new "🎲 surprise me" button (reroll the seed + tend
+      immediately, one tap) — hidden for daily/ladder/gauntlet since their
+      seed isn't player-chosen
+- [x] Gentle two-tap confirm on "clear": first tap arms it (label flips to
+      "sure?", a warm-red outline), a second tap within 2.2s (or clicking
+      the confirm state) actually clears; anything else disarms it. No
+      native `confirm()` dialog — matches the "gentle failure" brand
+- [x] Keyboard shortcuts added: `H` peek, `N` opens the create sheet (⌘Z
+      undo, `Esc` already worked and still does, now also disarms a pending
+      clear-confirm)
+
+**Bug caught during testing:** the clear-confirm's "click anywhere else
+disarms it" listener compared `e.target !== clearBtnEl`, but the button's own
+click handler replaced its `innerHTML` (to show "sure?"), which **destroyed
+the exact child node the click had targeted** (e.g. the icon `<span>`) mid-
+dispatch. By the time the event bubbled to `document`, `e.target` referenced
+a now-detached node, so `clearBtnEl.contains(e.target)` came back `false` and
+the listener immediately disarmed the very click that had just armed it —
+the button silently never worked via a real click (only via a synthetic
+`.click()` call, which is why it wasn't caught by casual testing). Fixed by
+never touching `innerHTML`: the label lives in a persistent `<span
+class="lbl">` that only has its `textContent` swapped, so no node is ever
+destroyed and `.contains()` stays valid. Caught by a Playwright test that
+asserted the board was *actually* empty after two clicks, not just that the
+heart count looked right (which can pass by coincidence even when the
+button is silently broken).
+
+Verified end-to-end: full mode/difficulty regression pass, all prior
+feature tests (stakes, gesture-cap, starve, crag, accolades, gauntlet,
+size-10, persistence) re-run clean after the restructure, plus new checks
+for the settings-menu position, clear-confirm arm/disarm/execute cycle,
+surprise-me, and both keyboard shortcuts. Screenshots taken at desktop
+(1000×800), a wide-tall viewport (900×1400 — confirmed the "empty space"
+there is correct largest-square-in-container math, not a bug), and real
+mobile portrait (390×844).
 
 ### A3. Win / fail results screen
 - [ ] Shared results-card component (slots for win vs. fail)
@@ -214,3 +270,14 @@ puddles) → C (twin litters, own milestone).
   larger (C is its own milestone) or lower-value (I, F) relative to what's
   shipped. Pausing here to let the user review before continuing further,
   since a large amount of unreviewed work has accumulated.
+- 2026-07-01 — User asked "what is next?"; recommended and got confirmation
+  to do Part A1/A2 (layout shell + control regrouping) next, since the new
+  gameplay depth was sitting behind the exact cramped, scattered UI that
+  motivated this whole plan. Implemented and verified — see A1/A2 notes
+  above, including a real bug caught by testing (the clear-confirm button's
+  outside-click listener silently broke itself via an `innerHTML`/
+  `e.target` interaction). Remaining from Part A: A3 (win/fail results
+  screen), A4 (asset generation — separate image-gen track), A5 (polish
+  backlog). Natural next step is A3, since it directly showcases the
+  accolades/streak/Crag work from Part B that has no dedicated results UI
+  yet.
