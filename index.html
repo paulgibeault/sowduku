@@ -61,20 +61,26 @@
      width-bound and can't fill the height, and centering it would leave an
      equal, aimless gap above *and* below; top-aligning reads as "as big as it
      can be" instead of "floating with padding on both sides". */
-  .board-area { flex: 1 1 auto; min-height: 0; container-type: size;
+  .board-area { flex: 1 1 auto; min-height: 0;
     display: grid; align-items: start; justify-items: center; padding: .6rem 1rem 0; }
-  .board-wrap { position: relative; width: min(100cqw, 100cqh); aspect-ratio: 1;
+  /* simplified frame: a thin border and a little breathing room, not an
+     ornate padded panel — the grid itself should read as the whole board.
+     width/height are set explicitly in px by sizeBoardWrap() (JS), not CSS
+     aspect-ratio — WebKit doesn't reliably keep `aspect-ratio: 1` exactly
+     square when combined with a `min(cqw, cqh)` width inside a
+     `container-type: size` ancestor, so the "square" drifted by ~1% in
+     testing (enough to visibly clip the last row/column at larger sizes). */
+  .board-wrap { position: relative;
     background: var(--panel); border: 1px solid var(--line);
-    border-radius: 1.4rem; padding: 1.1rem; box-shadow: 0 1px 0 #fff inset, 0 18px 40px -28px rgba(70,62,52,.35); }
-  .board { display: grid; border-radius: .7rem; overflow: hidden; width: 100%; height: 100%;
+    border-radius: .9rem; padding: .4rem; box-shadow: 0 10px 24px -20px rgba(70,62,52,.3); }
+  .board { display: grid; border-radius: .55rem; overflow: hidden; width: 100%; height: 100%;
     touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 
-  /* below the board: the stuck note (conditional) and the tap/drag hint — small,
-     out of the way, doesn't compete with the board for space. */
+  /* below the board: the stuck note, when a pen's been starved out — small,
+     out of the way, doesn't compete with the board for space. The tap/drag
+     controls live in the "how to play" sheet now, not a persistent line here. */
   .below-board { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
     gap: .3rem; padding: .4rem 1rem .55rem; text-align: center; }
-  .hint { font-size: .74rem; color: var(--ink-soft); margin: 0; line-height: 1.4; }
-  .hint b { color: var(--ink); font-weight: 600; }
 
   /* surfaced when a pen has been starved out — a gentle, warm nudge that the
      field can no longer be solved from here, pointing at the blushing pen. */
@@ -138,6 +144,22 @@
   .seg button:hover { color: var(--ink); border-color: #d8ccb5; }
   .seg button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; }
   .seg.wrap { flex-wrap: wrap; justify-content: flex-end; }
+
+  /* the "how to play" entry point, ahead of the settings rows in the ⚙ menu */
+  .infobtn { display: flex; align-items: center; gap: .5rem; width: 100%; font: inherit;
+    font-size: .82rem; cursor: pointer; border: none; background: transparent; color: var(--ink);
+    text-align: left; padding: .65rem 0; margin-bottom: .1rem; border-bottom: 1px solid var(--line); }
+  .infobtn .icon { font-size: .95rem; }
+  .infobtn:hover { color: var(--ink); opacity: .8; }
+
+  /* the "how to play" sheet's body copy — no scroll region of its own, the
+     outer .sheet already scrolls (same as the history list does) */
+  .info-body { font-size: .85rem; color: var(--ink-soft); line-height: 1.55; }
+  .info-body h3 { font-family: Georgia,serif; font-weight: 600; font-size: 1rem;
+    color: var(--ink); margin: 1.1rem 0 .35rem; }
+  .info-body h3:first-child { margin-top: 0; }
+  .info-body p { margin: 0 0 .3rem; }
+  .info-body b { color: var(--ink); font-weight: 600; }
 
   /* ---- docked action bar: play moves (undo · peek · clear) left, session
      moves (new field · history) right — grouped by how often you reach for them. ---- */
@@ -276,7 +298,7 @@
 
   /* mobile: let the board go near-full-bleed and keep the action bar in thumb reach */
   @media (max-width: 480px) {
-    .board-wrap { padding: .65rem; border-radius: 1rem; }
+    .board-wrap { padding: .3rem; border-radius: .7rem; }
     .board-area { padding: 0 .5rem; }
     .topbar, .status-strip { padding-left: .65rem; padding-right: .65rem; }
     .actbtn { min-width: 3rem; font-size: .62rem; }
@@ -295,19 +317,18 @@
       <div class="settings-wrap">
         <button class="iconbtn" id="menuBtn" aria-haspopup="true" aria-expanded="false" title="settings">⚙</button>
         <div class="menu" id="menu" hidden role="menu" aria-label="Play settings">
-          <div class="row"><span class="lab">slow mode</span>
-            <div class="seg"><button id="slowToggle" data-toggle>off</button></div></div>
-          <div class="row"><span class="lab">assist</span>
-            <div class="seg" id="assistSeg">
-              <button data-assist="auto">auto</button>
-              <button data-assist="gated">gated</button>
-              <button data-assist="manual">manual</button>
-            </div></div>
-          <div class="row"><span class="lab" title="how strictly a heart is docked">stakes</span>
-            <div class="seg" id="stakesSeg">
+          <button class="infobtn" id="infoBtn"><span class="icon">ℹ</span>how to play</button>
+          <div class="row"><span class="lab" title="how strictly a heart is docked — slow removes the stakes entirely">stakes</span>
+            <div class="seg wrap" id="stakesSeg">
+              <button data-stakes="slow">slow</button>
               <button data-stakes="gentle">gentle</button>
               <button data-stakes="honest">honest</button>
               <button data-stakes="stern">stern</button>
+            </div></div>
+          <div class="row"><span class="lab">assist</span>
+            <div class="seg" id="assistSeg">
+              <button data-assist="on">on</button>
+              <button data-assist="off">off</button>
             </div></div>
         </div>
       </div>
@@ -335,7 +356,6 @@
 
   <div class="below-board">
     <p class="stuck" id="stuckNote" hidden></p>
-    <p class="hint"><b>Tap</b> to settle a piggy · <b>long-press</b> or <b>right-click</b> to mark a hoofprint · <b>drag</b> to track a run</p>
   </div>
 
   <div class="action-bar">
@@ -421,12 +441,80 @@
     </div>
   </div>
 
+  <!-- How to play -->
+  <div class="sheet-backdrop" id="infoBack" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="How to play">
+      <h2>How to play</h2>
+      <div class="info-body">
+        <h3>The rules</h3>
+        <p>Settle exactly one piggy per row, per column, and per colored pen.
+          A fourth rule gives Sowdoku its shape — <b>The Wallow Rule</b>: no
+          piggy may touch another, not side by side, not even corner to
+          corner. Every field has exactly one solution, reachable by pure
+          logic. If you find yourself guessing, back up and look again.</p>
+        <h3>Controls</h3>
+        <p><b>Tap</b> a cell to settle a piggy — tap it again to lift it.
+          <b>Long-press</b> (or <b>right-click</b>) fences off a cell with a
+          hoofprint, your "definitely-not-here" note. <b>Drag</b> paints
+          hoofprints across a whole run at once. <b>⌘Z</b> undoes the last
+          gesture. <b>👁 peek</b> (in this menu) glows the next
+          logically-forced piggy when you're stuck.</p>
+        <h3>Difficulty</h3>
+        <p>Four bands, each asking a little more of the same rules:
+          <b>Sunbeam</b> (forced singles), <b>Meadow</b> (a few
+          confinements), <b>Hilltop</b> (at least one contradiction chain),
+          <b>Crag</b> (several, sometimes nested).</p>
+        <h3>Stakes</h3>
+        <p>How strictly a heart is docked, from most to least forgiving:
+          <b>slow</b> — no hearts, no failure, just the ritual.
+          <b>gentle</b> — a heart only for a placement that breaks a rule
+          against pigs already down. <b>honest</b> — also a heart for a
+          piggy that's legal right now but not where it truly belongs, or
+          for fencing a whole pen shut with your own hoofprints.
+          <b>stern</b> — also a heart for fencing off the one cell a piggy
+          actually belongs in.</p>
+        <h3>Assist</h3>
+        <p><b>On</b> softly shades cells a pen can no longer use — active
+          through Sunbeam and Meadow, off by Hilltop and Crag, so the field
+          teaches the technique before taking the training wheels off.
+          <b>Off</b> leaves all the bookkeeping to you.</p>
+      </div>
+      <div class="sheet-actions">
+        <button class="primary" id="infoClose">close</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
 <script src="sowdoku.js"></script>
 <script>
 (function () {
   "use strict";
+
+  // ---- board sizing ----
+  // The board must be a perfect square that fills whichever axis of
+  // .board-area is tighter. This used to be pure CSS (container query units
+  // + aspect-ratio), but WebKit doesn't keep `aspect-ratio: 1` exactly
+  // square when the width comes from `min(100cqw, 100cqh)` inside a
+  // `container-type: size` ancestor — it drifted by ~1%, enough to visibly
+  // clip the last row/column on a real board. Computing the square in JS
+  // sidesteps that engine-specific quirk entirely.
+  // this script tag sits at the end of <body>, so the DOM above it (board-area,
+  // board-wrap) is already parsed and available — no need to wait for an event.
+  var boardAreaEl = document.querySelector(".board-area");
+  var boardWrapEl = document.querySelector(".board-wrap");
+  function sizeBoardWrap() {
+    var cs = getComputedStyle(boardAreaEl);
+    var w = boardAreaEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var h = boardAreaEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    var side = Math.max(0, Math.floor(Math.min(w, h)));
+    boardWrapEl.style.width = side + "px";
+    boardWrapEl.style.height = side + "px";
+  }
+  sizeBoardWrap();
+  if (window.ResizeObserver) new ResizeObserver(sizeBoardWrap).observe(boardAreaEl);
+  else window.addEventListener("resize", sizeBoardWrap); // very old browsers
 
   // ---- Arcade platform bridge ----
   // Arcade.init() ran in <head>. The SDK gives same-origin storage, settings,
@@ -463,7 +551,7 @@
               note: "A gentle climb — each solved field nudges the next one a notch harder." },
     fog:    { label: "misty morning", hearts: 5, fog: true,
               note: "The pens hide in morning fog; a pen’s colour settles in only once its piggy does." },
-    wallow: { label: "the wallow",    hearts: 1, assist: "manual", stakes: "stern", bias: "crag",
+    wallow: { label: "the wallow",    hearts: 1, assist: "off", stakes: "stern", bias: "crag",
               note: "One heart, no hand-holding, the knottiest fields, and every mark held to account. For a focused, unhurried sit." },
     campaign: { label: "campaign",    hearts: 5,
               note: "Your curated fields, tended in order from gentlest to knottiest." },
@@ -531,28 +619,40 @@
   }
   function randomSeed() { return (dailySeed() * 131 + Math.floor(Math.random() * 1e6)) >>> 0; }
 
-  // assist is a player preference (persists across puzzles): 'auto'|'gated'|'manual'
-  var ASSIST_MODES = ["auto", "gated", "manual"];
+  // assist is a player preference (persists across puzzles): 'on'|'off'.
+  // 'on' shades cells a pen can no longer use — active through Sunbeam and
+  // Meadow, off by Hilltop and Crag, so the field teaches the technique
+  // before taking the training wheels off. 'off' leaves the bookkeeping to
+  // the player. (There used to be a third, always-on 'auto' mode; it just
+  // duplicated what 'on' already does at the easy end without ever
+  // stepping back, so it added a choice without adding anything useful.)
+  var ASSIST_MODES = ["on", "off"];
   function loadAssist() {
     var v = sget("assist");
-    return ASSIST_MODES.indexOf(v) >= 0 ? v : "gated";
+    if (v === "manual") return "off";              // migrate the old 3-tier value
+    if (v === "auto" || v === "gated") return "on"; // migrate the old 3-tier values
+    return ASSIST_MODES.indexOf(v) >= 0 ? v : "on";
   }
   function saveAssist(v) { sset("assist", v); }
 
-  // stakes: how strictly a heart is docked, a player preference like assist.
-  // 'gentle' (default) only docks for a rule broken against pigs already on
-  // the board. 'honest' adds a pig that's legal right now but doesn't match
-  // the field's actual solution, and starving a pen (even via your own
-  // hoofprints). 'stern' adds a hoofprint dropped on a cell that's actually
-  // correct. Each tier docks at most one heart per pointer gesture.
-  var STAKES_MODES = ["gentle", "honest", "stern"];
-  var STAKES_RANK = { gentle: 0, honest: 1, stern: 2 };
+  // stakes: how strictly a heart is docked, from most to least forgiving —
+  // one spectrum, not a separate "slow mode" toggle bolted on next to it.
+  // 'slow' removes the stakes entirely: no hearts, no failure, just the
+  // ritual. 'gentle' (default) only docks for a rule broken against pigs
+  // already on the board. 'honest' adds a pig that's legal right now but
+  // doesn't match the field's actual solution, and starving a pen (even via
+  // your own hoofprints). 'stern' adds a hoofprint dropped on a cell that's
+  // actually correct. Each tier above slow docks at most one heart per
+  // pointer gesture.
+  var STAKES_MODES = ["slow", "gentle", "honest", "stern"];
+  var STAKES_RANK = { slow: 0, gentle: 1, honest: 2, stern: 3 };
   function loadStakes() {
     var v = sget("stakes");
     return STAKES_MODES.indexOf(v) >= 0 ? v : "gentle";
   }
   function saveStakes(v) { sset("stakes", v); }
   function stakesAtLeast(level) { return STAKES_RANK[game.stakes] >= STAKES_RANK[level]; }
+  function isSlow() { return game.stakes === "slow"; }
 
   // ---- generation with a small retry so we never hand back a null puzzle ----
   function makeBoard(size, reqDiff, seed) {
@@ -591,7 +691,7 @@
       // dwindling line of hearts.
       hearts: opts.carryHearts != null ? opts.carryHearts : cfg.hearts,
       maxHearts: opts.carryMaxHearts != null ? opts.carryMaxHearts : cfg.hearts,
-      slow: false, assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
+      assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
       stakes: cfg.stakes || loadStakes(), lockedStakes: !!cfg.stakes,
       solved: false, recorded: false, ladderRung: opts.ladderRung || 0,
       campaignCode: opts.campaignCode || null, gauntletStep: opts.gauntletStep || 0,
@@ -681,7 +781,7 @@
       difficulty: game.puzzle.difficulty, profile: game.puzzle.profile,
       piggies: Array.from(game.piggies), hoofprints: Array.from(game.hoofprints),
       revealed: Array.from(game.revealed),
-      hearts: game.hearts, maxHearts: game.maxHearts, slow: game.slow,
+      hearts: game.hearts, maxHearts: game.maxHearts,
       solved: !!game.solved, recorded: !!game.recorded,
       ladderRung: game.ladderRung || 0, campaignCode: game.campaignCode || null,
       gauntletStep: game.gauntletStep || 0,
@@ -704,9 +804,11 @@
         revealed: new Set(s.revealed || []),
         hearts: s.hearts != null ? s.hearts : (s.maxHearts || cfg.hearts),
         maxHearts: s.maxHearts || cfg.hearts || MAX_HEARTS,
-        slow: !!s.slow, solved: !!s.solved, recorded: !!s.recorded,
+        solved: !!s.solved, recorded: !!s.recorded,
         assist: cfg.assist || loadAssist(), lockedAssist: !!cfg.assist,
-        stakes: cfg.stakes || loadStakes(), lockedStakes: !!cfg.stakes,
+        // migrate an old separate "slow mode" flag into the stakes spectrum;
+        // a mode-forced stakes value (e.g. Wallow's "stern") still wins.
+        stakes: cfg.stakes || (s.slow ? "slow" : loadStakes()), lockedStakes: !!cfg.stakes,
         ladderRung: s.ladderRung || 0, campaignCode: s.campaignCode || null,
         gauntletStep: s.gauntletStep || 0,
         metrics: s.metrics || newMetrics(),
@@ -736,7 +838,7 @@
     if (!rec.solved) return [];
     var a = [];
     if (!rec.hoofprints) a.push({ key: "tidy", label: "tidy", title: "solved without a single hoofprint" });
-    if (!rec.hints && rec.assist === "manual") a.push({ key: "unaided", label: "unaided", title: "no peeks, no auto-shading" });
+    if (!rec.hints && rec.assist === "off") a.push({ key: "unaided", label: "unaided", title: "no peeks, no auto-shading" });
     return a;
   }
 
@@ -754,7 +856,7 @@
     var hintPen = (rec.hints || 0) * 90;
     var timePen = Math.min(base * 0.45, ((rec.playMs || 0) / 1000) * 2);
     var tidyBonus = !rec.hoofprints ? 40 : 0;
-    var unaidedBonus = (!rec.hints && rec.assist === "manual") ? 60 : 0;
+    var unaidedBonus = (!rec.hints && rec.assist === "off") ? 60 : 0;
     var raw = (base - slipPen - hintPen - timePen + tidyBonus + unaidedBonus) * (DIFF_MUL[rec.band] || 1);
     return Math.max(50, Math.round(raw));                     // a finished field always scores
   }
@@ -792,11 +894,11 @@
       startedAt: m.startedAt, endedAt: Date.now(), playMs: m.playMs,
       moves: m.moves, placements: m.placements, mistakes: m.mistakes,
       hoofprints: m.hoofprints, clears: m.clears, hints: m.hints,
-      assist: game.lockedAssist ? game.assist : loadAssist(), slow: game.slow,
+      assist: game.lockedAssist ? game.assist : loadAssist(),
       stakes: game.lockedStakes ? game.stakes : loadStakes(),
       solved: !!solved, placed: game.piggies.size, ladderRung: game.ladderRung || 0,
       gauntletStep: game.gauntletStep || 0,
-      heartsLeft: game.slow ? null : game.hearts,
+      heartsLeft: isSlow() ? null : game.hearts,
       aScore: Sowdoku.humanScore(p.size, profile, p.difficulty),
     };
     rec.eScore = empiricalScore(rec);
@@ -879,12 +981,13 @@
   var key = function (r, c) { return r + "," + c; };
   function haptic(pattern) { if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) {} } }
 
-  // is the auto-shading of impossible cells active right now?
-  var GATED_OFF_BANDS = { hilltop: true, crag: true };
+  // is the auto-shading of impossible cells active right now? assist "off"
+  // never shades; "on" shades through Sunbeam/Meadow and steps back for
+  // Hilltop/Crag, teaching the technique before taking the training wheels off.
+  var ASSIST_OFF_BANDS = { hilltop: true, crag: true };
   function assistOn() {
-    if (game.assist === "manual") return false;
-    if (game.assist === "auto") return true;
-    return !GATED_OFF_BANDS[game.puzzle.difficulty]; // gated: on for sunbeam/meadow, off for hilltop/crag
+    if (game.assist === "off") return false;
+    return !ASSIST_OFF_BANDS[game.puzzle.difficulty];
   }
 
   // ---- mutations ----
@@ -898,7 +1001,7 @@
     if (gestureDocked) return false;
     gestureDocked = true;
     game.metrics.mistakes++;
-    if (!game.slow) game.hearts = Math.max(0, game.hearts - 1);
+    if (!isSlow()) game.hearts = Math.max(0, game.hearts - 1);
     return true;
   }
 
@@ -921,7 +1024,7 @@
       haptic(4);                  // board already hatches this as impossible — gentle no-op, no heart
     } else {
       game.metrics.mistakes++;
-      if (!game.slow) game.hearts = Math.max(0, game.hearts - 1);
+      if (!isSlow()) game.hearts = Math.max(0, game.hearts - 1);
       haptic([10, 40, 10]); flashBad(r, c);
     }
   }
@@ -1023,7 +1126,7 @@
     var cell = el && el.closest ? el.closest(".cell") : null;
     return cell ? { r: +cell.dataset.r, c: +cell.dataset.c } : null;
   }
-  function locked() { return game.solved || (!game.slow && game.hearts === 0); }
+  function locked() { return game.solved || (!isSlow() && game.hearts === 0); }
 
   board.addEventListener("pointerdown", function (e) {
     if (locked()) return;
@@ -1111,13 +1214,10 @@
     // reflect current state inside the ⚙ menu
     segOn("assistSeg", "assist", game.assist);
     segOn("stakesSeg", "stakes", game.stakes);
-    var slowT = document.getElementById("slowToggle");
-    slowT.textContent = game.slow ? "on" : "off";
-    slowT.classList.toggle("on", game.slow);
 
-    // hearts (hidden in slow mode)
+    // hearts (hidden at the "slow" stakes tier — no failure, so nothing to count)
     var he = document.getElementById("hearts");
-    he.style.visibility = game.slow ? "hidden" : "visible";
+    he.style.visibility = isSlow() ? "hidden" : "visible";
     var h = "";
     for (var i = 0; i < game.maxHearts; i++) h += heartSVG(i < game.hearts);
     he.innerHTML = h;
@@ -1131,7 +1231,12 @@
     // assist off, so the dock is never a mystery.
     var fenceStarved = stakesAtLeast("honest") ? starvedByFences(n, reg, game.piggies, game.hoofprints) : {};
 
+    // both axes explicit: the board is forced into a perfect square by its
+    // wrapper now, so leaving rows to auto-size off aspect-ratio can drift a
+    // few px from that forced height (worst at larger boards) and clip the
+    // last row/column against `.board`'s overflow:hidden.
     board.style.gridTemplateColumns = "repeat(" + n + ", 1fr)";
+    board.style.gridTemplateRows = "repeat(" + n + ", 1fr)";
     var same = function (r1, c1, r2, c2) { return r2 >= 0 && r2 < n && c2 >= 0 && c2 < n && reg[r1][c1] === reg[r2][c2]; };
     var thick = "1.8px solid rgba(81,75,66,.55)", thin = "1px solid rgba(255,255,255,.35)";
     board.innerHTML = "";
@@ -1271,7 +1376,7 @@
         addVeilBtn("choose a field", function () { openCreate(); }, false);
       }
       v.classList.add("show");
-    } else if (!game.slow && game.hearts === 0) {
+    } else if (!isSlow() && game.hearts === 0) {
       saying.textContent = "";
       if (game.mode === "gauntlet") {
         // the shared pool is spent — the whole run ends here, not just this field
@@ -1341,7 +1446,7 @@
     game.piggies.clear(); game.hoofprints.clear(); game.revealed.clear(); game.solved = false;
     // gauntlet's hearts are a shared pool across three fields, not a per-field
     // allowance — a clear must not hand back hearts already spent earlier in the run.
-    if (!game.slow && game.mode !== "gauntlet") game.hearts = game.maxHearts;
+    if (!isSlow() && game.mode !== "gauntlet") game.hearts = game.maxHearts;
     commitUndo(before); persist(); render();
   };
   document.getElementById("undoBtn").onclick = function () { undo(); };
@@ -1360,7 +1465,7 @@
     if (clearArmed && !clearBtnEl.contains(e.target)) disarmClear();
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") { openMenu(false); closeSheet("createBack"); closeSheet("histBack"); disarmClear(); }
+    if (e.key === "Escape") { openMenu(false); closeSheet("createBack"); closeSheet("histBack"); closeSheet("infoBack"); disarmClear(); }
     if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
       var t = e.target; if (t && /^(INPUT|TEXTAREA)$/.test(t.tagName)) return;  // leave text fields alone
       e.preventDefault(); undo();
@@ -1372,16 +1477,15 @@
     if (e.key === "n" || e.key === "N") openCreate();
   });
 
-  document.getElementById("slowToggle").onclick = function () {
-    game.slow = !game.slow; if (game.slow) game.hearts = game.maxHearts; persist(); render();
-  };
   document.getElementById("assistSeg").onclick = function (e) {
     var b = e.target.closest("button[data-assist]"); if (!b) return;
     game.assist = b.dataset.assist; game.lockedAssist = false; saveAssist(game.assist); persist(); render();
   };
   document.getElementById("stakesSeg").onclick = function (e) {
     var b = e.target.closest("button[data-stakes]"); if (!b) return;
-    game.stakes = b.dataset.stakes; game.lockedStakes = false; saveStakes(game.stakes); persist(); render();
+    game.stakes = b.dataset.stakes; game.lockedStakes = false; saveStakes(game.stakes);
+    if (game.stakes === "slow") game.hearts = game.maxHearts; // a clean slate — slow removes the stakes entirely
+    persist(); render();
   };
   document.getElementById("peekBtn").onclick = function () { peek(); };
 
@@ -1403,9 +1507,11 @@
   // ---- sheets (shared open/close) ----
   function openSheet(id) { document.getElementById(id).hidden = false; }
   function closeSheet(id) { var el = document.getElementById(id); if (el) el.hidden = true; }
-  ["createBack", "histBack"].forEach(function (id) {
+  ["createBack", "histBack", "infoBack"].forEach(function (id) {
     document.getElementById(id).addEventListener("click", function (e) { if (e.target.id === id) closeSheet(id); });
   });
+  document.getElementById("infoBtn").onclick = function () { closeMenu(); openSheet("infoBack"); };
+  document.getElementById("infoClose").onclick = function () { closeSheet("infoBack"); };
 
   // ======================================================================
   //  CREATE A FIELD

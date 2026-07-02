@@ -53,15 +53,13 @@ Fences are first-class. Half the pleasure of a cozy puzzle is the slow
 *narrowing down*, and Sowdoku treats your scratch work as lovingly as your
 answers.
 
-**Assist** (a player setting, cycled from the toolbar) decides how much the
-board helps with the bookkeeping:
-
-- **auto** — placing a piggy softly hatches every now-impossible cell (its row,
-  column, pen, and the eight it touches), distinct from your own hoof-print
-  fences. The board's facts vs. your hypotheses.
-- **manual** — you fence everything yourself; most aligned with rigorous play.
-- **gated** — auto on Sunbeam and Meadow, off by Hilltop and Crag. The game
-  teaches the technique, then takes the training wheels off.
+**Assist** (a player setting, in the ⚙ menu) is a simple **on/off**: on
+softly hatches every now-impossible cell once a piggy is placed (its row,
+column, pen, and the eight it touches), distinct from your own hoof-print
+fences — the board's facts vs. your hypotheses. It's active through Sunbeam
+and Meadow and steps back by Hilltop and Crag, so the field teaches the
+technique before taking the training wheels off. Off leaves all the
+bookkeeping to you.
 
 ### Gentle failure
 
@@ -73,11 +71,15 @@ the field simply offers a fresh start. Losing is soft here. The reward was never
 a high score; it's the *pure puzzle-solving satisfaction* of the last piggy
 settling in.
 
-### Stakes — how strictly a heart is held to account
+### Stakes — one spectrum, from ritual to rigorous
 
 **Stakes** (a player setting, in the ⚙ menu) decides which mistakes actually
-cost a heart, on top of the base rule-breaks above:
+cost a heart — one dial, from most to least forgiving, rather than a stakes
+setting and a separate slow-mode toggle bolted on beside it:
 
+- **slow** — no hearts, no failure, just the ritual. Hearts disappear from the
+  field entirely; nothing you do here can end a field early. For when you
+  want the puzzle without the pressure.
 - **gentle** — the default. Only a placement that breaks a rule against pigs
   already on the field costs a heart.
 - **honest** — also costs a heart for a piggy that's *legal right now* but
@@ -140,12 +142,13 @@ deduction a different way:
   three. A slip on field one is a slip you're playing field three without.
   Clearing the whole gauntlet with any hearts left is worth noticing;
   running dry ends the whole run, not just the field you're on.
-- **Slow Mode** — a toggle over any field: no hearts, no failure, infinite
-  markers. For when you want the ritual without the stakes.
 
-A **gentle hint** ("peek", in the ⚙ menu) glows the next logically-forced piggy —
-never a guess, just the field pointing at the deduction you already had the
-pieces for.
+Want the ritual without the stakes? Set **stakes** to *slow* (in the ⚙ menu)
+over any field — no hearts, no failure, infinite markers.
+
+A **gentle hint** ("peek", in the docked action bar) glows the next
+logically-forced piggy — never a guess, just the field pointing at the
+deduction you already had the pieces for.
 
 Difficulty is shaped by *pen geometry and deduction depth*, never by hidden
 timers or trick layouts. A hard puzzle rewards patience; it doesn't punish you.
@@ -188,7 +191,7 @@ No fireworks, just a plain read of what a run actually was. A solved field
 can quietly earn:
 
 - **tidy** — solved without a single hoofprint.
-- **unaided** — solved with manual assist and no peeks — nothing but you and
+- **unaided** — solved with assist off and no peeks — nothing but you and
   the field.
 
 ("Clean" — zero slips — isn't a separate accolade; it's already right there
@@ -221,7 +224,8 @@ along in the launcher's cross-device save file for free:
 | `arcade.v1.sowduku.history`     | Rolling log of tended fields (up to 300) with per-game metrics  |
 | `arcade.v1.sowduku.stats`       | Lifetime tallies: fields played/solved, slips, best ladder rung |
 | `arcade.v1.sowduku.curated`     | Hand-picked fields (by board code) worth keeping and replaying  |
-| `arcade.v1.sowduku.assist`      | Assist preference (auto / gated / manual), persists across fields |
+| `arcade.v1.sowduku.assist`      | Assist preference (on / off), persists across fields |
+| `arcade.v1.sowduku.stakes`      | Stakes preference (slow / gentle / honest / stern), persists across fields |
 
 ```js
 Arcade.state.set('inProgress', JSON.stringify(board));   // autosave each move

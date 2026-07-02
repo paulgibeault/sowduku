@@ -80,6 +80,79 @@ surprise-me, and both keyboard shortcuts. Screenshots taken at desktop
 there is correct largest-square-in-container math, not a bug), and real
 mobile portrait (390×844).
 
+### A2b. Settings menu redesign — **done** (user-directed, follow-up to A2)
+- [x] **"How to play" info sheet.** New `#infoBack` sheet (same pattern as
+      create/history), opened from a dedicated `ℹ how to play` button at the
+      top of the ⚙ menu. Five sections: The rules, Controls, Difficulty,
+      Stakes, Assist — the persistent tap/long-press/drag hint line that used
+      to sit permanently under the board is gone, its content expanded and
+      moved here instead (freeing more board space, on top of A1's work).
+- 2026-07-01 — **Follow-up bug: the grid fix wasn't the whole story.** User
+  reported the right-hand column still cut off on their actual machine
+  (Safari). All my verification of the earlier `gridTemplateRows` fix ran
+  against Playwright's Chromium, which never reproduced it. Installed
+  Playwright's WebKit engine (Safari's actual rendering engine) and confirmed:
+  `.board-wrap` — `width: min(100cqw, 100cqh); aspect-ratio: 1;` inside a
+  `container-type: size` ancestor — rendered as 1364.73×1379.52px in WebKit,
+  not square, a ~1% drift invisible at some sizes/viewports but visibly
+  clipping the last row/column at others (matches "sometimes fine, sometimes
+  cut off" being size/viewport-dependent). This is a genuine WebKit quirk in
+  combining `aspect-ratio` with container-query-derived sizing, not something
+  the earlier `gridTemplateRows` fix could touch (that fixed a different,
+  real bug — rows not matching an already-square container — but the
+  container itself wasn't reliably square to begin with in WebKit).
+  Replaced the CSS-only approach with a `sizeBoardWrap()` JS function
+  (`.board-area.clientWidth/Height` minus its own padding, `Math.floor` of
+  the smaller axis, set as explicit `px` width/height on `.board-wrap`) plus
+  a `ResizeObserver` on `.board-area` so it stays correct across any layout
+  change (viewport resize, launcher font-scale change, etc.) without
+  depending on any CSS engine's aspect-ratio/container-query implementation.
+  Dropped `container-type: size` and the `aspect-ratio`/`min(cqw,cqh)` width
+  from the CSS entirely — verified in WebKit that `.board-wrap` is now
+  pixel-identical square (e.g. 1364×1364) with 0px cell-size spread at every
+  board size 6–10, confirmed the `ResizeObserver` correctly keeps it square
+  across a live viewport resize, and re-ran the full Chromium regression
+  suite clean. Lesson: this repo's target is Safari (visible in every
+  screenshot the user's sent), so layout-affecting CSS changes should get at
+  least a WebKit-engine spot-check going forward, not just Chromium.
+- [x] **Slow mode folded into the stakes spectrum.** Was a separate boolean
+      (`game.slow`) next to the 3-tier `stakes` control; now `stakes` is one
+      4-tier spectrum (`slow → gentle → honest → stern`, `STAKES_RANK`
+      0–3). `isSlow()` (= `game.stakes === "slow"`) replaces every prior
+      `game.slow` check. Selecting "slow" refills hearts to a clean slate
+      (mirroring the old toggle-on behavior); `stakesAtLeast()` needed no
+      change since slow's rank (0) is below every real check. One-time
+      migration in `restore()`: an old persisted `s.slow: true` maps to
+      `stakes: "slow"` (mode-forced stakes, e.g. Wallow's "stern", still
+      wins over the migration).
+- [x] **Assist simplified from 3 modes to 2.** Dropped "auto" (always-on,
+      "not helpful" per the user — it never stepped back for harder bands)
+      and kept the smarter "gated" behavior, renamed to "on" (shades through
+      Sunbeam/Meadow, off by Hilltop/Crag); "manual" renamed "off". One-time
+      migration in `loadAssist()`: old `"manual"` → `"off"`, old `"auto"`/
+      `"gated"` → `"on"`. Wallow's forced assist updated from `"manual"` to
+      `"off"`; the `accoladesFor()`/`playScore()` "unaided" check updated
+      from `rec.assist === "manual"` to `"off"`.
+- [x] Fixed a nested-scroll visual bug caught while screenshotting the new
+      info sheet: `.info-body` had its own `max-height`+`overflow:auto`
+      inside `.sheet`'s existing scroll region, crowding the close button
+      against the last line of text. Removed the inner scroll — the outer
+      `.sheet` already scrolls long content (same pattern the history list
+      already used), so there's no reason for two nested regions.
+      Verified visually before and after.
+
+Verified end-to-end: info sheet opens from the menu (and auto-closes the
+menu), all 5 sections present, closes via button/backdrop/Escape; persistent
+hint line confirmed gone from the main screen; stakes segmented control
+shows exactly `[slow, gentle, honest, stern]`; assist shows exactly
+`[on, off]`; selecting "slow" hides the hearts row and a real mistake
+(forced via assist off so it isn't silently absorbed) neither docks a heart
+nor locks the field. Full prior regression suite (stakes, gesture-cap,
+starve, crag, accolades, streak, gauntlet, size-10, grid-uniformity,
+persistence, keyboard shortcuts, create-sheet) re-run clean after the
+merge — this session touched a lot of shared state (`game.slow` had 12+
+call sites), so re-running everything wasn't optional.
+
 ### A3. Win / fail results screen
 - [ ] Shared results-card component (slots for win vs. fail)
 - [ ] Win: stats row (time · slips · peeks · score), new-high-score callout
@@ -281,3 +354,37 @@ puddles) → C (twin litters, own milestone).
   backlog). Natural next step is A3, since it directly showcases the
   accolades/streak/Crag work from Part B that has no dedicated results UI
   yet.
+- 2026-07-01 — User reported the board looking cut off (screenshot: last row
+  and last column of a 10×10 field visibly narrower than the rest) and asked
+  to simplify the board's border. Root cause: `render()` only ever set
+  `board.style.gridTemplateColumns`, never `gridTemplateRows` — rows fell
+  back to `grid-auto-rows: auto`, sized off each `.cell`'s `aspect-ratio:1`
+  (itself derived from the resolved *column* width). That auto-derived row
+  height doesn't necessarily equal `.board`'s actual height, which A1's
+  layout now forces to be an exact square via `.board-wrap`'s
+  `aspect-ratio:1` + `min(100cqw,100cqh)` — before A1 the board's height was
+  unconstrained and simply grew to match, so the mismatch was invisible.
+  The error compounds with more rows, which is why it only became visible
+  at 10×10 (new this session) and not at the smaller sizes shipped earlier.
+  Fixed by setting `gridTemplateRows` explicitly alongside
+  `gridTemplateColumns` — mirrors what `renderMini()` (the create-sheet
+  preview) already did correctly. Verified with a Playwright check that
+  measures every cell's actual bounding box: 0px width/height spread across
+  all cells at every size 6–10 (previously would have shown a spread at 10).
+  Also simplified `.board-wrap`'s frame per the request: padding
+  1.1rem → .4rem, border-radius 1.4rem → .9rem, dropped the dual inset+drop
+  box-shadow for one subtle shadow — the grid now reads as the whole board
+  instead of a puzzle sitting inside a padded panel. Full regression suite
+  re-run clean.
+- 2026-07-01 — User asked for three changes to the settings menu at once: (1)
+  move the persistent tap/long-press/drag hint text into a fuller "how to
+  play" info screen reachable from the ⚙ menu, (2) fold "slow mode" into the
+  stakes spectrum instead of a separate toggle, (3) simplify assist from
+  3 modes to a plain on/off, dropping "auto" specifically as not helpful.
+  All three implemented together as A2b (see above) since they're all
+  reshaping the same settings menu. README updated to match (Assist section
+  rewritten for the binary, Stakes section gained the "slow" tier and
+  absorbed the old standalone "Slow Mode" bullet from the Modes list, peek's
+  location corrected from "⚙ menu" to "docked action bar" — a stale leftover
+  from A1/A2's move that hadn't been caught until reading the file closely
+  for this edit).
