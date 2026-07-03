@@ -124,36 +124,36 @@ Drawn straight from the house style — **calm clarity**.
 
 ## Modes
 
-Most modes live in the **＋ new field** sheet — a few tabs (amble / daily /
-runs), a weather toggle, and size/difficulty sliders, not a wall of buttons.
-Watch the live preview, and settle in. **🌾 Trails** is its own, separate
-button — curated series of fields, not something you're "creating."
+Most modes live in the **＋ new field** sheet — two tabs (amble / daily), a
+weather toggle, and size/difficulty sliders, not a wall of buttons. Watch
+the live preview, and settle in. **🌾 Trails** is its own, separate button —
+curated series of fields, not something you're "creating."
 
 - **The Amble** — an endless supply of hand-warm, unique puzzles. Pick a board
   size, pick a difficulty (*Sunbeam → Meadow → Hilltop → Crag*), and wander.
 - **One Field a Day** — a single shared daily layout for everyone, seeded by the
   date. No streak-shaming, no push notifications begging you back. It's there if
   you want it; the field doesn't mind if you skip a day.
-- **The Ladder** — a gentle climb. Begin on a small Sunbeam field; each field you
-  tend nudges the next a notch harder, up through a 9×9 Crag at the very top.
-  Your best rung is quietly remembered. Stop whenever; the ladder waits.
 - **Misty Morning** — a weather toggle on the amble tab, not a separate mode.
   The pens hide in fog, drawn only in outline. A pen's colour settles in the
   moment its piggy does. Same fair puzzle, read entirely from the fences — a
   slower, more spatial kind of seeing.
-- **The Wallow** — one heart, no assist, stern stakes, the knottiest Crag
-  fields. For a focused, deliberate sit where every placement — and every
-  mark — is yours to stand behind.
-- **The Gauntlet** — three fields, back to back, escalating from Meadow to
-  Hilltop to Crag — but only **three hearts total**, shared across all
-  three. A slip on field one is a slip you're playing field three without.
-  Clearing the whole gauntlet with any hearts left is worth noticing;
-  running dry ends the whole run, not just the field you're on.
+- **The Wallow** — one notch past Crag on the difficulty slider, not a
+  separate mode: one heart, no assist, stern stakes, the knottiest fields.
+  For a focused, deliberate sit where every placement — and every mark — is
+  yours to stand behind. Composes with misty weather too.
 - **🌾 Trails** — curated series of fixed-seed fields, tended in order, each
   with its own little teaching note under the board. "first steps" is a
   six-field introduction (auto-started for a brand-new player); "my trail" is
-  your own starred fields, gentlest to knottiest. A trail's next-field preview
-  is exactly the field you'll land on — same WYSIWYG guarantee as everything
+  your own starred fields, gentlest to knottiest. **The Gauntlet** is a
+  built-in trail too, but with a heart policy attached: three fields,
+  escalating from Meadow to Hilltop to Crag, "begin the run" plays them back
+  to back on **one shared line of hearts** — a slip on field one is a slip
+  you're playing field three without, and running dry ends the whole run,
+  not just the field you're on. Each field also stays individually playable
+  as standalone practice (fresh hearts, no run credit) — clearing the actual
+  run is what counts as cleared. A trail's next-field preview is exactly the
+  field you'll land on — same WYSIWYG guarantee as everything
   else. From the history sheet's curated tab, **export as trail pack** turns
   your starred list into ready-to-paste JSON for building a new built-in
   trail.
@@ -163,7 +163,9 @@ over any field — no hearts, no failure, infinite markers.
 
 A **gentle hint** ("peek", in the docked action bar) glows the next
 logically-forced piggy — never a guess, just the field pointing at the
-deduction you already had the pieces for.
+deduction you already had the pieces for. It trades a heart for the
+hint (free under slow stakes, and it never asks for a heart you can't
+spare — it simply won't offer once only one is left).
 
 Difficulty is shaped by *pen geometry and deduction depth*, never by hidden
 timers or trick layouts. A hard puzzle rewards patience; it doesn't punish you.

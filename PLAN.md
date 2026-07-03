@@ -503,13 +503,14 @@ Implementation notes:
       collision), board code round-trips (`10m-...`).
 - [ ] **C. Twin litters** ("Two to a Pen") — generalize solution generator,
       uniqueness counter, and solver from exactly-one to exactly-k per
-      row/column/pen; own milestone, needs ≥9×9
+      row/column/pen; own milestone, needs ≥9×9 — **full design in B5 below**
 - [ ] **D. Mud puddles** — pre-blocked cells no pig may occupy; lets the
-      generator reach knottier unique layouts; on-brand art opportunity
+      generator reach knottier unique layouts; on-brand art opportunity —
+      **full design in B5 below**
 - [ ] **E. Limited hoofprints** — scratch marks become a capped resource
-      (e.g. `2 × size` per field)
+      (e.g. `2 × size` per field) — **full design in B5 below**
 - [ ] **F. Settled means settled** — mode where lifting a placed pig costs a
-      heart or isn't allowed
+      heart or isn't allowed — **full design in B5 below**
 - [x] **G. The Gauntlet — done.** New `gauntlet` mode: a fixed 3-stage
       escalation (`GAUNTLET` array, 7×7 meadow → 8×8 hilltop → 9×9 crag),
       `beginGame()` extended with `opts.carryHearts`/`carryMaxHearts` so
@@ -544,13 +545,17 @@ Implementation notes:
       "2 clean in a row"; a genuine mistake (forced via manual assist so
       it isn't silently absorbed by gated auto-shading) correctly drops
       the streak line entirely.
-- [ ] **I. Daily modifier rotation** — fog Wed / stern Fri / gauntlet Sun, etc.
+- [ ] **I. Daily modifier rotation** — fog Wed / stern Fri / etc. — **full
+      design in B5 below**
 
-**Recommended build order** (revised 2026-07-02, campaigns first): ~~B3
-(campaign packs, below)~~ **done** → D (mud puddles — also an on-brand pack
-ingredient later) → E (limited hoofprints) / F (settled means settled —
-small variants, possible future pack modifiers) → I (daily modifier
-rotation) → C (twin litters, stays its own milestone).
+**Recommended build order** (revised 2026-07-03, play-test polish first):
+~~B3 (campaign packs)~~ **done** → **B4.1–B4.4 (play-test polish)** →
+**B6 (mode simplification — runs tab dissolves; before B4.5 so the trails
+list is run-pack-aware)** → **B4.5 (trails field list)** → B5-D (mud
+puddles, brings the variant plumbing) → B5-E (limited hoofprints) → B5-F
+(settled means settled) → B5-I (daily modifier rotation — pure composition
+once D/E/F exist) → B5-C (twin litters, stays its own milestone,
+benchmark-gated).
 *(Original order, for the record: B1 stakes → A crag → H accolades → G
 gauntlet → B bigger boards → D → C. Everything before D shipped, plus B3
 campaign packs landed out of that original order per the 2026-07-02
@@ -725,6 +730,464 @@ accordingly (documented inline in `pick_intro_seeds.js`).
       of the newly pack-id'd helpers, no `campaignPack` leakage into
       non-campaign modes, and no duplicate/malformed codes in
       `campaigns.js`.
+
+### B4. Play-test polish — **done 2026-07-03**
+
+Six findings from the user's own play-testing, folded into five work items
+(the double-tap-zoom bug belongs to the action-bar item — same component).
+Each is small, independently shippable, and ordered so later items land on
+surfaces earlier items have already reshaped (the peek heart-cost badge goes
+on the *redesigned* action bar; the veil's name field feeds the trails
+list's field names).
+
+**House rules for every B4/B5 item** (stated once, apply throughout):
+- Append Playwright coverage to the existing suite files (or a new
+  `test_b4_polish.js` / `test_b5_variants.js`) — run the *full* suite after
+  each item, not just the new checks.
+- WebKit spot-check any layout-affecting CSS (this repo's real target is
+  Safari — standing lesson from the A2b board-clipping bug).
+- Visual changes get a screenshot checkpoint at 390×844 before being called
+  done; the action-bar redesign (B4.1) additionally pauses for the user's
+  approval on look/feel, since "not a fan of the look" is a taste call only
+  they can close out.
+- Copy lives in more places than `index.html`: check the info sheet, README,
+  `campaigns.js` teaching notes, and this plan's own descriptions whenever a
+  mechanic's meaning changes.
+
+#### B4.1 Action bar: raise above the iPhone home indicator, redesign, kill double-tap zoom *(user items 5 + 6)* — **done**
+- **Clipping root cause first, not padding guesswork.** `.action-bar`
+  (index.html:233) already pads with `env(safe-area-inset-bottom)`, but the
+  viewport meta (index.html:5) lacks `viewport-fit=cover`, so that env() is
+  0 on iPhone and the padding does nothing. Fix: add `viewport-fit=cover`
+  to the meta. Then verify the *framed* case too — the game usually runs
+  inside the Arcade launcher's iframe, where safe-area env() can also
+  report 0; use `max(env(safe-area-inset-bottom), .8rem)` so there's always
+  a real cushion, and confirm against the launcher (`ARCADE_PLATFORM.md`
+  symlink in repo root) rather than only standalone.
+- **Double-tap zoom (item 6):** add `touch-action: manipulation` to all
+  buttons *and* `.cell` (rapid undo-undo is the reported trigger, but board
+  cells double-tap too). Do not disable pinch on the page as a whole — only
+  tap targets. Verify in WebKit that long-press hoofprinting still works
+  (`touch-action: manipulation` allows pan+long-press; it only removes the
+  double-tap-zoom delay).
+- **Redesign (item 5):** the current icon-over-label `.actbtn`s with emoji
+  glyphs (↶ 👁 ⌫ ＋ 🕘 🌾) read as stock UI, not Sowdoku. Replace emoji with
+  small inline SVG line icons drawn in the game's own ink
+  (`var(--ink-soft)`, stroke style matching the hand-warm brand), sized off
+  the existing `.actbtn .icon` slot. The peek icon must NOT be an eye (user
+  explicitly dislikes it) — candidates: a lantern (light spilling on the
+  field), a magnifying glass over a sprout, a low sun over a row. Soften
+  the bar itself (panel background, slightly rounded top corners, one
+  subtle top shadow instead of the hard border-top) so it reads like part
+  of the farm scene, not a toolbar. Keep min 44px touch targets
+  (`.actbtn` sizing rule from A2 still applies) and the existing
+  keyboard shortcuts/tooltips/disabled states.
+- **Reserve a cost-badge slot on the peek button** — B4.2 will pin a tiny
+  heart to it; design the button with that in mind rather than retrofitting.
+- Verify: screenshot at 390×844 inside a simulated bottom inset; user
+  approval on the look before closing; full regression suite (the bar's DOM
+  ids `undoBtn`/`peekBtn`/`clearBtn`/`newBtn`/`trailsBtn`/`historyBtn` are
+  load-bearing across every test file — keep them).
+
+#### B4.2 Peek costs a heart *(user item 1)* — **done**
+- **Rules** (defaults chosen for the gentle-failure brand; flag at
+  implementation if any feel wrong in play):
+  - A *successful* peek (a hint actually shown) docks one heart. The "no
+    gentle next step" / "field's tangled" outcomes stay free — you paid for
+    a hint, not for asking.
+  - Guard the cost/disable logic *inside `peek()` itself*, not only via the
+    button's disabled attribute — the `H` keyboard shortcut calls the same
+    function and must respect the same rules.
+  - Free under **slow** stakes (no hearts exist there).
+  - A peek must never *end* the game: when `!isSlow() && game.hearts <= 1`,
+    the peek button is disabled with tooltip copy like "a peek costs a
+    heart you can't spare". This makes peek effectively unavailable in the
+    Wallow (1 heart) — consistent with its "no hand-holding" identity — and
+    genuinely expensive in the Gauntlet (shared pool).
+  - Docking a heart for a peek is **not a mistake**: do not use
+    `dockStrictHeart()` (index.html:1442 — it increments
+    `metrics.mistakes`, sets the gesture cap, and plays the slip sound).
+    Write a tiny dedicated dock in `peek()` (index.html:1563):
+    `game.hearts--` + render, no `mistakes++`, no slip sound (a soft thud
+    at most). `metrics.hints++` already happens there and stays.
+  - Keep the existing score penalty (90/hint at index.html:1292) — the
+    heart is the in-run price, the score is the record-book price. Flag as
+    tunable if double-charging feels harsh in play.
+- **Cost affordance:** small heart badge on the (redesigned) peek button,
+  visible whenever peeking would cost (i.e., not slow stakes).
+- **Copy sweep — this is most of the diff:** peek's title/tooltip
+  (index.html:483), the info sheet's Controls + Stakes sections, README's
+  "cost nothing but pride" hint paragraph, and — easy to miss —
+  `campaigns.js` intro field 5 ("a helping hand") whose teaching note says
+  peek and undo are "free of charge". Rewrite that lesson honestly: undo is
+  free; a peek trades a heart for a knot. Undo remains free everywhere.
+- Verify: peek docks exactly one heart and no mistake; free under slow;
+  button disabled at 1 heart (and in Wallow); a failed hint doesn't charge;
+  the `unaided` accolade and hint score penalty still behave; intro field 5
+  note shows the new copy.
+
+#### B4.3 Seed code as a discreet watermark *(user item 4)* — **done**
+- Remove the `#codeChip` pill from the status strip. Add a small,
+  low-opacity, monospace watermark (e.g. `.code-mark`) tucked under the
+  board — right-aligned in `.below-board`, after `#stuckNote`/`#teachNote`
+  so it never fights the teaching line. Keep it a real `<button>` (focus
+  ring, `aria-label="field code — tap to copy"`) that calls the existing
+  `copyToClipboard(game.code, ...)` with the same toast.
+- Drop the 🌱 icon; the code alone, quiet, ~65% ink-soft opacity.
+- `render()` updates it where it used to update `#codeChip`
+  (index.html:~1630); check the status strip still balances on mobile with
+  one fewer chip (mode chip · daily chip · climb chip · N-left).
+- Verify: click copies + toasts; WebKit screenshot; no test references
+  `#codeChip` as a *visible pill* (tests read `#codeChip` textContent —
+  keep the id on the new element so the suite keeps working, or update all
+  suites in the same commit).
+
+#### B4.4 Favorite toggle + naming on the end veil *(user item 2)* — **done**
+- Both win and fail veils gain a quiet row above the buttons: a ☆ star
+  ("keep this field") and, once starred, a name input (placeholder "name
+  this field", commit on blur/Enter — same pattern as `.hname` in the
+  curated tab). Pre-filled star+name if the field is already curated.
+- Wiring is thin because curation already exists: star toggles
+  `toggleCurate(rec)`, name commits via `renameCurated(code, name)`.
+  The only real work is *which record*:
+  - Win veil: `lastRecord` is already set (finalizeGame ran via
+    `onSolved()`).
+  - Fail veil: **no record exists yet** — `finalizeGame(false)` only runs
+    lazily when the next field begins. Call `buildRecord(false)` to
+    synthesize one (it builds and sets `lastRecord` *without* pushing to
+    history — safe), and curate from that. This record now carries
+    assist/stakes/campaignPack from the fidelity work, so the starred copy
+    replays faithfully for free.
+- Un-starring from the veil un-curates (symmetric with the history card's
+  star).
+- Verify: star on win veil → appears in curated tab with the typed name;
+  star on fail veil works (record synthesized); un-star removes; name
+  survives reload; starring a trail field carries `campaignPack` (covered
+  pattern from `test_review_fixes2.js`).
+
+#### B4.5 Trails: full field list, playable out of order *(user item 3)* — **done**
+- **Build after B6** (see build order): heart-policy packs (B6.2 — the
+  gauntlet) list their fields like any trail and each is selectable, but an
+  out-of-order selection plays the field *standalone* (fresh hearts, ✓ on
+  solve, no run credit); the pack's header shows both progress reads
+  ("2/3 tended · cleared 4 times").
+- Under the pack picker in `#trailsBack`, list every field of the selected
+  pack — one compact row each: order number, name (fall back to code),
+  size·band, ✓ tended, best score (`bestScore()` reads the durable
+  hiScores), and effort. Tapping a row selects it: the existing preview
+  (`#tPreview`/`#tCode`/`#tBand`/`#tBar`/`#tProfile`) switches to *that*
+  field and `#tTend` starts it — out of order is fine by construction,
+  since progress is tracked per-code and `beginCampaignField(packId, f)`
+  already takes an arbitrary field.
+- `tState` gains `fieldCode` (null = default "next untended" behavior;
+  reset it when the pack selection changes). `updateTrails()` renders the
+  list + highlights the selected row.
+- Known, acceptable quirk to note in code: after an out-of-order solve, the
+  win veil's "next field →" still advances to the *first untended* field
+  (`nextCampaign`), not the next in sequence — that's the trail inviting
+  you back to what you skipped, which reads as intended behavior.
+- Mini board previews per row are optional — only add them via the existing
+  `queueMini`/`drainMinis` budget machinery (never synchronously; a 6-field
+  pack is cheap but "my trail" can be 100 fields).
+- Names shown here are the same names B4.4 lets players type on the veil —
+  the two items compose.
+- Verify: list renders for both packs with correct ✓/scores; selecting row
+  3 previews and starts field 3; solving it marks only field 3 tended;
+  pack progress "1/6" reflects it; WebKit spot-check the new rows.
+
+### B5. Remaining mechanics — cohesive design (D, E, F, I, C) — **planned 2026-07-03**
+
+**Design principles (read first — these are what make the five items
+cheap):**
+
+1. **Board code = layout identity; recorded settings = play rules.** The
+   existing split is the backbone: anything that changes *what board gets
+   generated* (mud puddles, twin litters) must live in the board code so
+   sharing/replay/curation/trails keep round-tripping. Anything that
+   changes *how you're allowed to play it* (hoofprint cap, settled-means-
+   settled — like stakes and assist before them) is a per-field recorded
+   setting: chosen at create time, stored on `game`, threaded through
+   `persist()`/`restore()`/`buildRecord()`/`toggleCurate()`/pack-field
+   overrides, and applied on replay via `forced*` opts (which never
+   contaminate saved defaults — mechanism already shipped).
+2. **One variant suffix on the code, added once.** Extend
+   `boardCode`/`parseCode` (index.html:692-703 region) with an optional
+   `+<letters>` suffix: `8m-3k7f2a+p` (p = puddles; t reserved for twins).
+   Regex: `/^(10|[6-9])([smhc])-([0-9a-z]+)(?:\+([a-z0-9]+))?$/` — old
+   codes parse unchanged, the seed box accepts both. D implements this
+   plumbing (`opts.variants` through `makeBoard`→`Sowdoku.generate`,
+   `game.variants` persisted); C reuses it untouched.
+3. **Generator changes are benchmark-gated** (house rule from the
+   10×10/11×11 work): before any UI lands, script success-rate + timing per
+   size×band with the variant on. If the generator can't reliably deliver
+   requested bands, the variant doesn't ship until it can — the difficulty
+   picker must not quietly lie.
+4. **Daily rotation is composition, not mechanics.** It ships last of the
+   small items and touches almost nothing: a weekday table + the existing
+   `forced*`/variant plumbing.
+
+#### B5-D. Mud puddles
+- **Generator** (`sowdoku.js`): after `growRegions`, deterministically pick
+  K puddle cells from the same rng (never a solution cell; suggest
+  K ≈ size/2, tuned by benchmark), then require uniqueness *with puddles
+  excluded* — `countSolutions` and every solver level treat puddled cells
+  as pre-eliminated candidates. Rate afterwards: that pre-elimination is
+  exactly what lets streaky region layouts that were multi-solution become
+  unique-and-knotty, which is the point. `generate()` gains
+  `opts.variants { puddles: true }`; result carries `puddles: [[r,c],...]`.
+- **Code/plumbing**: principle 2 — `+p` suffix, `game.variants`,
+  persist/restore. History/curation/trails inherit correctness through the
+  code string itself.
+- **Play rules**: a puddle cell is the field's own hoofprint — no piggy, no
+  player hoofprint, inert to taps (gentle wiggle + toast, reuse the
+  `flashBad` affordance), excluded by `assistOn()` shading,
+  `starvedByFences`, `whyIllegal`, and `hint()`; pen-completion shimmer and
+  colorblind letters skip it (the art covers the cell).
+- **Render/art**: a puddle graphic per cell. Interim: inline SVG blob in
+  the palette's brown-blue; proper art is an `ASSET_PROMPTS.md` +
+  Antigravity item (the user's established image pipeline) — ship with the
+  SVG, swap when generated. This also finally gives the on-hold "board
+  texture" energy a real call site.
+- **UI**: create sheet amble tab gets a second toggle row next to weather —
+  "ground: firm / puddled" (`cGroundSeg`, composes with misty; both are
+  layout-orthogonal). Fog + puddles together is legal and fun.
+- Verify: benchmark first (principle 3); codes round-trip with `+p`; a
+  puddled daily/trail/curated field replays identically; all exclusion
+  rules above; WebKit render check.
+
+#### B5-E. Limited hoofprints
+- A per-field recorded setting `hoofcap` (default off; when on, cap =
+  `2 × size` **simultaneous marks on the board** — undo/clear/lift free
+  the budget naturally; total-ever-spent was considered and rejected as
+  needlessly mean). No layout change → **not** in the board code
+  (principle 1).
+- Threading: exactly the stakes/assist pattern — `opts.hoofcap` +
+  `forcedHoofcap` in `beginGame()`, `game.hoofcap`, persist/restore,
+  `buildRecord`, `toggleCurate`, export-pack JSON, `campaigns.js` field
+  override, replay forces it.
+- UI: quiet "hoofprints: plenty / 2×N" row on the amble tab; when active, a
+  small counter chip in the status strip ("6 marks left") so the budget is
+  never a mystery. At the cap, a rejected mark gets `flashBad` + toast
+  "out of hoofprints — lift one to spare one".
+- Verify: cap enforced across tap/drag/right-click paths (the drag-paint
+  path must stop mid-drag at the cap, not overshoot); undo restores
+  budget; persists across reload; forced on replay; authorable in a pack.
+
+#### B5-F. Settled means settled
+- A per-field recorded setting `settled` (off by default): tapping to lift
+  a settled piggy docks a heart (toast: "settled means settled — that
+  lift cost a heart"). Same threading pattern as E, one flag.
+- **Decisions (defaults):** ⌘Z undo stays free — the gentle escape hatch;
+  the cost is for changing your mind *later*, not for un-fat-fingering.
+  Under slow stakes there are no hearts to pay, so the setting is inert
+  (treat as off; note it in the info sheet). Wallow is unchanged for now —
+  forcing `settled` there is listed as a possible future tightening, not
+  done by default.
+- Not a mistake: docks via its own path (like B4.2's peek dock), no
+  `mistakes++`, no gesture-cap interaction.
+- Verify: lift docks exactly one heart; undo doesn't; inert under slow;
+  persists/replays/exports; the lift-at-1-heart case *is* allowed to end
+  the game (unlike peek — lifting is a play action, not a help action;
+  flag if play-testing disagrees).
+
+#### B5-I. Daily modifier rotation
+- A single source of truth `dailyPreset()` returning the day's full recipe
+  `{ size, band, variants, forcedStakes?, forcedHoofcap?, settled?, fog? }`,
+  consumed by `startDaily()`, `dailyCode()` (codes differ when layout
+  differs — puddle days produce `+p` codes), and the daily chip (copy can
+  whisper the twist: "today's field awaits · misty").
+- Suggested table (user taste — confirm the actual weekdays at
+  implementation): Sun plain · Mon misty · Tue puddles · Wed limited
+  hoofprints · Thu hilltop band · Fri stern (via `forcedStakes`, never
+  contaminating the player's default) · Sat settled-means-settled.
+- Nothing else changes: history, fidelity, curation, and the
+  daily-untouched chip all key off code + recorded settings that already
+  flow. Depends on D/E/F being shipped — that's its whole implementation.
+- Verify: each weekday preset produces the right board + rules (fake the
+  date in tests); Friday doesn't alter saved stakes default; `dailyCode()`
+  and `dailyUntouched()` agree on puddle days.
+
+#### B5-C. Twin litters ("Two to a Pen") — own milestone, last
+- Generalize `sowdoku.js` from exactly-1 to exactly-k=2 per row/column/pen,
+  with the Wallow (no-touch) rule intact: `generateSolution` (backtracking
+  over 2 columns per row), `countSolutions`, all four solver levels
+  (forced placements, confinements, contradiction chains at L3/L4),
+  `rate`/`humanScore` recalibration (band thresholds will shift — the l2/l3
+  counts mean different work at k=2), `hint`, `isLegalPlacement`/`isSolved`.
+- **Benchmark gate before any UI** (principle 3) — k=2 with no-touch on
+  ≥9×9 may be as unreliable as 11×11 was; if so, this milestone starts
+  with generator work (smarter region growth), not UI.
+- Code: `+t` suffix via the existing variant plumbing. UI: a "litter"
+  toggle on the amble tab, visible only at size ≥9.
+- Audit every surface that assumes piggies = size: the "N left" chip,
+  win-condition copy, aria-labels, teaching notes, `renderMini` (unchanged
+  — it draws pens, not pigs), accolade math, `empiricalScore`'s per-cell
+  time. Budget for this audit — it's the long tail of the milestone.
+- Verify: benchmark report first; uniqueness holds; full solve path in
+  Playwright with a known k=2 field; codes round-trip `+t`; all audited
+  surfaces show 2N counts.
+
+### B6. Mode simplification — **done 2026-07-03** (user-directed)
+
+User feedback, two rounds: (1) the difficulty settings and game-mode
+settings are confusing side by side — remove ladder, make the gauntlet a
+curated thing, fold the wallow into the top of the difficulty scale;
+(2) daily doesn't belong in the create sheet either (the status-strip pill
+is sufficient), and a gauntlet trail must still honor *the sequence of
+boards* — the point of trails is the sequence, so gauntlet-ness is a heart
+policy on a normal fixed-seed trail, not a different kind of pack.
+
+Net effect: **the create sheet loses its tabs entirely** — one quiet form
+(weather · size · difficulty-up-to-wallow · assist · seed · preview).
+"Mode" stops being a concept players pick from — you tend a field, play the
+daily (via its pill), or walk a trail.
+
+Sequencing note: B6 lands **after B4.1–B4.4 and before B4.5** — the trails
+field-list (B4.5) must be designed heart-policy-aware, so B6 goes first.
+
+#### B6.1 Wallow → fifth notch on the difficulty slider — **done**
+- The difficulty slider (`#cDiffSlider`, currently min 0 / max 3 over
+  `BAND_ORDER`) gains a fifth position, "the wallow". It is a **preset, not
+  a layout band**: selecting it keeps the layout request at crag and
+  engages the existing `MODES.wallow` machinery (1 heart, forced stern
+  stakes, forced assist off, all already locked/threaded) — only the entry
+  point moves. Internally the game still runs as `mode: "wallow"`, so
+  history records, `buildRecord`, replay fidelity, and the mode label all
+  keep working unchanged.
+- Board codes are untouched — a wallow field's code stays `Nc-...` (crag),
+  because the code is layout identity (B5 principle 1). `BAND_CHAR`/
+  `parseCode`/`rate()` don't change.
+- Slider output copy at the top notch: "the wallow" with the mode note
+  below explaining the terms (reuse `MODES.wallow.note`). The assist row
+  hides at this notch (it's forced), same as the old runs-tab behavior
+  (`cAssistRow` hidden for wallow — logic already exists, just re-keyed to
+  the slider value).
+- Newly possible and deliberately allowed: **misty wallow** (weather toggle
+  composes with the wallow notch — previously unreachable because fog and
+  wallow were separate modes). The seed row stays available too (paste a
+  crag code, play it at wallow terms).
+- **Implementation note that makes misty-wallow (and daily-rotation misty
+  days) possible:** a game can only have one `mode` string, and today fog
+  IS a mode (`MODES.fog.fog: true`). Promote fog to a per-game flag —
+  `opts.fog` → `game.fog`, persisted, with `modeCfg(game.mode).fog` as the
+  legacy fallback for old saves/records — and have `render()` read
+  `game.fog`. The weather toggle then composes with any mode, and
+  `dailyPreset()` (B5-I) gets its `fog?` field for free.
+- `cState.diff` handling: the slider maps 0–4 where 4 → wallow preset; keep
+  `BAND_ORDER` pure (layout bands only) and add the presentation notch in
+  the slider glue, not the data model.
+
+#### B6.2 Gauntlet → a heart policy on an ordinary fixed-seed trail — **done**
+*(Revised from an earlier "run pack with fresh seeds per attempt" design —
+the user's correction: the point of trails is the sequence of boards, and
+that holds even for the gauntlet. Gauntlet-ness is a pack-level heart
+policy, not a different kind of pack. Strictly less machinery: no stage
+specs, no fresh-seed rolling, no special-cased trails list.)*
+- The gauntlet becomes an ordinary trail plus one pack-level option:
+  `run: { hearts: 3, carry: true }` in `campaigns.js`. **The policy is
+  defined over the whole pack, not a field count** — a run spans *every*
+  field the trail has, in order, however many that is
+  (`packFields(pack).length`, never a hardcoded 3). The built-in gauntlet
+  ships with three hand-picked fixed-seed fields (7×7 meadow → 8×8
+  hilltop → 9×9 crag, seeds selected and hand-verified with the same
+  scripts as the intro pack — `scripts/pick_intro_seeds.js` pattern), but
+  that's its authored length, not the mechanism's: a 6- or 10-field
+  gauntlet trail is the same code, and the pool size (`hearts: 3`) is the
+  author's tuning knob against the trail's length. All run copy derives
+  from the pack ("field N of {length}"), never from a constant.
+- **Semantics — two honest progress reads, both uniform with trails:**
+  - *Walking the trail* (the `#tTend` "begin the run" path from field 1)
+    plays the full sequence in order with **one shared heart pool**
+    (existing `carryHearts`/`carryMaxHearts` in `beginGame()`); the pool
+    dying ends the walk (existing "the gauntlet ends here" fail veil; the
+    clear-doesn't-refill guard stays); surviving the *entire* trail
+    increments the cleared count (`stats.gauntletsCleared`, generalized
+    per-pack).
+  - *Individual fields* stay visible and selectable in the B4.5 list like
+    any trail — selecting one out of order plays it **standalone** (fresh
+    hearts, normal rules, ✓ tended on solve). That's practice; it earns ✓s
+    but never the cleared count. ✓s accrued during a run also stick — a ✓
+    just means "you've solved this board", run or no run.
+  - "Walk it again" restarts the run from field 1 with a fresh pool
+    regardless of ✓s.
+- Trails sheet shows both reads for a run-policy pack: "2/3 tended ·
+  cleared 4 times".
+- Engine notes: mid-run state threads through the existing
+  campaign fields (`campaignPack`/`campaignCode`) plus the carried pool;
+  `gauntletStep` becomes derivable from the field's index in the pack —
+  keep it only if the fail-veil copy needs it cheaply. The hardcoded
+  `GAUNTLET` array dies; the win veil's campaign branch handles advance
+  (it already previews the exact next field — fixed seeds make this
+  simpler than the old gauntlet's locked-random-seed dance).
+- Memorizability of fixed seeds is accepted as a *feature*: the gauntlet
+  becomes a mastery set you can genuinely improve at, and the export-pack
+  pipeline makes new gauntlets cheap to author. Natural future extension
+  (not now): let "my trail" take a heart policy, so players can walk their
+  own curated set gauntlet-style.
+- Remove gauntlet from the create sheet (`cRunSeg`); the runs tab dies here
+  (B6.3 removes its last occupant).
+- Legacy: old `mode: "gauntlet"` history records render unchanged; an
+  in-progress old-style gauntlet game restores and finishes (its veil
+  branch stays until the new trail-based flow replaces it).
+
+#### B6.3 Ladder → removed (sunset, not amputation) — **done**
+- Remove the ladder's entry point (with B6.2 this empties the runs tab —
+  delete the tab, `cRunRow`/`cRunSeg`, and `cState.runMode`).
+- Sunset semantics for what already exists:
+  - Old history records with `mode: "ladder"` still render (keep
+    `MODES.ladder` for its label) and still replay (the record's exact
+    field, via the normal replay path).
+  - A restored in-progress ladder game plays out and finishes normally,
+    but its win veil offers **"a fresh amble" instead of "climb higher"** —
+    no new ladder fields can begin, so the mode truly drains. Delete
+    `startLadder`; keep `LADDER`/`ladderRung()` only if the legacy veil
+    branch still needs the rung label, else delete.
+  - `stats.bestLadder` and the "best climb · rung N" history-header line
+    stay as historical record (harmless, meaningful to players who earned
+    it).
+- The progression experience ladder provided is covered by trails (intro
+  pack today, more packs later). **Optional, deliberately not built now:**
+  if the auto-escalating climb is missed in play, it returns for free as
+  another fixed-seed trail ("the climb", 8 fields mirroring the old
+  `LADDER` rungs — no heart policy needed, a plain trail already plays one
+  field at a time with fresh hearts).
+- Copy sweep: README modes list (ladder bullet removed, gauntlet bullet
+  moves under Trails), info sheet if it mentions modes, `MODES` notes.
+
+#### B6.4 Daily → out of the create sheet; the pill is the door — **done**
+- Delete the daily tab. With runs (B6.2/B6.3) and daily both gone, **the
+  create sheet has one context and the tabs disappear entirely** — remove
+  `#cTabs` and `tabForMode()`; `cState.mode` reduces to what the weather
+  toggle and the wallow notch produce. The sheet reads: weather · size ·
+  difficulty · assist · seed · preview · tend.
+- The daily's entry points are the status-strip pill and the boot flow —
+  both already exist. **Pill semantics change (flagged default):** show the
+  pill whenever today's field is **unsolved** (hidden while on it, gone
+  once solved), instead of the current "hidden after any touched attempt"
+  (`dailyUntouched()` at index.html:~1024). With the tab gone the pill is
+  the only obvious door, and a touched-but-abandoned daily shouldn't lock
+  you out for the day (replay-from-history technically works but is three
+  non-obvious taps). Still one quiet pill, no streaks — revert to
+  touch-based if it reads as nagging in play.
+- The size-variant daily oddity dies with the tab (the create sheet's daily
+  used to expose the size slider; `startDaily(size)` existed but
+  `dailyCode()` was always canonical 8×8) — the canonical daily is *the*
+  daily. Simplify `startDaily()` accordingly.
+- `MODES.daily` stays (labels, records, the mode's identity is untouched —
+  only its create-sheet surface is removed). B5-I's `dailyPreset()` slots
+  in here unchanged.
+- Verify (whole of B6): create sheet is a single tabless form; slider top
+  notch starts a 1-heart/stern/assist-off crag field whose code round-trips
+  as crag; misty wallow playable; the gauntlet trail walks in order with
+  one shared pool, ends the walk at 0 hearts, increments cleared-count
+  after its *last* field (length read from the pack, not a constant — test
+  with a longer scratch pack too), and its fields play standalone (fresh
+  hearts, ✓ on solve,
+  no cleared credit) from the trails list; daily reachable via pill when
+  unsolved, pill gone once solved, daily still boots for returning players;
+  old ladder/gauntlet history records render and replay; a restored ladder
+  game finishes with no "climb higher" offered; full suite + WebKit
+  spot-check.
 
 ---
 
@@ -1100,3 +1563,168 @@ accordingly (documented inline in `pick_intro_seeds.js`).
   green after the fixes. README's Modes section and curation section updated
   to match (Trails as its own bullet, curation's assist/stakes fidelity
   noted).
+- 2026-07-03 — **B4/B5 planning pass (planning only, no code).** Enriched
+  the remaining Part B work into implementation-ready designs, one item at
+  a time, for a later session to build sequentially. Two new sections:
+  **B4 (play-test polish)** — five items from the user's own play-testing:
+  action-bar raise/redesign + iOS double-tap-zoom fix (root cause
+  identified: viewport meta lacks `viewport-fit=cover`, so the existing
+  safe-area padding evaluates to 0), peek-costs-a-heart (with
+  never-ends-the-game and not-a-mistake semantics, plus the copy sweep it
+  forces across the info sheet / README / `campaigns.js` field 5), seed
+  code as a click-to-copy watermark, favorite+name on the end veil (fail
+  veil needs a `buildRecord(false)` synthesis since no record exists at
+  hearts-0), and a Trails field list playable out of order. **B5 (remaining
+  mechanics)** — D/E/F/I/C redesigned around four cohesion principles:
+  board code = layout identity vs. recorded settings = play rules (puddles
+  and twins go in the code via a new `+<letters>` suffix added once;
+  hoofcap and settled-means-settled follow the shipped stakes/assist
+  `forced*` pattern); generator changes are benchmark-gated before UI;
+  daily rotation is pure composition of the other pieces via a single
+  `dailyPreset()`. Build order revised: B4 first (small, immediate wins),
+  then D → E → F → I → C.
+- 2026-07-03 — **B6 (mode simplification) planned (planning only, no
+  code).** User: difficulty settings and mode settings are confusing side
+  by side — remove ladder, make gauntlet a curated thing, fold wallow into
+  the top of the difficulty scale, without removing realistic gameplay
+  options. Confirmed the direction works, with two design wrinkles captured
+  in B6: (1) wallow becomes a fifth *preset* notch on the difficulty
+  slider, not a fifth layout band — board codes stay crag, the existing
+  `MODES.wallow` machinery just gets a new entry point, and misty+wallow
+  becomes newly (and deliberately) possible; (2) the gauntlet becomes a
+  **run pack** in Trails — a new pack flavor defined by stages rather than
+  fixed-seed fields, rolling fresh seeds per attempt so runs stay
+  unmemorizable, reusing the existing gauntlet engine (carryHearts /
+  gauntletStep / run-fail veil / cleared-count stat) with the hardcoded
+  `GAUNTLET` array replaced by pack data. Ladder is sunset rather than
+  amputated: entry point removed, legacy records still render/replay, a
+  restored in-progress climb finishes but offers "a fresh amble" instead of
+  "climb higher", and the auto-escalating-climb experience can return
+  later as a second run pack for ~pure data if play-testing misses it. Net:
+  the create sheet's runs tab is deleted entirely (amble/daily only) and
+  "mode" stops being a player-facing concept. Build order re-sequenced: B6
+  lands after B4.1–B4.4 and *before* B4.5, so the trails field list is
+  designed run-pack-aware from the start.
+- 2026-07-03 — **B6 revised same day, two more user corrections (planning
+  only, no code).** (1) Daily doesn't belong in the create sheet either —
+  the status-strip pill is sufficient. Added B6.4: the daily tab dies, and
+  with runs already gone **the create sheet loses tabs entirely** — one
+  quiet form. One flagged semantics change: the pill now shows whenever
+  today's field is *unsolved* (was: hidden after any touched attempt),
+  since with the tab gone the pill is the only obvious door and a
+  touched-but-abandoned daily shouldn't lock you out for the day. The
+  size-variant daily oddity dies with the tab. (2) The gauntlet must honor
+  the *sequence of boards* — that's the point of trails. B6.2 rewritten:
+  gauntlet-ness is a **pack-level heart policy on an ordinary fixed-seed
+  trail** (`run: { hearts: 3, carry: true }`), not the previously-designed
+  "run pack" flavor with fresh-seed stages — strictly less machinery (no
+  stage specs, no per-attempt seed rolling, no special-cased trails list).
+  Walking the trail = the sequence in order with one shared pool; the
+  fields stay individually listed and playable standalone (fresh hearts,
+  ✓ on solve, practice — no cleared credit); two honest progress reads
+  ("2/3 tended · cleared 4 times"). Fixed-seed memorizability is accepted
+  as a feature (a mastery set; new gauntlets are cheap to author via
+  export-pack). The optional "the climb" resurrection also simplifies: with
+  run packs gone it's just a plain 8-field trail, no mechanism at all.
+  B6.1 gained the implementation note that fog must be promoted from a
+  mode to a per-game flag (`game.fog`) — that's what makes misty-wallow
+  and daily-rotation misty days composable. B4.5's cross-reference updated
+  to match. Third same-day clarification: **the run policy spans the whole
+  trail it's attached to**, not a fixed 3 — length always read from
+  `packFields(pack).length`, cleared = surviving the entire sequence, run
+  copy derived from the pack, pool size is the author's tuning knob
+  against trail length; B6.2 and the verify list reworded to be
+  length-agnostic (and the verify list now demands testing with a longer
+  scratch pack so a hardcoded 3 can't sneak through).
+- 2026-07-03 — **B4.1–B4.4 and all of B6 implemented and verified, one item
+  at a time, per the plan's build order.** 125 Playwright checks green
+  across 8 files (5 new: `test_b4_polish.js`, `test_b6_gauntlet.js`,
+  `test_b6_daily.js`, plus targeted additions to the existing suites),
+  Chromium + WebKit spot-checks, screenshots at each visual milestone.
+  - **B4.1** — root-caused the action-bar clipping to a missing
+    `viewport-fit=cover` on the viewport meta (the existing safe-area
+    padding was evaluating to 0 without it); added `touch-action:
+    manipulation` to buttons and cells to kill the double-tap-zoom bug;
+    redesigned all six action-bar icons as inline SVG line art in the
+    game's own ink (peek is a lantern, not an eye); softened the bar to
+    rounded-top + soft shadow instead of a hard border. Paused for and
+    received the user's visual sign-off before marking done, per the
+    plan's own house rule.
+  - **B4.2** — peek now costs a heart on a successful hint (free under
+    slow stakes, never offered once only one heart remains, not counted
+    as a mistake); copy swept across the tooltip, info sheet, README, and
+    the intro pack's "a helping hand" field note.
+  - **B4.3** — the seed code moved from a status-strip pill to a quiet
+    watermark under the board, same id (`#codeChip`) so existing tests
+    and the click-to-copy handler needed zero changes.
+  - **B4.4** — a ☆ star + name field on both win and fail veils, wired to
+    the existing `toggleCurate`/`renameCurated`; the fail veil's record is
+    synthesized via `buildRecord(false)` since none exists yet at that
+    point. Guarded against a re-render clobbering a mid-edit name input
+    (checks `document.activeElement`).
+  - **B6.1** — wallow is now the difficulty slider's 5th notch (a preset,
+    board code stays crag); fog was promoted from a mode string to a
+    `game.fog` flag (with a legacy `cfg.fog` fallback for old `mode:"fog"`
+    saves/records) so misty composes with wallow and, later, with daily
+    rotation. Threaded through persist/restore/buildRecord/toggleCurate/
+    replayBoard/pack-field overrides for full fidelity, same pattern as
+    assist/stakes.
+  - **B6.2** — the gauntlet is now an ordinary fixed-seed trail
+    (`campaigns.js`, seeds hand-picked and verified the same way as the
+    intro pack: `7m-1`/`8h-1`/`9c-1`) with a `run:{hearts,carry}` policy.
+    New `game.inRun` flag (persisted) distinguishes a real run from
+    standalone practice on the pack's own fields, so cleared-count credit
+    (`stats.packCleared[packId]`) can't be gamed by solving fields solo.
+    Caught and fixed a real bug during manual verification: the "clear"
+    button's gauntlet-hearts guard only checked the legacy `mode ===
+    "gauntlet"` string, not the new `game.inRun` flag — would have let
+    clearing mid-run silently refill the shared pool. Also fixed two
+    grammar bugs surfaced by testing real copy ("The the gauntlet ends
+    here." from double-prepending an article the pack name already
+    carries; "2 of 3 the gauntlet fields tended" from treating an
+    article-bearing name as a bare adjective — rephrased to "tended in
+    {packName}").
+  - **B6.3** — ladder sunset: no entry point anywhere, but `MODES.ladder`,
+    `LADDER`, `stats.bestLadder`, and the climb-chip/history-header
+    displays all stay; the win veil now always offers "a fresh amble"
+    instead of "climb higher" for a restored legacy game. `startLadder()`
+    deleted.
+  - **B6.4** — daily's create-sheet surface removed entirely; with runs
+    (B6.2/B6.3) and daily both gone, the create sheet lost its tabs
+    completely — one quiet form (weather · size · difficulty · assist ·
+    seed). Pill semantics changed as flagged: shows whenever today's field
+    is *unsolved* rather than *untouched*, so an abandoned attempt doesn't
+    lock a player out for the day; renamed `dailyUntouched()` →
+    `dailyPending()` to match. `startDaily(size)` simplified to
+    `startDaily()` (always 8×8, the only daily there is now).
+  - Every stage's Playwright suite update was itself a small debugging
+    exercise worth noting: reused `#cRunSeg`/`#cTabs` selectors across
+    five files needed systematic updates as each tab disappeared, one
+    ad-hoc gauntlet-fail repro needed a deterministic (not
+    random-seed-dependent) heart-drain via direct `localStorage`
+    manipulation of `inProgress.hearts`, and a `.hname` class shared
+    between the veil's name input and the curated tab's own required
+    scoping the selector (`#hList .hname`) to avoid reading the wrong
+    element. Remaining from the whole plan: B4.5 (Trails field list,
+    next per the build order — designed run-pack-aware from B6.2), then
+    B5 (mud puddles → hoofcap → settled → daily rotation → twin litters).
+- 2026-07-03 — **B4.5 implemented and verified: every field of the selected
+  Trails pack now lists (order, name, size·band, ✓ tended, best score,
+  effort), any row selectable out of order.** `tState.fieldCode` (null =
+  default) drives it; selecting a row overrides both a run pack's "begin
+  the run" default and a finished pack's "walk it again" default with a
+  plain "tend this field", and always starts that field standalone via
+  `beginCampaignField` — even for the gauntlet, an out-of-order pick never
+  starts or credits a run (fresh amble hearts, ✓ on solve only). Re-tapping
+  a selected row clears it back to the default; switching packs also
+  clears it. Effort is read straight off `f.aScore` for curated fields
+  (computed once, at curate time) rather than re-running the solver per
+  row, so the list stays cheap even for a 100-field "my trail" — built-in
+  packs are always small enough to compute fresh. Rows are plain text, no
+  per-row mini-boards (the plan flagged those as optional/budget-gated;
+  the single selected-field preview already covers WYSIWYG). 20 new
+  Playwright checks (`test_b4_trails_list.js`), 145 total green across 9
+  files, WebKit spot-check. **This closes out all of B4 and B6** — every
+  item from the original 6 play-test findings and the ladder/gauntlet/
+  wallow simplification is now implemented. Remaining: B5 (mud puddles →
+  hoofcap → settled → daily rotation → twin litters), not yet started.

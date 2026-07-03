@@ -158,7 +158,7 @@ async function run() {
       }
     }
     const veilText = await page.textContent("#veilText");
-    ok(veilText.includes("Every first steps field tended"), "final win veil announces the whole pack done, got: " + veilText);
+    ok(veilText.includes("Every field in first steps tended"), "final win veil announces the whole pack done, got: " + veilText);
     const hasWalkAgain = await page.locator('#veilBtns button:has-text("walk it again")').count();
     ok(hasWalkAgain === 1, "veil offers 'walk it again' once the pack is fully tended");
     // trails sheet should also reflect pack-complete state now
@@ -265,18 +265,18 @@ async function run() {
     const packRowVisible = await page.isVisible("#tPack");
     ok(packRowVisible, "WebKit: trails pack picker renders visible");
     const packBtnCount = await page.locator("#tPack button").count();
-    ok(packBtnCount === 2, "WebKit: pack picker shows 2 packs, got " + packBtnCount);
+    // first steps, my trail, gauntlet (B6.2)
+    ok(packBtnCount === 3, "WebKit: pack picker shows 3 packs, got " + packBtnCount);
     await page.click("#tCancel");
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    const tabCount = await page.locator("#cTabs button").count();
-    ok(tabCount === 3, "WebKit: create sheet shows 3 mode tabs, got " + tabCount);
-    await page.click('#cTabs button[data-tab="runs"]');
-    const runBtnCount = await page.locator("#cRunSeg button").count();
-    ok(runBtnCount === 3, "WebKit: runs tab shows 3 sub-modes, got " + runBtnCount);
-    await page.click('#cTabs button[data-tab="amble"]');
+    // wallow moved to the difficulty slider's top notch (B6.1), gauntlet
+    // moved to a Trails heart-policy pack (B6.2), ladder was sunset (B6.3),
+    // and daily moved out too (B6.4) — the create sheet is fully tabless now.
+    const tabsExist = await page.locator("#cTabs").count();
+    ok(tabsExist === 0, "WebKit: no tabs at all in the create sheet anymore, got " + tabsExist);
     const sizeSliderVisible = await page.isVisible("#cSizeSlider");
-    ok(sizeSliderVisible, "WebKit: size slider renders visible on the amble tab");
+    ok(sizeSliderVisible, "WebKit: size slider renders visible");
     await page.click('#cCancel');
     await page.click("#historyBtn");
     await page.click('#hTabs button[data-tab="curated"]');

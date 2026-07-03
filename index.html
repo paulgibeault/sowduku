@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Sowdoku</title>
 <link rel="icon" type="image/x-icon" href="assets/favicon/favicon.ico" />
 <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png" />
@@ -79,9 +79,14 @@
   button.chip { cursor: pointer; }
   button.chip:hover { color: var(--ink); border-color: #d8ccb5; }
   button.chip.on { background: #efe6d3; color: var(--ink); }
-  .codechip { font-family: ui-monospace,"SF Mono",Menlo,monospace; letter-spacing: .02em; cursor: pointer; }
-  .codechip:hover { color: var(--ink); border-color: #d8ccb5; }
-  .codechip::before { content: "🌱 "; }
+  /* the seed code, tucked under the board as a quiet watermark rather than a
+     status-strip pill — still tap-to-copy, just no longer competing for
+     attention with the mode/left/daily chips above the board. */
+  .codemark { align-self: flex-end; font-family: ui-monospace,"SF Mono",Menlo,monospace;
+    font-size: .72rem; letter-spacing: .03em; color: var(--ink-soft); opacity: .6;
+    background: none; border: none; cursor: pointer; padding: .1rem .15rem; margin: 0; }
+  .codemark:hover { opacity: 1; }
+  .codemark:focus-visible { outline: 2px solid #c9b89b; outline-offset: 2px; border-radius: .3rem; }
   .climbchip[hidden] { display: none; }
 
   /* the board gets every pixel left between the status strip and the action bar —
@@ -121,7 +126,7 @@
   .teach { font-size: .8rem; color: var(--ink-soft); margin: 0; line-height: 1.4;
     max-width: 34rem; }
   .teach[hidden] { display: none; }
-  .cell { position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: filter .15s ease, background .3s ease; }
+  .cell { position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: filter .15s ease, background .3s ease; touch-action: manipulation; }
   .cell:hover { filter: brightness(.97); }
   .cell svg.pig, .cell img.pig { width: 74%; height: 74%; object-fit: contain; }
   .cell.placed svg.pig, .cell.placed img.pig { filter: drop-shadow(0 3px 0 var(--thud)); animation: thud .25s ease; }
@@ -197,14 +202,6 @@
   .seg button .mode-badge { width: 1rem; height: 1rem; vertical-align: -.15rem; margin-right: .25rem; }
   .seg button .packn { opacity: .65; font-size: .92em; }
 
-  /* create-sheet mode tabs — a coarser grouping than the old flat mode row,
-     so amble/daily/runs stays 3 choices instead of 6+ */
-  .ctabs { display: flex; gap: .3rem; }
-  .ctabs button { font: inherit; font-size: .8rem; cursor: pointer; border: 1px solid var(--line);
-    background: var(--bg); color: var(--ink-soft); border-radius: 999px; padding: .32rem .9rem; }
-  .ctabs button:hover { color: var(--ink); border-color: #d8ccb5; }
-  .ctabs button.on { background: #efe6d3; color: var(--ink); border-color: #d8ccb5; font-weight: 600; }
-
   /* size/difficulty sliders replacing the old pill rows — both are ordinal
      scales, so a slider reads their shape more directly than a row of pills */
   .slider-row { display: flex; align-items: center; gap: .6rem; }
@@ -229,18 +226,27 @@
   .info-body b { color: var(--ink); font-weight: 600; }
 
   /* ---- docked action bar: play moves (undo · peek · clear) left, session
-     moves (new field · history) right — grouped by how often you reach for them. ---- */
+     moves (new field · trails · history) right — grouped by how often you
+     reach for them. Raised, rounded, and shadowed rather than a hard-edged
+     toolbar strip, so it reads as part of the farm scene resting under the
+     board, not stock chrome docked to the browser. `viewport-fit=cover` (on
+     the <meta> tag) is what makes the safe-area env() below resolve to a
+     real value on notched iPhones instead of 0; max(...) still guards the
+     framed/launcher case where that env() can itself report 0. ---- */
   .action-bar { flex: 0 0 auto; display: flex; align-items: center; gap: .5rem;
-    padding: .55rem 1rem calc(.55rem + env(safe-area-inset-bottom));
-    border-top: 1px solid var(--line); background: var(--panel); }
+    padding: .6rem 1rem calc(.6rem + max(env(safe-area-inset-bottom), .8rem));
+    border-top: none; border-radius: 1.2rem 1.2rem 0 0; background: var(--panel);
+    box-shadow: 0 -8px 20px -16px rgba(70,62,52,.4); }
   .action-bar .spacer { flex: 1; }
   .action-group { display: flex; gap: .4rem; }
-  .actbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem;
+  .actbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem;
     min-width: 3.4rem; min-height: 2.9rem; padding: .35rem .5rem;
     font: inherit; font-size: .66rem; letter-spacing: .02em; text-transform: none;
     cursor: pointer; border: 1px solid var(--line); background: var(--bg); color: var(--ink-soft);
-    border-radius: .9rem; transition: background .2s ease, border-color .2s ease, color .2s ease; }
-  .actbtn .icon { font-size: 1.15rem; line-height: 1; }
+    border-radius: .9rem; transition: background .2s ease, border-color .2s ease, color .2s ease;
+    touch-action: manipulation; position: relative; }
+  .actbtn .icon { width: 1.35rem; height: 1.35rem; display: flex; align-items: center; justify-content: center; }
+  .actbtn .icon svg { width: 100%; height: 100%; }
   .actbtn:hover { color: var(--ink); border-color: #d8ccb5; }
   .actbtn:disabled { opacity: .38; cursor: default; }
   .actbtn:disabled:hover { color: var(--ink-soft); border-color: var(--line); }
@@ -248,6 +254,13 @@
   .actbtn.primary:hover { border-color: #c9b89b; }
   /* a gentle, two-tap confirm on "clear" instead of a jarring native dialog */
   .actbtn.confirm { background: #f3ded9; border-color: var(--bad); color: #8a4a3f; }
+  /* B4.2's per-peek heart cost — reserved now so the button never needs
+     retrofitting; hidden until a cost actually applies */
+  .actbtn .costbadge { position: absolute; top: -.3rem; right: -.3rem; width: 1.05rem; height: 1.05rem;
+    color: var(--heart); filter: drop-shadow(0 1px 0 var(--panel)); }
+  .actbtn .costbadge svg { width: 100%; height: 100%; }
+  .actbtn .costbadge[hidden] { display: none; }
+  .actbtn:disabled .costbadge { opacity: .5; }
 
   /* solved + out-of-hearts overlays — fixed to the viewport (not the board
      box) so the card's full height is always reachable regardless of how
@@ -271,6 +284,17 @@
   .veil button { font: inherit; cursor: pointer; border: 1px solid #d8ccb5; background: #efe6d3;
     color: var(--ink); border-radius: 999px; padding: .5rem 1.2rem; }
   .veil button.soft { background: transparent; color: var(--ink-soft); }
+  /* "keep this field": a quiet star + (once starred) a name field, same
+     favorite/rename mechanism the curated tab already uses — just reachable
+     the moment a field ends, not only after digging into history. */
+  .vfav { display: flex; align-items: center; justify-content: center; gap: .5rem; margin: 0 0 1rem; }
+  .vfav .fav { width: 2.5rem; height: 2.5rem; flex: 0 0 auto; display: flex; align-items: center;
+    justify-content: center; font-size: 1.2rem; line-height: 1; color: var(--ink-soft);
+    background: var(--bg); border: 1px solid var(--line); padding: 0; }
+  .vfav .fav:hover { color: var(--ink); border-color: #d8ccb5; }
+  .vfav .fav.on { color: #cc9a3a; background: #f6efdd; border-color: #e2d3ac; }
+  .vfav .vfavname { width: 12rem; max-width: 55vw; }
+  .vfav .vfavname[hidden] { display: none; }
   /* the win/fail vignette — a quiet illustration, not a hero banner; shares
      the title's billing rather than upstaging it */
   .vvignette { display: block; width: 100%; max-width: 20rem; height: auto;
@@ -321,6 +345,26 @@
   .bar i { display: block; height: 100%; border-radius: 999px; }
   .pbar i { background: linear-gradient(90deg,#cdd6bb,#e6cdb8,#e3c2cb); }
   .phint { font-size: .72rem; color: var(--ink-soft); margin-top: .5rem; }
+
+  /* Trails: every field of the selected pack, tap one to preview/select it
+     out of order — a plain scrolling list, not mini-boards per row (those
+     stay reserved for the single selected-field preview below), so it
+     stays cheap even for a 100-field curated trail. */
+  .tfieldlist { max-height: 11rem; overflow-y: auto; margin: 0 0 .8rem;
+    border: 1px solid var(--line); border-radius: .8rem; background: var(--bg); }
+  .tfrow { display: flex; align-items: center; gap: .5rem; width: 100%;
+    font: inherit; font-size: .8rem; text-align: left; cursor: pointer;
+    border: none; border-bottom: 1px solid var(--line); background: transparent;
+    color: var(--ink); padding: .5rem .7rem; }
+  .tfrow:last-child { border-bottom: none; }
+  .tfrow:hover { background: var(--panel); }
+  .tfrow.on { background: #efe6d3; }
+  .tfnum { flex: 0 0 auto; color: var(--ink-soft); font-variant-numeric: tabular-nums; width: 1.4rem; }
+  .tfname { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tfmeta { flex: 0 0 auto; color: var(--ink-soft); font-size: .74rem; text-transform: capitalize; }
+  .tftended { flex: 0 0 auto; color: #7a9a6e; }
+  .tfscore { flex: 0 0 auto; color: var(--ink-soft); font-size: .74rem; font-variant-numeric: tabular-nums; min-width: 2.6rem; text-align: right; }
+  .tfeffort { flex: 0 0 auto; color: var(--ink-soft); font-size: .74rem; font-variant-numeric: tabular-nums; min-width: 1.8rem; text-align: right; }
   .sheet-actions { display: flex; align-items: center; gap: .6rem; justify-content: flex-end; margin-top: .4rem; }
   .sheet-actions .grow { flex: 1; }
   .sheet-actions .primary, .sheet-actions .ghost { font: inherit; cursor: pointer; border-radius: 999px; padding: .5rem 1.1rem; border: 1px solid #d8ccb5; }
@@ -443,7 +487,6 @@
 
   <div class="status-strip">
     <span class="chip" id="fieldChip">today’s field · 8×8 · meadow</span>
-    <button class="chip codechip" id="codeChip" title="copy this field’s code">8m-0</button>
     <span class="chip climbchip" id="climbChip" hidden>rung 1/8</span>
     <span class="chip"><strong id="leftChip">8</strong> left</span>
     <button class="chip" id="dailyChip" hidden title="play today's shared field">today’s field awaits 🌱</button>
@@ -467,6 +510,10 @@
             <div class="bar pbar"><i id="vPreviewBar" style="width:0"></i></div>
           </div>
         </div>
+        <div class="vfav">
+          <button class="fav" id="vFavBtn" aria-label="favorite" title="keep this field">☆</button>
+          <input class="hname vfavname" id="vFavName" maxlength="40" placeholder="name this field" hidden>
+        </div>
         <div class="vbtns" id="veilBtns"></div>
       </div></div>
     </div>
@@ -475,19 +522,44 @@
   <div class="below-board">
     <p class="stuck" id="stuckNote" hidden></p>
     <p class="teach" id="teachNote" hidden></p>
+    <button class="codemark" id="codeChip" title="copy this field’s code" aria-label="field code — tap to copy">8m-0</button>
   </div>
 
   <div class="action-bar">
     <div class="action-group">
-      <button class="actbtn" id="undoBtn" title="undo the last piggy or hoofprint (⌘Z)"><span class="icon">↶</span>undo</button>
-      <button class="actbtn" id="peekBtn" title="a gentle hint (H)"><span class="icon">👁</span>peek</button>
-      <button class="actbtn" id="clearBtn" title="clear the board"><span class="icon">⌫</span><span class="lbl">clear</span></button>
+      <button class="actbtn" id="undoBtn" title="undo the last piggy or hoofprint (⌘Z)">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 7 L4 10.5 L7 14"/><path d="M4 10.5 H14.5 a5.5 5.5 0 0 1 0 11 H10"/>
+        </svg></span>undo</button>
+      <button class="actbtn" id="peekBtn" title="a gentle hint — costs a heart (H)">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9.5 4 h5"/><path d="M11 4 v1.8 M13 4 v1.8"/>
+          <rect x="7" y="6.3" width="10" height="10.4" rx="3.2"/>
+          <circle cx="12" cy="11.5" r="1.4"/>
+          <path d="M9.5 19.5 h5"/>
+        </svg><span class="costbadge" id="peekCost" hidden><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 20.5 C 6 15.7 2.5 12.3 2.5 8.6 C 2.5 5.7 4.7 3.5 7.5 3.5 C 9.2 3.5 10.8 4.4 12 6 C 13.2 4.4 14.8 3.5 16.5 3.5 C 19.3 3.5 21.5 5.7 21.5 8.6 C 21.5 12.3 18 15.7 12 20.5 Z"/></svg></span></span>peek</button>
+      <button class="actbtn" id="clearBtn" title="clear the board">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3 v10.5"/><path d="M7 13.5 h10 l-1.5 4.2 h-7 z"/>
+          <path d="M8.6 17.7 v2.3 M12 17.7 v2.3 M15.4 17.7 v2.3"/>
+        </svg></span><span class="lbl">clear</span></button>
     </div>
     <span class="spacer"></span>
     <div class="action-group">
-      <button class="actbtn primary" id="newBtn" title="new field (N)"><span class="icon">＋</span>new field</button>
-      <button class="actbtn" id="trailsBtn" title="curated trails, tended in order"><span class="icon">🌾</span>trails</button>
-      <button class="actbtn" id="historyBtn"><span class="icon">🕘</span>history</button>
+      <button class="actbtn primary" id="newBtn" title="new field (N)">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20.5 V12"/><path d="M12 12 C 12 8 9 6.7 6 6.7 C 6 10 8.2 12 12 12"/>
+          <path d="M12 14.3 C 12 11.3 15 10.2 18 10.2 C 18 13 15.2 14.3 12 14.3"/>
+        </svg></span>new field</button>
+      <button class="actbtn" id="trailsBtn" title="curated trails, tended in order">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 21 V6.5"/><path d="M12 8.3 l-3 -2.1 M12 8.3 l3 -2.1"/>
+          <path d="M12 11.6 l-3 -2.1 M12 11.6 l3 -2.1"/><path d="M12 14.9 l-3 -2.1 M12 14.9 l3 -2.1"/>
+        </svg></span>trails</button>
+      <button class="actbtn" id="historyBtn" title="field history">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 3.3 h6"/><circle cx="12" cy="13" r="7.3"/><path d="M12 9 v4.3 l3 2"/>
+        </svg></span>history</button>
     </div>
   </div>
 
@@ -495,22 +567,10 @@
   <div class="sheet-backdrop" id="createBack" hidden>
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Tend a new field">
       <h2>Tend a new field</h2>
-      <div class="orow"><span class="lab">mode</span>
-        <div class="ctabs" id="cTabs">
-          <button data-tab="amble">amble</button>
-          <button data-tab="daily">daily</button>
-          <button data-tab="runs">runs</button>
-        </div></div>
-      <div class="orow" id="cFogRow"><span class="lab">weather</span>
+      <div class="orow"><span class="lab">weather</span>
         <div class="seg" id="cFogSeg">
           <button data-fog="off">clear</button>
           <button data-fog="on"><img class="mode-badge" src="assets/illustration/misty-badge.png" alt="">misty</button>
-        </div></div>
-      <div class="orow" id="cRunRow"><span class="lab">run</span>
-        <div class="seg" id="cRunSeg">
-          <button data-mode="ladder">ladder</button>
-          <button data-mode="gauntlet">gauntlet</button>
-          <button data-mode="wallow">wallow</button>
         </div></div>
       <p class="modeNote" id="cModeNote"></p>
       <div class="orow" id="cSizeRow"><span class="lab">size</span>
@@ -520,7 +580,9 @@
         </div></div>
       <div class="orow" id="cDiffRow"><span class="lab">difficulty</span>
         <div class="slider-row">
-          <input type="range" id="cDiffSlider" min="0" max="3" step="1">
+          <!-- 0-3: sunbeam..crag (real layout bands); 4: the wallow — a
+               preset (1 heart, stern, assist off), not a fifth band. -->
+          <input type="range" id="cDiffSlider" min="0" max="4" step="1">
           <output id="cDiffOut">meadow</output>
         </div></div>
       <div class="orow" id="cAssistRow"><span class="lab" title="shades cells a pen can no longer use, once a piggy is placed">assist</span>
@@ -577,6 +639,7 @@
       <div class="orow"><span class="lab">pack</span>
         <div class="seg wrap" id="tPack"></div></div>
       <p class="modeNote" id="tPackNote"></p>
+      <div class="tfieldlist" id="tFieldList"></div>
       <div class="preview">
         <div class="miniboard" id="tPreview"></div>
         <div class="pmeta">
@@ -610,15 +673,21 @@
           <b>Long-press</b> (or <b>right-click</b>) fences off a cell with a
           hoofprint, your "definitely-not-here" note. <b>Drag</b> paints
           hoofprints across a whole run at once. <b>⌘Z</b> undoes the last
-          gesture. <b>👁 peek</b> (in the action bar) glows the next
-          logically-forced piggy when you're stuck. On a keyboard, <b>arrow
-          keys</b> move around the board, <b>Enter</b> settles or lifts a
-          piggy, and <b>Space</b> marks a hoofprint.</p>
+          gesture, always free. <b>Peek</b> (in the action bar) glows the
+          next logically-forced piggy when you're stuck — it trades a heart
+          for the hint (free under slow stakes), and never asks for a heart
+          you can't spare. On a keyboard, <b>arrow keys</b> move around the
+          board, <b>Enter</b> settles or lifts a piggy, and <b>Space</b>
+          marks a hoofprint.</p>
         <h3>Difficulty</h3>
         <p>Four bands, each asking a little more of the same rules:
           <b>Sunbeam</b> (forced singles), <b>Meadow</b> (a few
           confinements), <b>Hilltop</b> (at least one contradiction chain),
-          <b>Crag</b> (several, sometimes nested).</p>
+          <b>Crag</b> (several, sometimes nested). One notch past Crag on
+          the slider sits <b>the Wallow</b> — the knottiest Crag fields,
+          played with one heart, no assist, and every mark held to account.
+          Toggle <b>misty</b> weather alongside any of these for pens that
+          hide until their piggy settles.</p>
         <h3>Stakes</h3>
         <p>How strictly a heart is docked, from most to least forgiving:
           <b>slow</b> — no hearts, no failure, just the ritual.
@@ -705,6 +774,11 @@
               note: "One shared field, seeded by today’s date. No streaks to keep — it’s here if you want it." },
     ladder: { label: "the ladder",    hearts: 5,
               note: "A gentle climb — each solved field nudges the next one a notch harder." },
+    // legacy only — fog moved to a per-game flag (game.fog, chosen via the
+    // amble tab's weather toggle) so it composes with any mode, most
+    // notably the wallow. This entry stays so old saves/history records
+    // with mode:"fog" still restore/label/replay correctly (see beginGame's
+    // and restore()'s cfg.fog fallback); no current code sets this mode.
     fog:    { label: "misty morning", hearts: 5, fog: true,
               note: "The pens hide in morning fog; a pen’s colour settles in only once its piggy does." },
     wallow: { label: "the wallow",    hearts: 1, assist: "off", stakes: "stern", bias: "crag",
@@ -1029,6 +1103,14 @@
     game = {
       puzzle: puzzle, mode: opts.mode || "amble", reqDifficulty: reqDiff,
       code: boardCode(size, reqDiff, seed),
+      // fog used to be its own mode (misty morning); it's a per-game flag now
+      // so it composes with any mode (a misty wallow, a misty daily-rotation
+      // day). opts.forcedFog mirrors forcedAssist/forcedStakes — a pack
+      // field's authored weather applies without becoming a saved default
+      // (there's no saved fog default to contaminate, but the pattern stays
+      // consistent). cfg.fog is the legacy fallback for the old `mode:"fog"`
+      // records/saves this replaces.
+      fog: opts.forcedFog != null ? !!opts.forcedFog : (opts.fog != null ? !!opts.fog : !!cfg.fog),
       piggies: new Set(), hoofprints: new Set(), revealed: new Set(),
       // the gauntlet carries its heart pool forward between its three fields
       // instead of each field starting fresh — the whole point is one shared,
@@ -1045,20 +1127,31 @@
       solved: false, recorded: false, revealedSolution: false, ladderRung: opts.ladderRung || 0,
       campaignPack: opts.campaignPack || null, campaignCode: opts.campaignCode || null,
       gauntletStep: opts.gauntletStep || 0,
+      // true only while actually walking a pack's heart-policy run (see
+      // beginPackRun/advancePackRun) — distinct from campaignPack/Code so
+      // standalone practice on a run-policy pack's individual fields (fresh
+      // hearts, ✓ on solve) never gets mistaken for — or credited toward —
+      // clearing the run.
+      inRun: !!opts.inRun,
       metrics: newMetrics(), undo: [],
     };
     lastTick = Date.now();
     closeMenu();
     persist(); render();
   }
-  function startDaily(size)      { beginGame({ mode: "daily",  size: size || 8, difficulty: "meadow", seed: dailySeed() }); }
-  // the canonical shared field for today — size 8 (what startDaily() and the
-  // boot flow actually use), regardless of whatever size the create sheet's
-  // picker happens to be sitting on.
+  // the canonical shared field for today — always size 8. The create sheet
+  // no longer offers a size picker for daily (B6.4 — it's not in the create
+  // sheet at all anymore), so there's no other size to accommodate.
+  function startDaily()  { beginGame({ mode: "daily", size: 8, difficulty: "meadow", seed: dailySeed() }); }
   function dailyCode() { return boardCode(8, "meadow", dailySeed()); }
-  function dailyUntouched() {
+  // the status-strip pill is the daily's only door now that it's out of the
+  // create sheet (B6.4) — shown whenever today's field is *unsolved*, not
+  // just "never touched", so a touched-but-abandoned attempt doesn't lock
+  // you out for the rest of the day (was: hidden after any recorded
+  // attempt at all, solved or not).
+  function dailyPending() {
     var code = dailyCode();
-    return !getHistory().some(function (r) { return r.code === code; });
+    return !getHistory().some(function (r) { return r.code === code && r.solved; });
   }
   // `seed`, when given, lets a caller lock in the exact field a win-veil
   // preview already showed — so what you saw is exactly what you get, not a
@@ -1079,10 +1172,6 @@
     beginGame({ mode: "gauntlet", size: g.size, difficulty: g.difficulty, seed: seed != null ? seed : randomSeed(),
                 gauntletStep: next, carryHearts: game.hearts, carryMaxHearts: game.maxHearts });
   }
-  function startLadder(rung, seed) {
-    rung = rung || 0; var lc = ladderRung(rung);
-    beginGame({ mode: "ladder", size: lc.size, difficulty: lc.difficulty, seed: seed != null ? seed : randomSeed(), ladderRung: rung });
-  }
   function replayBoard(d) {
     // a history record's own `code` doubles as its campaignCode when it was
     // played in campaign mode (both are boardCode(size,band,seed) for the
@@ -1096,7 +1185,7 @@
     // mean the curated list, same fallback restore() already applies.
     beginGame({ mode: d.mode || "amble", size: d.size, difficulty: d.reqDifficulty || d.difficulty || "meadow",
                 seed: d.seed, ladderRung: d.ladderRung || 0, gauntletStep: d.gauntletStep || 0,
-                forcedAssist: d.assist, forcedStakes: d.stakes,
+                forcedAssist: d.assist, forcedStakes: d.stakes, forcedFog: d.fog,
                 campaignPack: d.campaignPack || (d.mode === "campaign" ? "curated" : null),
                 campaignCode: d.mode === "campaign" ? (d.campaignCode || d.code || null) : null });
   }
@@ -1129,7 +1218,7 @@
   function normalizePackField(f) {
     if (f.size != null && f.seed != null) return f;
     var pc = parseCode(f.code) || {};
-    return { code: f.code, name: f.name || "", note: f.note || "", assist: f.assist, stakes: f.stakes,
+    return { code: f.code, name: f.name || "", note: f.note || "", assist: f.assist, stakes: f.stakes, fog: f.fog,
              size: pc.size, reqDifficulty: pc.difficulty, band: pc.difficulty, seed: pc.seed };
   }
   function curatedPack() {
@@ -1182,7 +1271,7 @@
   }
   function beginCampaignField(packId, f) {
     beginGame({ mode: "campaign", size: f.size, difficulty: f.reqDifficulty || f.band || "meadow",
-                seed: f.seed, forcedAssist: f.assist, forcedStakes: f.stakes,
+                seed: f.seed, forcedAssist: f.assist, forcedStakes: f.stakes, forcedFog: f.fog,
                 campaignPack: packId, campaignCode: f.code });
   }
   function startCampaign(packId, reset) {
@@ -1190,6 +1279,33 @@
     var f = nextCampaign(packId);
     if (!f) return;                      // nothing curated, or already complete
     beginCampaignField(packId, f);
+  }
+
+  // ---- heart-policy trails (B6.2 — e.g. the gauntlet): a "run" always
+  // starts at field 1 and spans every field the pack has, sharing one
+  // dwindling heart pool — distinct from the ordinary "next untended field"
+  // progression above, which individual fields keep using for standalone
+  // practice. ----
+  function getPackClearedCount(packId) {
+    var st = getStats();
+    return (st.packCleared && st.packCleared[packId]) || 0;
+  }
+  function beginPackRun(packId) {
+    var pack = findPack(packId), fields = packFields(pack);
+    if (!pack || !pack.run || !fields.length) return;
+    var f = fields[0];
+    beginGame({ mode: "campaign", size: f.size, difficulty: f.reqDifficulty || f.band || "meadow",
+                seed: f.seed, forcedAssist: f.assist, forcedStakes: f.stakes, forcedFog: f.fog,
+                campaignPack: packId, campaignCode: f.code, gauntletStep: 0, inRun: true,
+                carryHearts: pack.run.hearts, carryMaxHearts: pack.run.hearts });
+  }
+  // called only while the just-solved field is still the live `game` object,
+  // so carrying its hearts forward reads the remaining count, not a fresh one.
+  function advancePackRun(packId, f, stepIdx) {
+    beginGame({ mode: "campaign", size: f.size, difficulty: f.reqDifficulty || f.band || "meadow",
+                seed: f.seed, forcedAssist: f.assist, forcedStakes: f.stakes, forcedFog: f.fog,
+                campaignPack: packId, campaignCode: f.code, gauntletStep: stepIdx, inRun: true,
+                carryHearts: game.hearts, carryMaxHearts: game.maxHearts });
   }
 
   // ---- persistence (in-progress field) ----
@@ -1203,11 +1319,11 @@
       piggies: Array.from(game.piggies), hoofprints: Array.from(game.hoofprints),
       revealed: Array.from(game.revealed),
       hearts: game.hearts, maxHearts: game.maxHearts, assist: game.assist,
-      stakes: game.stakes, lockedStakes: !!game.lockedStakes,
+      stakes: game.stakes, lockedStakes: !!game.lockedStakes, fog: !!game.fog,
       solved: !!game.solved, recorded: !!game.recorded,
       ladderRung: game.ladderRung || 0,
       campaignPack: game.campaignPack || null, campaignCode: game.campaignCode || null,
-      gauntletStep: game.gauntletStep || 0,
+      gauntletStep: game.gauntletStep || 0, inRun: !!game.inRun,
       metrics: game.metrics, undo: game.undo || [],
     });
   }
@@ -1222,6 +1338,9 @@
                   difficulty: s.difficulty, profile: s.profile, seed: s.seed, reqSeed: s.seed },
         mode: mode, reqDifficulty: s.reqDifficulty || "meadow",
         code: s.code || boardCode(s.size, s.reqDifficulty || "meadow", s.seed || 0),
+        // legacy fallback: an old save with mode:"fog" and no explicit s.fog
+        // still restores as foggy via cfg.fog.
+        fog: s.fog != null ? !!s.fog : !!cfg.fog,
         piggies: new Set(s.piggies || []),
         hoofprints: new Set(s.hoofprints || s.fences || s.markers || []),   // migrate older field names
         revealed: new Set(s.revealed || []),
@@ -1246,7 +1365,7 @@
         // no pack migrates to "curated".
         campaignPack: s.campaignPack || (s.campaignCode ? "curated" : null),
         campaignCode: s.campaignCode || null,
-        gauntletStep: s.gauntletStep || 0,
+        gauntletStep: s.gauntletStep || 0, inRun: !!s.inRun,
         metrics: s.metrics || newMetrics(),
         undo: Array.isArray(s.undo) ? s.undo : [],
       };
@@ -1255,7 +1374,7 @@
   }
 
   // re-read after a launcher import
-  if (A && A.onStateReplaced) A.onStateReplaced(function () { if (!restore()) startDaily(8); render(); });
+  if (A && A.onStateReplaced) A.onStateReplaced(function () { if (!restore()) startDaily(); render(); });
 
   // ---- history + stats + curated boards ----
   function getHistory()  { return sget("history") || []; }
@@ -1332,9 +1451,10 @@
       hoofprints: m.hoofprints, clears: m.clears, hints: m.hints,
       assist: game.assist, // fixed per-field since it's a create-time choice, not a live toggle
       stakes: game.lockedStakes ? game.stakes : loadStakes(),
+      fog: !!game.fog,
       solved: !!solved, placed: game.piggies.size, ladderRung: game.ladderRung || 0,
       campaignPack: game.campaignPack || null,
-      gauntletStep: game.gauntletStep || 0,
+      gauntletStep: game.gauntletStep || 0, inRun: !!game.inRun,
       heartsLeft: isSlow() ? null : game.hearts,
       aScore: Sowdoku.humanScore(p.size, profile, p.difficulty),
     };
@@ -1380,6 +1500,20 @@
     // only the gauntlet's last field, solved, counts as the whole gauntlet cleared
     if (rec.mode === "gauntlet" && rec.solved && rec.gauntletStep >= GAUNTLET.length - 1) {
       st.gauntletsCleared = (st.gauntletsCleared || 0) + 1;
+    }
+    // a heart-policy trail pack (B6.2): only a solve that was actually part
+    // of a run (rec.inRun — standalone practice on the pack's own fields
+    // never counts), on the run's *last* field, clears it. Length always
+    // read from the pack itself, never a hardcoded count.
+    if (rec.mode === "campaign" && rec.solved && rec.inRun && rec.campaignPack) {
+      var clearedPack = findPack(rec.campaignPack);
+      if (clearedPack && clearedPack.run) {
+        var clearedFields = packFields(clearedPack);
+        if ((rec.gauntletStep || 0) + 1 >= clearedFields.length) {
+          st.packCleared = st.packCleared || {};
+          st.packCleared[rec.campaignPack] = (st.packCleared[rec.campaignPack] || 0) + 1;
+        }
+      }
     }
     // a quiet streak: consecutive fields solved with zero slips. Any mistake,
     // or leaving a field unsolved, resets it — no shame, just back to zero.
@@ -1560,11 +1694,20 @@
   }
 
   // a gentle hint: glow the next logically-forced piggy for a moment
+  // a peek trades a heart for a knot — but never the *last* one: guarded here,
+  // not just via the button's disabled attribute, since the H shortcut calls
+  // this directly too. Free under slow stakes (no hearts exist there).
+  function peekCosts() { return !isSlow(); }
+  function peekAffordable() { return !peekCosts() || game.hearts > 1; }
   function peek() {
     if (locked()) return;
+    if (!peekAffordable()) { toast("a peek costs a heart you can’t spare"); return; }
     var h = Sowdoku.hint(game.puzzle.size, game.puzzle.regions, game.piggies);
     if (h && h.r != null) {
       touchMove(); game.metrics.hints++;
+      // docking for a peek is a choice, not a mistake: no metrics.mistakes,
+      // no gesture-cap interaction, no slip sound — just the quiet cost.
+      if (peekCosts()) game.hearts--;
       hintCell = key(h.r, h.c);
       clearTimeout(hintTimer);
       hintTimer = setTimeout(function () { hintCell = null; render(); }, 2400);
@@ -1698,11 +1841,12 @@
 
   // ---- render ----
   function render() {
-    var p = game.puzzle, n = p.size, reg = p.regions, fog = !!modeCfg(game.mode).fog;
-    document.getElementById("fieldChip").textContent = modeCfg(game.mode).label + " · " + n + "×" + n + " · " + (p.difficulty || "—");
+    var p = game.puzzle, n = p.size, reg = p.regions, fog = !!game.fog;
+    document.getElementById("fieldChip").textContent = modeCfg(game.mode).label +
+      (fog ? " · misty" : "") + " · " + n + "×" + n + " · " + (p.difficulty || "—");
     document.getElementById("leftChip").textContent = n - game.piggies.size;
     document.getElementById("codeChip").textContent = game.code;
-    document.getElementById("dailyChip").hidden = game.mode === "daily" || !dailyUntouched();
+    document.getElementById("dailyChip").hidden = game.mode === "daily" || !dailyPending();
 
     var climb = document.getElementById("climbChip");
     var activePackField = null;
@@ -1723,6 +1867,16 @@
     if (!teach.hidden) teach.textContent = activePackField.note;
 
     document.getElementById("undoBtn").disabled = !canUndo();
+
+    // peek: disabled once it would cost the last heart (a hint should never
+    // end the game), tooltip explains why, cost badge only shown when a
+    // peek actually costs something (hidden under slow stakes).
+    var peekBtn = document.getElementById("peekBtn");
+    peekBtn.disabled = !peekAffordable();
+    peekBtn.title = peekCosts()
+      ? (peekAffordable() ? "a gentle hint — costs a heart (H)" : "a peek costs a heart you can’t spare")
+      : "a gentle hint (H)";
+    document.getElementById("peekCost").hidden = !peekCosts();
 
     // reflect current state inside the ⚙ menu
     segOn("stakesSeg", "stakes", game.stakes);
@@ -1973,47 +2127,115 @@
     persist(); render();
   }
 
+  // the record a veil's "keep this field" star should act on. Win: lastRecord
+  // is already fresh (built by onSolved() -> buildRecord(true) moments ago).
+  // Fail: no record exists yet (finalizeGame only runs once the *next* field
+  // begins), so one is synthesized via buildRecord(false) — cached on `game`
+  // itself so repeat renders while the fail veil sits open (e.g. toggling a
+  // ⚙ setting) reuse the same record instead of rebuilding (and reassigning
+  // a fresh id/endedAt) every time, which would otherwise clobber a
+  // mid-edit name input.
+  function veilRecordForFav() {
+    if (game.solved) return lastRecord;
+    if (!game._failRecord) game._failRecord = buildRecord(false);
+    return game._failRecord;
+  }
+  function renderVeilFav() {
+    var rec = veilRecordForFav();
+    var starBtn = document.getElementById("vFavBtn"), nameInput = document.getElementById("vFavName");
+    if (!rec) { starBtn.onclick = null; return; }
+    var syncFromCurated = function () {
+      var curated = isCurated(rec.code);
+      starBtn.classList.toggle("on", curated);
+      starBtn.textContent = curated ? "★" : "☆";
+      nameInput.hidden = !curated;
+      // skip refreshing the value while it's actively focused — an unrelated
+      // re-render (e.g. a ⚙ toggle) firing mid-edit shouldn't clobber typing
+      if (curated && document.activeElement !== nameInput) {
+        var entry = getCurated().filter(function (x) { return x.code === rec.code; })[0];
+        nameInput.value = (entry && entry.name) || "";
+      }
+    };
+    syncFromCurated();
+    starBtn.onclick = function () { toggleCurate(rec); syncFromCurated(); if (isCurated(rec.code)) nameInput.focus(); };
+    nameInput.onblur = nameInput.onchange = function () { renameCurated(rec.code, this.value); };
+    nameInput.onkeydown = function (e) { if (e.key === "Enter") this.blur(); };
+  }
+
   function renderVeil() {
     var v = document.getElementById("veil"), btns = document.getElementById("veilBtns");
     veilPeeking = false; v.classList.remove("peeking"); // any fresh render starts un-peeked
     if (game.solved) {
       document.getElementById("veilTitle").textContent = "A perfect field.";
       renderWinStats(lastRecord);
+      renderVeilFav();
       showVeilVignette("assets/illustration/win-vignette.png");
       btns.innerHTML = "";
       if (game.mode === "ladder") {
-        var next = (game.ladderRung || 0) + 1, top = next >= LADDER.length;
-        document.getElementById("veilText").textContent = top
-          ? "The very top of the ladder, tended. Nothing above but sky."
-          : "Rung " + ((game.ladderRung || 0) + 1) + " tended. The path climbs gently on.";
-        if (!top) {
-          var lc = ladderRung(next), lSeed = randomSeed();
-          showResultPreview(lc.size, lc.difficulty, lSeed);
-          addVeilBtn("climb higher", function () { startLadder(next, lSeed); }, true);
-          addVeilBtn("a fresh amble", function () { startAmble(); }, false);
-        } else {
-          var topSeed = randomSeed();
-          showResultPreview(curSize(), curReqDiff(), topSeed);
-          addVeilBtn("a fresh amble", function () { startAmble(curSize(), curReqDiff(), topSeed); }, true);
-        }
+        // sunset (B6.3): the ladder has no create-sheet entry point anymore,
+        // so no new rung can begin — a restored legacy game still finishes,
+        // but the veil only ever offers a fresh amble now, never "climb
+        // higher". stats.bestLadder and the history header's "best climb"
+        // line stay as historical record.
+        document.getElementById("veilText").textContent = "Rung " + ((game.ladderRung || 0) + 1) +
+          " tended. The ladder's retired now, but the path ahead is still yours.";
+        var ladderDoneSeed = randomSeed();
+        showResultPreview(curSize(), curReqDiff(), ladderDoneSeed);
+        addVeilBtn("a fresh amble", function () { startAmble(curSize(), curReqDiff(), ladderDoneSeed); }, true);
       } else if (game.mode === "campaign") {
         var packId = game.campaignPack || "curated";
         var pack = findPack(packId);
-        var nxt = nextCampaign(packId), total = packFields(pack).length, dcount = campaignDoneCount(packId);
+        var fields = packFields(pack);
         var packName = pack ? pack.name : "curated";
-        document.getElementById("veilText").textContent = nxt
-          ? dcount + " of " + total + " " + packName + " fields tended. The trail winds gently on."
-          : "Every " + packName + " field tended — the whole pack, done. Beautifully quiet work.";
-        if (nxt) {
-          // pack fields already have a fixed seed — the preview is the exact field, no locking needed
-          showResultPreview(nxt.size, nxt.reqDifficulty || nxt.band || "meadow", nxt.seed);
-          addVeilBtn("next field →", function () { beginCampaignField(packId, nxt); }, true);
-          addVeilBtn("pause the trail", function () { startAmble(); }, false);
+        if (pack && pack.run && game.inRun) {
+          // an actual run is in progress (not standalone practice on one of
+          // this pack's fields) — one shared pool spans every field in the
+          // pack, in order; length always read from the pack, never a
+          // hardcoded count.
+          var stepIdx = game.gauntletStep || 0, runDone = stepIdx + 1 >= fields.length;
+          document.getElementById("veilText").textContent = runDone
+            ? "All " + fields.length + " fields tended, hearts to spare. " +
+              packName.charAt(0).toUpperCase() + packName.slice(1) + ", cleared."
+            : "Field " + (stepIdx + 1) + " of " + fields.length + " down, hearts steady. The next one asks a little more.";
+          if (runDone) {
+            var runDoneSeed = randomSeed();
+            showResultPreview(curSize(), curReqDiff(), runDoneSeed);
+            addVeilBtn("a fresh amble", function () { startAmble(curSize(), curReqDiff(), runDoneSeed); }, true);
+            addVeilBtn("run it again", function () { beginPackRun(packId); }, false);
+          } else {
+            var nextRunField = fields[stepIdx + 1];
+            showResultPreview(nextRunField.size, nextRunField.reqDifficulty || nextRunField.band || "meadow", nextRunField.seed);
+            addVeilBtn("keep going →", function () { advancePackRun(packId, nextRunField, stepIdx + 1); }, true);
+            addVeilBtn("step away", function () { startAmble(); }, false);
+          }
         } else {
-          var campDoneSeed = randomSeed();
-          showResultPreview(curSize(), curReqDiff(), campDoneSeed);
-          addVeilBtn("a fresh amble", function () { startAmble(curSize(), curReqDiff(), campDoneSeed); }, true);
-          addVeilBtn("walk it again", function () { startCampaign(packId, true); }, false);
+          // ordinary trail progression, tracked by ✓s — also how standalone
+          // practice on a run-policy pack's fields shows up.
+          var nxt = nextCampaign(packId), total = fields.length, dcount = campaignDoneCount(packId);
+          // phrased as "tended in {packName}" rather than "{packName} fields
+          // tended" — pack names already carry their own article ("the
+          // gauntlet"), which reads broken as a bare adjective prefix.
+          document.getElementById("veilText").textContent = nxt
+            ? dcount + " of " + total + " tended in " + packName + ". The trail winds gently on."
+            : "Every field in " + packName + " tended — the whole pack, done. Beautifully quiet work.";
+          if (nxt) {
+            // pack fields already have a fixed seed — the preview is the exact field, no locking needed
+            showResultPreview(nxt.size, nxt.reqDifficulty || nxt.band || "meadow", nxt.seed);
+            if (pack && pack.run) {
+              // this pack wants a real run, not a one-off "next field" hop
+              addVeilBtn("begin the run →", function () { beginPackRun(packId); }, true);
+            } else {
+              addVeilBtn("next field →", function () { beginCampaignField(packId, nxt); }, true);
+            }
+            addVeilBtn("pause the trail", function () { startAmble(); }, false);
+          } else {
+            var campDoneSeed = randomSeed();
+            showResultPreview(curSize(), curReqDiff(), campDoneSeed);
+            addVeilBtn("a fresh amble", function () { startAmble(curSize(), curReqDiff(), campDoneSeed); }, true);
+            addVeilBtn("walk it again", function () {
+              if (pack && pack.run) beginPackRun(packId); else startCampaign(packId, true);
+            }, false);
+          }
         }
       } else if (game.mode === "gauntlet") {
         var gNext = (game.gauntletStep || 0) + 1, gDone = gNext >= GAUNTLET.length;
@@ -2041,15 +2263,31 @@
       v.classList.add("show");
     } else if (!isSlow() && game.hearts === 0 && !game.revealedSolution) {
       renderFailStats();
+      renderVeilFav();
       showVeilVignette("assets/illustration/fail-vignette.png");
       hideResultPreview();
       btns.innerHTML = "";
+      var failRunPack = (game.mode === "campaign" && game.inRun) ? findPack(game.campaignPack) : null;
       if (game.mode === "gauntlet") {
-        // the shared pool is spent — the whole run ends here, not just this field
+        // legacy engine — kept as-is until every old in-progress/history
+        // gauntlet game has aged out; see B6.2's replacement below.
         document.getElementById("veilTitle").textContent = "The gauntlet ends here.";
         document.getElementById("veilText").textContent = "Field " + ((game.gauntletStep || 0) + 1) + " of " +
           GAUNTLET.length + " — hearts spent. No harm done; the gauntlet waits whenever you're ready to run it again.";
         addVeilBtn("run it again", function () { startGauntlet(); }, true);
+        addVeilBtn("a fresh amble", function () { startAmble(); }, false);
+      } else if (failRunPack && failRunPack.run) {
+        // the shared pool is spent mid-run — the whole run ends here, not
+        // just this field (standalone practice on this pack's fields, by
+        // contrast, falls through to the generic "fresh start" branch below).
+        var failRunFields = packFields(failRunPack);
+        // pack names are already authored with their own article ("the
+        // gauntlet") — just capitalize, don't prepend a second "The".
+        document.getElementById("veilTitle").textContent =
+          failRunPack.name.charAt(0).toUpperCase() + failRunPack.name.slice(1) + " ends here.";
+        document.getElementById("veilText").textContent = "Field " + ((game.gauntletStep || 0) + 1) + " of " +
+          failRunFields.length + " — hearts spent. No harm done; " + failRunPack.name + " waits whenever you're ready to run it again.";
+        addVeilBtn("run it again", function () { beginPackRun(game.campaignPack); }, true);
         addVeilBtn("a fresh amble", function () { startAmble(); }, false);
       } else {
         document.getElementById("veilTitle").textContent = "The field got a little crowded.";
@@ -2138,9 +2376,10 @@
     game.piggies.clear(); game.hoofprints.clear(); game.revealed.clear();
     game.solved = false; game.revealedSolution = false;
     clearTimeout(shimmerTimer); shimmerPenId = null;
-    // gauntlet's hearts are a shared pool across three fields, not a per-field
+    // a gauntlet's (legacy mode, or a B6.2 heart-policy trail's game.inRun)
+    // hearts are a shared pool across the whole run, not a per-field
     // allowance — a clear must not hand back hearts already spent earlier in the run.
-    if (!isSlow() && game.mode !== "gauntlet") game.hearts = game.maxHearts;
+    if (!isSlow() && game.mode !== "gauntlet" && !game.inRun) game.hearts = game.maxHearts;
     commitUndo(before); persist(); render();
   };
   document.getElementById("undoBtn").onclick = function () { undo(); };
@@ -2212,7 +2451,7 @@
   document.getElementById("codeChip").onclick = function () {
     copyToClipboard(game.code, "field code copied · " + game.code);
   };
-  document.getElementById("dailyChip").onclick = function () { startDaily(8); };
+  document.getElementById("dailyChip").onclick = function () { startDaily(); };
 
   // ---- tiny toast ----
   var toastEl = document.getElementById("toast"), toastTimer = null;
@@ -2233,89 +2472,78 @@
   // ======================================================================
   //  CREATE A FIELD
   // ======================================================================
-  // size/difficulty are sliders now, ordered low-to-high effort; the diff
-  // slider's index maps onto this. cState.fog/runMode remember the "amble"
-  // and "runs" tabs' own sub-choice independently of whichever tab is
-  // currently showing, so switching tabs and back doesn't lose it.
+  // size/difficulty are sliders, ordered low-to-high effort. The difficulty
+  // slider carries a fifth notch beyond the four real layout bands: "the
+  // wallow" (index 4) — a preset (1 heart, stern, assist off), not a fifth
+  // band, so it composes with the weather toggle (misty wallow).
+  //
+  // The sheet is fully tabless now: ladder was sunset (B6.3), gauntlet moved
+  // to Trails as a heart-policy pack (B6.2), and daily moved out too (B6.4)
+  // — the status-strip pill is its only door now. So "tend a new field"
+  // means exactly one thing: an amble (or wallow) field, shaped by weather +
+  // size + difficulty + assist + seed. `MODES.daily`, `dailyCode()`, etc.
+  // all stay fully intact — only the create-sheet surface for it is gone.
   var BAND_ORDER = ["sunbeam", "meadow", "hilltop", "crag"];
-  var RUN_MODES = ["ladder", "gauntlet", "wallow"];
-  var cState = { mode: "amble", size: 8, diff: "meadow", assist: "on", seed: null, fog: false, runMode: "ladder" };
+  var DIFF_LABELS = BAND_ORDER.concat(["the wallow"]);
+  var cState = { mode: "amble", size: 8, diff: "meadow", diffIdx: 1, assist: "on", seed: null, fog: false };
 
-  // amble/fog share one tab (a "weather" toggle inside it); ladder/gauntlet/
-  // wallow share the "runs" tab (a sub-picker inside it) — this is what
-  // keeps the top-level choice down to 3 tabs instead of 6 flat buttons.
-  function tabForMode(mode) {
-    if (mode === "daily") return "daily";
-    if (RUN_MODES.indexOf(mode) >= 0) return "runs";
-    return "amble"; // amble, fog
+  // the create sheet's mode is entirely derived from the diff slider's
+  // position (wallow notch vs. a real band) — single source of truth, so
+  // the weather toggle / slider handlers both just call this instead of
+  // each re-deciding it their own way.
+  function resolveAmbleMode() {
+    return cState.diffIdx >= BAND_ORDER.length ? "wallow" : "amble";
   }
 
   function openCreate() {
     closeMenu();
-    var carryMode = game && game.mode !== "ladder" && game.mode !== "gauntlet" && game.mode !== "campaign"
+    // daily/ladder/gauntlet/campaign all lack a create-sheet surface now —
+    // carrying any of them forward would leave cState in a mode the sheet
+    // can't represent, so they all fall back to amble.
+    var carryMode = game && ["ladder", "gauntlet", "campaign", "daily"].indexOf(game.mode) < 0
       ? game.mode : "amble";
     // loadAssist() already reflects the most recent *explicit* choice —
     // beginGame() saves it there itself, skipping mode-forced values like
     // Wallow's — so no special carry-forward logic is needed here.
     cState = { mode: carryMode, size: curSize(), diff: game ? curReqDiff() : "meadow",
-               assist: loadAssist(), seed: randomSeed(),
-               fog: carryMode === "fog", runMode: RUN_MODES.indexOf(carryMode) >= 0 ? carryMode : "ladder" };
-    if (cState.mode === "daily") cState.diff = "meadow";
+               assist: loadAssist(), seed: randomSeed(), fog: !!(game && game.fog) };
     if (cState.mode === "wallow") cState.diff = "crag";
+    cState.diffIdx = cState.mode === "wallow" ? BAND_ORDER.length : Math.max(0, BAND_ORDER.indexOf(cState.diff));
     document.getElementById("cSeed").value = "";
     document.getElementById("cSeed").classList.remove("bad");
     updateCreate();
     openSheet("createBack");
   }
 
-  // resolve the create form into a concrete field descriptor. The seed is always
-  // concrete, so the preview *is* the exact board you'll tend (WYSIWYG); daily
-  // and ladder ignore the chosen seed and fix their own layout.
+  // resolve the create form into a concrete field descriptor. The seed is
+  // always concrete, so the preview *is* the exact board you'll tend.
   function resolveCreate() {
     var mode = cState.mode, size = cState.size, diff = cState.diff, assist = cState.assist, seed = cState.seed;
-    if (mode === "daily")  { diff = "meadow"; seed = dailySeed(); }
-    else if (mode === "wallow") { diff = "crag"; assist = "off"; }
-    else if (mode === "ladder") { var lc = ladderRung(0); size = lc.size; diff = lc.difficulty; }
-    else if (mode === "gauntlet") { var gc = gauntletStage(0); size = gc.size; diff = gc.difficulty; }
+    var fog = cState.fog;
+    if (mode === "wallow") { diff = "crag"; assist = "off"; }
     if (seed == null) seed = randomSeed();
-    return { mode: mode, size: size, diff: diff, assist: assist, seed: seed };
+    return { mode: mode, size: size, diff: diff, assist: assist, seed: seed, fog: fog };
   }
 
   function updateCreate() {
     var r = resolveCreate();
-    var tab = tabForMode(cState.mode);
-    segOn("cTabs", "tab", tab);
-    show("cFogRow", tab === "amble");
-    show("cRunRow", tab === "runs");
     segOn("cFogSeg", "fog", cState.fog ? "on" : "off");
-    segOn("cRunSeg", "mode", cState.runMode);
 
     document.getElementById("cSizeSlider").value = r.size;
     document.getElementById("cSizeOut").textContent = r.size + "×" + r.size;
-    var diffIdx = BAND_ORDER.indexOf(r.diff); if (diffIdx < 0) diffIdx = 1;
-    document.getElementById("cDiffSlider").value = diffIdx;
-    document.getElementById("cDiffOut").textContent = r.diff;
+    document.getElementById("cDiffSlider").value = cState.diffIdx;
+    document.getElementById("cDiffOut").textContent = DIFF_LABELS[cState.diffIdx];
     segOn("cAssist", "assist", r.assist);
     document.getElementById("cModeNote").textContent = modeCfg(cState.mode).note;
-
-    // which rows are relevant to this mode
-    show("cSizeRow", cState.mode !== "ladder" && cState.mode !== "gauntlet");
-    show("cDiffRow", cState.mode === "amble" || cState.mode === "fog");
     show("cAssistRow", cState.mode !== "wallow");
-    show("cSeedRow", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet");
-    show("cSurprise", cState.mode !== "daily" && cState.mode !== "ladder" && cState.mode !== "gauntlet");
     document.getElementById("cTend").textContent = "tend this field";
 
     // live preview + predicted difficulty — the actual board this will tend
     var pz = makeBoard(r.size, r.diff, r.seed);
     renderMini(document.getElementById("cPreview"), pz);
     var aScore = Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
-    document.getElementById("cCode").textContent =
-      r.mode === "ladder" ? "the ladder · begins gently" :
-      r.mode === "gauntlet" ? "the gauntlet · three fields, one line of hearts" :
-      r.mode === "daily" ? "today’s field · " + boardCode(r.size, r.diff, r.seed) :
-      boardCode(r.size, r.diff, r.seed);
-    document.getElementById("cBand").textContent = pz.difficulty + " · effort " + aScore + "/100";
+    document.getElementById("cCode").textContent = boardCode(r.size, r.diff, r.seed);
+    document.getElementById("cBand").textContent = pz.difficulty + (r.fog ? " · misty" : "") + " · effort " + aScore + "/100";
     document.getElementById("cBar").style.width = aScore + "%";
     var pr = pz.profile || {};
     document.getElementById("cProfile").textContent =
@@ -2342,31 +2570,20 @@
     el.innerHTML = out;
   }
 
-  document.getElementById("cTabs").onclick = function (e) {
-    var b = e.target.closest("button[data-tab]"); if (!b) return;
-    var tab = b.dataset.tab;
-    cState.mode = tab === "amble" ? (cState.fog ? "fog" : "amble")
-                : tab === "daily" ? "daily" : cState.runMode;
-    updateCreate();
-  };
   document.getElementById("cFogSeg").onclick = function (e) {
     var b = e.target.closest("button[data-fog]"); if (!b) return;
     cState.fog = b.dataset.fog === "on";
-    cState.mode = cState.fog ? "fog" : "amble";
-    updateCreate();
-  };
-  document.getElementById("cRunSeg").onclick = function (e) {
-    var b = e.target.closest("button[data-mode]"); if (!b) return;
-    cState.runMode = b.dataset.mode;
-    cState.mode = cState.runMode;
-    if (cState.mode === "wallow") cState.diff = "crag";
+    cState.mode = resolveAmbleMode();
     updateCreate();
   };
   document.getElementById("cSizeSlider").oninput = function () {
     cState.size = +this.value; updateCreate();
   };
   document.getElementById("cDiffSlider").oninput = function () {
-    cState.diff = BAND_ORDER[+this.value] || "meadow"; updateCreate();
+    cState.diffIdx = +this.value;
+    cState.diff = cState.diffIdx >= BAND_ORDER.length ? "crag" : BAND_ORDER[cState.diffIdx];
+    cState.mode = resolveAmbleMode();
+    updateCreate();
   };
   document.getElementById("cAssist").onclick = function (e) {
     var b = e.target.closest("button[data-assist]"); if (!b) return;
@@ -2379,7 +2596,14 @@
     if (pc) {
       cState.seed = pc.seed >>> 0;
       if (pc.size) cState.size = pc.size;
-      if (pc.difficulty) cState.diff = pc.difficulty;   // pasting a full code loads that exact board
+      // pasting a full code loads that exact board — always a real layout
+      // band, never the wallow preset (codes don't encode it), so a paste
+      // while sitting on the wallow notch drops back to a plain amble field.
+      if (pc.difficulty) {
+        cState.diff = pc.difficulty;
+        cState.diffIdx = Math.max(0, BAND_ORDER.indexOf(pc.difficulty));
+        cState.mode = resolveAmbleMode();
+      }
       this.classList.remove("bad");
     } else { this.classList.add("bad"); return; }        // keep last good seed while they type
     updateCreate();
@@ -2393,9 +2617,7 @@
   function tendCreateForm() {
     var r = resolveCreate();
     closeSheet("createBack");
-    if (r.mode === "ladder") { startLadder(0); return; }
-    if (r.mode === "gauntlet") { startGauntlet(); return; }
-    beginGame({ mode: r.mode, size: r.size, difficulty: r.diff, assist: r.assist, seed: r.seed });
+    beginGame({ mode: r.mode, size: r.size, difficulty: r.diff, assist: r.assist, seed: r.seed, fog: r.fog });
   }
   document.getElementById("cCancel").onclick = function () { closeSheet("createBack"); };
   document.getElementById("cTend").onclick = tendCreateForm;
@@ -2411,7 +2633,11 @@
   //  distinct entry point from "tend a new field": you're picking a
   //  pre-built (or self-curated) trail here, not customizing a fresh one.
   // ======================================================================
-  var tState = { pack: null };
+  // fieldCode: null means the default behavior (next-untended for an
+  // ordinary trail, always field 1 for a run pack) — set when a row in the
+  // field list is tapped, so a field can be tended out of order. Reset
+  // whenever the pack selection changes or the sheet reopens.
+  var tState = { pack: null, fieldCode: null };
 
   // a fresh, incomplete pack if one exists (built-ins first, authored order),
   // else whichever pack is first — a completed pack still resolves to
@@ -2426,26 +2652,77 @@
   function openTrails() {
     closeMenu();
     tState.pack = defaultPackId();
+    tState.fieldCode = null;
     updateTrails();
     openSheet("trailsBack");
+  }
+
+  // a field's predicted effort. Curated fields already carry their own
+  // aScore (computed once, at curate time) — reuse it rather than re-running
+  // the solver per row, since a curated trail can run to 100 fields. Built-in
+  // packs are always small, so computing it fresh here is cheap.
+  function fieldEffort(f) {
+    if (f.aScore != null) return f.aScore;
+    var pz = makeBoard(f.size, f.reqDifficulty || f.band || "meadow", f.seed);
+    return Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
+  }
+
+  function renderTrailsFieldList(pack, fields) {
+    var el = document.getElementById("tFieldList");
+    if (!pack || !fields.length) { el.innerHTML = ""; el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = fields.map(function (f, i) {
+      var tended = isCampaignDone(pack.id, f.code);
+      var hi = bestScore(f);
+      var band = f.reqDifficulty || f.band || "meadow";
+      var selected = tState.fieldCode === f.code;
+      return '<button class="tfrow' + (selected ? ' on' : '') + '" data-code="' + f.code + '">' +
+        '<span class="tfnum">' + (i + 1) + '</span>' +
+        '<span class="tfname">' + (f.name || f.code) + '</span>' +
+        '<span class="tfmeta">' + f.size + '×' + f.size + ' · ' + band + '</span>' +
+        '<span class="tftended">' + (tended ? "✓" : "") + '</span>' +
+        '<span class="tfscore">' + (hi != null ? hi.toLocaleString() : "") + '</span>' +
+        '<span class="tfeffort">' + fieldEffort(f) + '</span>' +
+        '</button>';
+    }).join("");
+    var rows = el.querySelectorAll("button[data-code]");
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].onclick = function () {
+        // tap the already-selected row again to fall back to the default
+        tState.fieldCode = tState.fieldCode === this.dataset.code ? null : this.dataset.code;
+        updateTrails();
+      };
+    }
   }
 
   function updateTrails() {
     var packs = allPacks();
     document.getElementById("tPack").innerHTML = packs.map(function (p) {
       var total = packFields(p).length, done = campaignDoneCount(p.id);
+      var runNote = p.run ? " · cleared " + getPackClearedCount(p.id) + "×" : "";
       return '<button data-pack="' + p.id + '">' + p.name +
-        ' <span class="packn">' + done + '/' + total + '</span></button>';
+        ' <span class="packn">' + done + '/' + total + runNote + '</span></button>';
     }).join("");
     segOn("tPack", "pack", tState.pack);
 
     var pack = findPack(tState.pack);
     document.getElementById("tPackNote").textContent = (pack && pack.note) || "";
     var fields = packFields(pack), packEmpty = fields.length === 0;
+    renderTrailsFieldList(pack, fields);
+
+    var selected = tState.fieldCode
+      ? fields.filter(function (f) { return f.code === tState.fieldCode; })[0]
+      : null;
     var nxt = nextCampaign(tState.pack);
     var packDone = !packEmpty && !nxt;
     var tendBtn = document.getElementById("tTend");
-    tendBtn.textContent = packDone ? "walk it again" : "tend this field";
+    // an explicit out-of-order selection always just tends that one field —
+    // it overrides both the run-pack "begin the run" default and the
+    // finished-pack "walk it again" default, since it's a deliberate choice,
+    // not the pack's own default flow.
+    tendBtn.textContent = selected ? "tend this field"
+      : (pack && pack.run) ? "begin the run"
+      : (packDone ? "walk it again" : "tend this field");
     tendBtn.disabled = packEmpty;
 
     if (packEmpty) {
@@ -2456,6 +2733,34 @@
         : "this pack has no fields yet";
       document.getElementById("tBar").style.width = "0";
       document.getElementById("tProfile").textContent = "";
+      return;
+    }
+    if (selected) {
+      // out-of-order pick: WYSIWYG preview of exactly that field, standalone
+      var pzS = makeBoard(selected.size, selected.reqDifficulty || selected.band || "meadow", selected.seed);
+      renderMini(document.getElementById("tPreview"), pzS);
+      var aScoreS = fieldEffort(selected);
+      document.getElementById("tCode").textContent = selected.name || boardCode(selected.size, pzS.difficulty, selected.seed);
+      document.getElementById("tBand").textContent = pzS.difficulty + " · effort " + aScoreS + "/100";
+      document.getElementById("tBar").style.width = aScoreS + "%";
+      document.getElementById("tProfile").textContent = (pack && pack.run)
+        ? "played standalone — fresh hearts, doesn't count toward a run"
+        : "played out of order — the trail still remembers where you left off";
+      return;
+    }
+    if (pack && pack.run) {
+      // a run always previews field 1 — that's where "begin the run" starts,
+      // independent of which fields are already individually ✓'d.
+      var f0 = fields[0];
+      var pz0 = makeBoard(f0.size, f0.reqDifficulty || f0.band || "meadow", f0.seed);
+      renderMini(document.getElementById("tPreview"), pz0);
+      var aScore0 = Sowdoku.humanScore(pz0.size, pz0.profile, pz0.difficulty);
+      document.getElementById("tCode").textContent = f0.name || boardCode(f0.size, pz0.difficulty, f0.seed);
+      document.getElementById("tBand").textContent = pz0.difficulty + " · effort " + aScore0 + "/100";
+      document.getElementById("tBar").style.width = aScore0 + "%";
+      var done = campaignDoneCount(tState.pack), cleared = getPackClearedCount(tState.pack);
+      document.getElementById("tProfile").textContent =
+        done + "/" + fields.length + " tended individually · cleared " + cleared + " time" + (cleared === 1 ? "" : "s");
       return;
     }
     if (packDone) {
@@ -2482,13 +2787,20 @@
   document.getElementById("tPack").onclick = function (e) {
     var b = e.target.closest("button[data-pack]"); if (!b) return;
     tState.pack = b.dataset.pack;
+    tState.fieldCode = null;
     updateTrails();
   };
   document.getElementById("tCancel").onclick = function () { closeSheet("trailsBack"); };
   document.getElementById("tTend").onclick = function () {
-    var packId = tState.pack;
-    var packDone = packFields(findPack(packId)).length > 0 && !nextCampaign(packId);
+    var packId = tState.pack, pack = findPack(packId);
+    var fieldCode = tState.fieldCode;
     closeSheet("trailsBack");
+    if (fieldCode) {
+      var f = packFields(pack).filter(function (x) { return x.code === fieldCode; })[0];
+      if (f) { beginCampaignField(packId, f); return; }
+    }
+    if (pack && pack.run) { beginPackRun(packId); return; }
+    var packDone = packFields(pack).length > 0 && !nextCampaign(packId);
     startCampaign(packId, packDone);
   };
   document.getElementById("trailsBtn").onclick = openTrails;
@@ -2551,6 +2863,7 @@
       var out = { code: f.code, name: f.name || "" };
       if (f.assist != null) out.assist = f.assist;
       if (f.stakes != null) out.stakes = f.stakes;
+      if (f.fog) out.fog = true;
       return out;
     });
     var pack = { id: "my-pack", name: "my trail", note: "", fields: fields };
@@ -2682,7 +2995,7 @@
       // whatever the player's current defaults happen to be.
       cur.unshift({ code: rec.code, name: rec.name || "", size: rec.size, seed: rec.seed,
                     reqDifficulty: rec.reqDifficulty, mode: rec.mode, band: rec.band,
-                    assist: rec.assist, stakes: rec.stakes, campaignPack: rec.campaignPack || null,
+                    assist: rec.assist, stakes: rec.stakes, fog: !!rec.fog, campaignPack: rec.campaignPack || null,
                     ladderRung: rec.ladderRung || 0, gauntletStep: rec.gauntletStep || 0,
                     aScore: rec.aScore, eScore: rec.eScore, solved: !!rec.solved,
                     category: diffCategory(rec), hiScore: bestScore(rec), addedAt: Date.now() });
@@ -2822,7 +3135,7 @@
   if (!hadSavedField) {
     var introField = isNewPlayer ? nextCampaign("intro") : null;
     if (introField) beginCampaignField("intro", introField);
-    else startDaily(8);
+    else startDaily();
   }
   render();
 

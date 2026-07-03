@@ -30,7 +30,6 @@ async function run() {
   await page.click('#stakesSeg button[data-stakes="honest"]');
   await page.click("#menuBtn");
   await page.click("#newBtn");
-  await page.click('#cTabs button[data-tab="amble"]');
   await page.fill("#cSeed", "6s-1");
   await page.click('#cAssist button[data-assist="off"]');
   await page.click("#cTend");
@@ -64,7 +63,6 @@ async function run() {
   await page.click('#stakesSeg button[data-stakes="gentle"]');
   await page.click("#menuBtn");
   await page.click("#newBtn");
-  await page.click('#cTabs button[data-tab="amble"]');
   await page.click('#cAssist button[data-assist="on"]');
   await page.click("#cTend");
   await page.waitForSelector(".board .cell");

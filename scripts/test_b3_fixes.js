@@ -70,7 +70,6 @@ async function run() {
     // set the player's generic default assist to "off" explicitly, distinct from field 1's authored "on"
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cTabs button[data-tab="amble"]');
     await page.click('#cAssist button[data-assist="off"]');
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");

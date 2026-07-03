@@ -32,7 +32,6 @@ async function run() {
     await gotoAndDismissIntro(page);
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cTabs button[data-tab="amble"]');
     await page.click('#cAssist button[data-assist="off"]');
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
@@ -50,8 +49,9 @@ async function run() {
     await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.assist", JSON.stringify("on")));
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cTabs button[data-tab="runs"]');
-    await page.click('#cRunSeg button[data-mode="wallow"]');
+    // wallow is the difficulty slider's top notch now, not a runs-tab mode
+    await page.fill("#cDiffSlider", "4");
+    await page.dispatchEvent("#cDiffSlider", "input");
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
     const stillOn = await page.evaluate(() => localStorage.getItem("arcade.v1.sowduku.assist"));
@@ -59,34 +59,63 @@ async function run() {
     await ctx.close();
   }
 
-  // ---- ladder start flow still works ----
+  // ---- ladder sunset (B6.3): no create-sheet entry point; a legacy
+  // in-progress save still restores, finishes, and offers only "a fresh
+  // amble" (never "climb higher") ----
   {
-    console.log("\n[ladder] start flow");
+    console.log("\n[ladder] sunset — no entry point, legacy save still finishes");
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cTabs button[data-tab="runs"]');
-    await page.click('#cRunSeg button[data-mode="ladder"]');
+    const runsTabCount = await page.locator('[data-tab="runs"]').count();
+    ok(runsTabCount === 0, "no 'runs' tab exists anymore");
+    const ladderControlCount = await page.locator('[data-mode="ladder"]').count();
+    ok(ladderControlCount === 0, "no ladder control anywhere in the create sheet");
+    await page.click("#cCancel");
+
+    // simulate a pre-sunset in-progress ladder save: regions/solution can't
+    // be faked cheaply, so drive it through the real boot path by tending a
+    // known field normally, then relabel it mode:"ladder" in storage — same
+    // net effect for exercising the win-veil branch, without needing a real
+    // solver run through startLadder(), which no longer exists.
+    await page.click("#newBtn");
+    await page.fill("#cSeed", "6s-1");
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
+    await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress"));
+      s.mode = "ladder"; s.ladderRung = 2;
+      localStorage.setItem("arcade.v1.sowduku.inProgress", JSON.stringify(s));
+    });
+    await page.reload();
+    await page.waitForSelector(".board .cell");
     const climb = await page.textContent("#climbChip");
-    ok(climb.trim() === "rung 1/8", "ladder starts at rung 1/8, got " + climb);
+    ok(climb.trim() === "rung 3/8", "restored legacy ladder game still shows its rung, got " + climb);
+    for (const [r, c] of [[0,4],[2,3],[3,1],[1,0],[4,5],[5,2]]) {
+      await page.click('[data-r="' + r + '"][data-c="' + c + '"]');
+    }
+    await page.waitForSelector("#veil.show");
+    const veilText = await page.textContent("#veilText");
+    ok(veilText.includes("retired"), "win veil explains the ladder is retired, got: " + veilText.trim());
+    const climbHigher = await page.locator('#veilBtns button:has-text("climb higher")').count();
+    ok(climbHigher === 0, "veil never offers 'climb higher' anymore");
+    const freshAmble = await page.locator('#veilBtns button:has-text("a fresh amble")').count();
+    ok(freshAmble === 1, "veil offers exactly 'a fresh amble' instead");
     await ctx.close();
   }
 
-  // ---- gauntlet start flow still works ----
+  // ---- gauntlet start flow still works (B6.2: now a Trails heart-policy pack) ----
   {
     console.log("\n[gauntlet] start flow");
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    await page.click("#newBtn");
-    await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cTabs button[data-tab="runs"]');
-    await page.click('#cRunSeg button[data-mode="gauntlet"]');
-    await page.click("#cTend");
+    await page.click("#trailsBtn");
+    await page.waitForSelector("#trailsBack:not([hidden])");
+    await page.click('#tPack button[data-pack="gauntlet"]');
+    await page.click("#tTend");
     await page.waitForSelector(".board .cell");
     const climb = await page.textContent("#climbChip");
     ok(climb.trim() === "field 1/3", "gauntlet starts at field 1/3, got " + climb);
@@ -101,7 +130,6 @@ async function run() {
     await gotoAndDismissIntro(page);
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cTabs button[data-tab="amble"]');
     await page.click('#cAssist button[data-assist="off"]');
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
@@ -151,7 +179,6 @@ async function run() {
     await page.click("#menuBtn"); // close
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.click('#cTabs button[data-tab="amble"]');
     await page.fill("#cSeed", "6m-1"); // known intro-pack code; solution row0 is col 2
     await page.click('#cAssist button[data-assist="off"]');
     await page.click("#cTend");
