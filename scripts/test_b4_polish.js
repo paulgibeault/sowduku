@@ -50,9 +50,8 @@ async function run() {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    await page.click("#menuBtn");
-    await page.click('#stakesSeg button[data-stakes="slow"]');
-    await page.click("#menuBtn");
+    // stakes has no live control anymore (B7.2) — seed the saved default directly
+    await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("slow")));
     await tendAmble(page, "8m-1");
     await page.click("#peekBtn");
     await page.waitForTimeout(200);
@@ -69,9 +68,7 @@ async function run() {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    await page.click("#menuBtn");
-    await page.click('#stakesSeg button[data-stakes="honest"]');
-    await page.click("#menuBtn");
+    await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest")));
     await tendAmble(page, "8m-1", { assist: "off" });
     // dock hearts down to 1 via peeks (each successful peek costs one)
     let hearts = await page.locator("#hearts img.heart:not(.lost)").count();
@@ -147,13 +144,15 @@ async function run() {
     await page.fill("#vFavName", "sunny corner");
     await page.press("#vFavName", "Enter");
     await page.waitForTimeout(150);
+    // storage shape (B7.3): an array of packs, each with its own fields array
     const curated = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.curated")));
-    ok(curated.length === 1 && curated[0].code === "6s-1" && curated[0].name === "sunny corner",
+    ok(curated.length === 1 && curated[0].fields.length === 1 && curated[0].fields[0].code === "6s-1" &&
+       curated[0].fields[0].name === "sunny corner",
        "curated tab shows the field with the typed name, got " + JSON.stringify(curated));
-    // un-star removes it
+    // un-star removes just the field, not the pack itself
     await page.click("#vFavBtn");
     const afterUnstar = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.curated")));
-    ok(afterUnstar.length === 0, "un-starring from the veil removes the curated entry");
+    ok(afterUnstar[0].fields.length === 0, "un-starring from the veil removes the curated entry");
     await ctx.close();
   }
 
@@ -183,8 +182,9 @@ async function run() {
     await page.click("#vFavBtn");
     await page.waitForTimeout(150);
     const curated = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.curated")));
-    ok(curated.length === 1 && curated[0].solved === false, "fail-veil star curates an unsolved record, got " + JSON.stringify(curated[0]));
-    ok(curated[0].assist === "off" && curated[0].stakes === "stern", "synthesized fail record carries assist/stakes fidelity");
+    const f = curated[0].fields[0];
+    ok(curated[0].fields.length === 1 && f.solved === false, "fail-veil star curates an unsolved record, got " + JSON.stringify(f));
+    ok(f.assist === "off" && f.stakes === "stern", "synthesized fail record carries assist/stakes fidelity");
     await ctx.close();
   }
 
@@ -296,8 +296,9 @@ async function run() {
     var mistyCard = page.locator(".hcard", { hasText: "6m-1" });
     await mistyCard.locator('[data-act="curate"]').click();
     const curated = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.curated")));
-    ok(curated.length === 1 && curated[0].code === "6m-1" && curated[0].fog === true,
-       "curated entry carries fog=true, got " + JSON.stringify(curated[0]));
+    const foggedField = curated[0].fields[0];
+    ok(curated[0].fields.length === 1 && foggedField.code === "6m-1" && foggedField.fog === true,
+       "curated entry carries fog=true, got " + JSON.stringify(foggedField));
     await ctx.close();
   }
 

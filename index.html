@@ -224,6 +224,11 @@
   .info-body h3:first-child { margin-top: 0; }
   .info-body p { margin: 0 0 .3rem; }
   .info-body b { color: var(--ink); font-weight: 600; }
+  /* B7.4: one small illustration per section, in the same slot pattern as
+     the win/fail veil's .vvignette — generated separately (ASSET_PROMPTS.md);
+     onerror hides the slot entirely so the sheet reads perfectly well as
+     text-only before the art exists, no broken-image icons. */
+  .info-vignette { max-width: 15rem; margin: .2rem auto .6rem; }
 
   /* ---- docked action bar: play moves (undo · peek · clear) left, session
      moves (new field · trails · history) right — grouped by how often you
@@ -269,10 +274,6 @@
   .veil { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center;
     background: rgba(70,62,52,.32); text-align: center; padding: 1.25rem; cursor: pointer; }
   .veil.show { display: flex; }
-  /* tap the backdrop to peek at the board underneath; tap anywhere to bring
-     the card back. Higher specificity than .veil.show so it wins regardless
-     of rule order, even if renderVeil() re-adds "show" while peeking. */
-  .veil.show.peeking { display: none; }
   .veil .card { max-width: 26rem; width: 100%; max-height: 90vh; overflow: auto; cursor: default;
     background: var(--panel); border: 1px solid var(--line); border-radius: 1.1rem;
     padding: 1.5rem 1.6rem; box-shadow: 0 1px 0 #fff inset, 0 20px 50px -24px rgba(70,62,52,.4);
@@ -393,6 +394,10 @@
   .hname:hover { border-bottom-color: #e0d6c2; }
   .hname:focus { outline: none; border-bottom-color: #c9b89b; }
   .hname::placeholder { color: var(--ink-soft); font-style: italic; }
+  .packmgmt { display: flex; gap: .5rem; align-items: center; margin: 0 0 .6rem; }
+  .hpackname { flex: 1; min-width: 0; font: inherit; font-size: .85rem; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--line); border-radius: .6rem; padding: .35rem .6rem; }
+  .hpackname:focus { outline: none; border-color: #c9b89b; }
   .hmain { display: flex; gap: .75rem; align-items: flex-start; }
   .miniboard.sm { width: 3.6rem; height: 3.6rem; border-radius: .4rem; }
   .hinfo { flex: 1; min-width: 0; }
@@ -463,13 +468,6 @@
         <button class="iconbtn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-label="settings" title="settings">⚙</button>
         <div class="menu" id="menu" hidden role="menu" aria-label="Play settings">
           <button class="infobtn" id="infoBtn"><span class="icon">ℹ</span>how to play</button>
-          <div class="row"><span class="lab" title="how strictly a heart is docked — slow removes the stakes entirely">stakes</span>
-            <div class="seg wrap" id="stakesSeg">
-              <button data-stakes="slow">slow</button>
-              <button data-stakes="gentle">gentle</button>
-              <button data-stakes="honest">honest</button>
-              <button data-stakes="stern">stern</button>
-            </div></div>
           <div class="row"><span class="lab" title="a few quiet, synthesized sounds — a thud, a chime, a snuffle">sound</span>
             <div class="seg" id="soundSeg">
               <button data-sound="off">off</button>
@@ -621,6 +619,12 @@
         <button data-tab="curated">curated</button>
       </div>
       <div class="stats" id="hStats"></div>
+      <div class="orow" id="hPackRow" hidden><span class="lab">pack</span>
+        <div class="seg wrap" id="hPack"></div></div>
+      <div class="packmgmt" id="hPackMgmt" hidden>
+        <input class="hpackname" id="hPackName" maxlength="40" placeholder="name this pack">
+        <button class="ghost" id="hPackDelete" title="delete this pack">delete pack</button>
+      </div>
       <div class="exportbar" id="exportBar" hidden>
         <button id="campExport" class="cbghost" title="copy this trail as pack JSON, ready to paste into campaigns.js">export as trail pack</button>
       </div>
@@ -663,23 +667,32 @@
       <h2>How to play</h2>
       <div class="info-body">
         <h3>The rules</h3>
+        <img class="vvignette info-vignette" src="assets/illustration/info-rules.png" alt=""
+             onerror="this.hidden=true">
         <p>Settle exactly one piggy per row, per column, and per colored pen.
           A fourth rule gives Sowdoku its shape — <b>The Wallow Rule</b>: no
           piggy may touch another, not side by side, not even corner to
           corner. Every field has exactly one solution, reachable by pure
-          logic. If you find yourself guessing, back up and look again.</p>
+          logic. If you find yourself guessing, back up and look again. A
+          heart is docked for a placement that breaks a rule against pigs
+          already down — nothing stricter than that, unless a particular
+          field says otherwise (the Wallow, for one, holds every mark to
+          closer account).</p>
         <h3>Controls</h3>
+        <img class="vvignette info-vignette" src="assets/illustration/info-controls.png" alt=""
+             onerror="this.hidden=true">
         <p><b>Tap</b> a cell to settle a piggy — tap it again to lift it.
           <b>Long-press</b> (or <b>right-click</b>) fences off a cell with a
           hoofprint, your "definitely-not-here" note. <b>Drag</b> paints
           hoofprints across a whole run at once. <b>⌘Z</b> undoes the last
           gesture, always free. <b>Peek</b> (in the action bar) glows the
           next logically-forced piggy when you're stuck — it trades a heart
-          for the hint (free under slow stakes), and never asks for a heart
-          you can't spare. On a keyboard, <b>arrow keys</b> move around the
-          board, <b>Enter</b> settles or lifts a piggy, and <b>Space</b>
-          marks a hoofprint.</p>
+          for the hint, and never asks for a heart you can't spare. On a
+          keyboard, <b>arrow keys</b> move around the board, <b>Enter</b>
+          settles or lifts a piggy, and <b>Space</b> marks a hoofprint.</p>
         <h3>Difficulty</h3>
+        <img class="vvignette info-vignette" src="assets/illustration/info-difficulty.png" alt=""
+             onerror="this.hidden=true">
         <p>Four bands, each asking a little more of the same rules:
           <b>Sunbeam</b> (forced singles), <b>Meadow</b> (a few
           confinements), <b>Hilltop</b> (at least one contradiction chain),
@@ -688,16 +701,9 @@
           played with one heart, no assist, and every mark held to account.
           Toggle <b>misty</b> weather alongside any of these for pens that
           hide until their piggy settles.</p>
-        <h3>Stakes</h3>
-        <p>How strictly a heart is docked, from most to least forgiving:
-          <b>slow</b> — no hearts, no failure, just the ritual.
-          <b>gentle</b> — a heart only for a placement that breaks a rule
-          against pigs already down. <b>honest</b> — also a heart for a
-          piggy that's legal right now but not where it truly belongs, or
-          for fencing a whole pen shut with your own hoofprints.
-          <b>stern</b> — also a heart for fencing off the one cell a piggy
-          actually belongs in.</p>
         <h3>Assist</h3>
+        <img class="vvignette info-vignette" src="assets/illustration/info-assist.png" alt=""
+             onerror="this.hidden=true">
         <p>Chosen once, when you tend a field (in the ✚ create sheet), not a
           mid-game toggle. <b>On</b> softly shades cells a pen can no longer
           use, on any difficulty. <b>Off</b> leaves all the bookkeeping to
@@ -920,11 +926,13 @@
   // pointer gesture.
   var STAKES_MODES = ["slow", "gentle", "honest", "stern"];
   var STAKES_RANK = { slow: 0, gentle: 1, honest: 2, stern: 3 };
+  // B7.2 removed the ⚙ menu's stakes row (no more live control to change
+  // this), but a pre-B7.2 profile's saved choice still applies — this just
+  // reads it back. A fresh profile has nothing saved and stays "gentle".
   function loadStakes() {
     var v = sget("stakes");
     return STAKES_MODES.indexOf(v) >= 0 ? v : "gentle";
   }
-  function saveStakes(v) { sset("stakes", v); }
   function stakesAtLeast(level) { return STAKES_RANK[game.stakes] >= STAKES_RANK[level]; }
   function isSlow() { return game.stakes === "slow"; }
 
@@ -1120,8 +1128,10 @@
       assist: assist, lockedAssist: !!cfg.assist,
       // stakes works the same way as assist above: a mode force (Wallow) or a
       // replay/curated field's own recorded stakes both apply without
-      // becoming the new saved default — only a live change via the ⚙ menu
-      // (see the stakesSeg click handler) does that.
+      // becoming the new saved default. There's no live control left to
+      // change the default at all (B7.2 removed the ⚙ menu's stakes row —
+      // loadStakes() just returns whatever a pre-B7.2 profile had saved, or
+      // "gentle" for anyone new) but the machinery stays exactly as it was.
       stakes: cfg.stakes || opts.forcedStakes || loadStakes(),
       lockedStakes: !!cfg.stakes || opts.forcedStakes != null,
       solved: false, recorded: false, revealedSolution: false, ladderRung: opts.ladderRung || 0,
@@ -1200,8 +1210,80 @@
   // "my trail" without losing what's done, and each built-in pack keeps its own
   // independent progress.
   var CAT_RANK = { easy: 0, medium: 1, hard: 2, difficult: 3, "lost-cause": 4 };
-  function curatedOrdered() {
-    return getCurated().slice().sort(function (a, b) {
+
+  // ---- player-created trail packs (B7.3: multiple, not just one "my trail")
+  // Same "curated" storage key as before B7.3 — a one-time in-place shape
+  // migration (mirroring loadCampaignDone()'s array→object pattern) wraps a
+  // pre-B7.3 flat field array into that pack's own `fields`, keeping its id
+  // ("curated") and name ("my trail") so every existing cross-reference
+  // (campaignDone.curated, a history record's campaignPack, already-exported
+  // JSON) keeps working with zero further changes.
+  function loadPacks() {
+    var d = sget("curated");
+    if (d == null) return [];
+    // both shapes are arrays — Array.isArray() alone can't tell a pre-B7.3
+    // flat field list from a post-B7.3 pack list, and re-wrapping an
+    // already-migrated array nests it infinitely on every read+write. A
+    // field entry never carries its own `.fields`; a pack entry always
+    // does (even an empty one, `[]`, which is not == null) — check that.
+    if (Array.isArray(d) && d.length && d[0].fields == null) {
+      d = [{ id: "curated", name: "my trail",
+             note: "Your own curated fields, tended gentlest to knottiest.",
+             createdAt: 0, fields: d }];
+      sset("curated", d);
+    }
+    return d;
+  }
+  function savePacks(packs) { sset("curated", packs); }
+  function getPack(packId) { return loadPacks().filter(function (p) { return p.id === packId; })[0] || null; }
+
+  // which pack a bare toggleCurate()/isCurated() call (no explicit packId —
+  // the veil ☆ and a history card's one-tap star) targets by default. Sticks
+  // to whichever pack was starred into or explicitly picked most recently.
+  function loadLastPackId() {
+    var packs = loadPacks(), id = sget("lastPackId");
+    if (id && packs.some(function (p) { return p.id === id; })) return id;
+    return packs.length ? packs[0].id : null;
+  }
+  function saveLastPackId(id) { sset("lastPackId", id); }
+
+  function createPack(name) {
+    var packs = loadPacks();
+    var id = "pack" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
+    var pack = { id: id, name: String(name || "").trim().slice(0, 40) || "untitled trail",
+                 note: "", createdAt: Date.now(), fields: [] };
+    packs.push(pack);
+    savePacks(packs);
+    saveLastPackId(id);
+    return pack;
+  }
+  function renamePack(packId, name) {
+    var packs = loadPacks(), p = packs.filter(function (x) { return x.id === packId; })[0];
+    if (!p) return;
+    var v = String(name || "").trim().slice(0, 40);
+    if (v) p.name = v;
+    savePacks(packs);
+  }
+  // deleting a pack only removes that pack's own entry — a field that's also
+  // in another pack (fields aren't exclusive to one pack) stays there untouched.
+  function deletePack(packId) {
+    var packs = loadPacks().filter(function (p) { return p.id !== packId; });
+    savePacks(packs);
+    if (sget("lastPackId") === packId) saveLastPackId(packs.length ? packs[0].id : null);
+  }
+  function clearPackFields(packId) {
+    var packs = loadPacks(), p = packs.filter(function (x) { return x.id === packId; })[0];
+    if (!p) return;
+    p.fields = [];
+    savePacks(packs);
+  }
+
+  function getCurated(packId) {
+    var pack = getPack(packId || loadLastPackId());
+    return pack ? pack.fields : [];
+  }
+  function curatedOrdered(packId) {
+    return getCurated(packId).slice().sort(function (a, b) {
       var ra = CAT_RANK[a.category] != null ? CAT_RANK[a.category] : 1;
       var rb = CAT_RANK[b.category] != null ? CAT_RANK[b.category] : 1;
       if (ra !== rb) return ra - rb;
@@ -1221,16 +1303,25 @@
     return { code: f.code, name: f.name || "", note: f.note || "", assist: f.assist, stakes: f.stakes, fog: f.fog,
              size: pc.size, reqDifficulty: pc.difficulty, band: pc.difficulty, seed: pc.seed };
   }
-  function curatedPack() {
-    return { id: "curated", name: "my trail",
-             note: "Your own curated fields, tended gentlest to knottiest.",
-             fields: curatedOrdered() };
+  // every player pack, Trails-pack-shaped. A brand-new profile with none yet
+  // still gets one empty placeholder ("my trail") so the picker isn't blank —
+  // nothing is written to storage until a real star or an explicit create.
+  function playerPacks() {
+    var packs = loadPacks();
+    if (!packs.length) {
+      return [{ id: "curated", name: "my trail",
+                note: "Your own curated fields, tended gentlest to knottiest.", fields: [] }];
+    }
+    return packs.map(function (p) {
+      return { id: p.id, name: p.name, note: p.note, fields: curatedOrdered(p.id) };
+    });
   }
   function builtinPacks() { return (typeof CAMPAIGNS !== "undefined" ? CAMPAIGNS : []); }
-  function allPacks() { return builtinPacks().concat([curatedPack()]); }
+  function allPacks() { return builtinPacks().concat(playerPacks()); }
   function findPack(packId) {
-    if (packId === "curated") return curatedPack();
-    var p = builtinPacks().filter(function (x) { return x.id === packId; });
+    var b = builtinPacks().filter(function (x) { return x.id === packId; });
+    if (b.length) return b[0];
+    var p = playerPacks().filter(function (x) { return x.id === packId; });
     return p.length ? p[0] : null;
   }
   // a malformed code (typo'd in campaigns.js) fails parseCode and normalizes
@@ -1378,7 +1469,6 @@
 
   // ---- history + stats + curated boards ----
   function getHistory()  { return sget("history") || []; }
-  function getCurated()  { return sget("curated") || []; }
   function getStats()    { return sget("stats") || { played: 0, solved: 0, mistakes: 0, playMs: 0, bestLadder: 0 }; }
   // best-ever run for each board, keyed by code. Durable on its own so a high
   // score survives a history clear and rides the arcade export — the raw
@@ -1527,13 +1617,22 @@
   }
 
   // if a curated field just earned a new best, keep its stored copy in step so
-  // the export/campaign bundle carries the current high score without a re-open.
+  // the export/campaign bundle carries the current high score without a
+  // re-open. A field can be starred into more than one pack (B7.3), so this
+  // has to sweep every pack's own copy, not just the default one — and it
+  // must go through savePacks() (the whole packs array), never sset("curated",
+  // <a bare fields array>) directly, or it'd silently corrupt the storage
+  // shape back to the old pre-B7.3 flat-array format.
   function syncCuratedScore(code, best) {
-    var cur = getCurated(), i = cur.findIndex(function (x) { return x.code === code; });
-    if (i < 0) return;
-    cur[i].hiScore = best.score; cur[i].hiAt = best.at;
-    if (!cur[i].solved) { cur[i].solved = true; cur[i].category = diffCategory(cur[i]); }
-    sset("curated", cur);
+    var packs = loadPacks(), changed = false;
+    packs.forEach(function (p) {
+      var i = p.fields.findIndex(function (x) { return x.code === code; });
+      if (i < 0) return;
+      p.fields[i].hiScore = best.score; p.fields[i].hiAt = best.at;
+      if (!p.fields[i].solved) { p.fields[i].solved = true; p.fields[i].category = diffCategory(p.fields[i]); }
+      changed = true;
+    });
+    if (changed) savePacks(packs);
   }
 
   function onSolved() {
@@ -1879,7 +1978,6 @@
     document.getElementById("peekCost").hidden = !peekCosts();
 
     // reflect current state inside the ⚙ menu
-    segOn("stakesSeg", "stakes", game.stakes);
     segOn("soundSeg", "sound", loadSound());
     segOn("labelsSeg", "labels", loadPenLabels());
     var penLabelsOn = loadPenLabels() === "on";
@@ -2158,13 +2256,25 @@
     };
     syncFromCurated();
     starBtn.onclick = function () { toggleCurate(rec); syncFromCurated(); if (isCurated(rec.code)) nameInput.focus(); };
-    nameInput.onblur = nameInput.onchange = function () { renameCurated(rec.code, this.value); };
+    nameInput.onblur = nameInput.onchange = function () { renameCurated(loadLastPackId(), rec.code, this.value); };
     nameInput.onkeydown = function (e) { if (e.key === "Enter") this.blur(); };
   }
 
+  // true once the player has dismissed the current game-over veil by
+  // tapping outside its card — cleared the moment the underlying game
+  // state stops being "over" (a fresh game, or "fresh start"/"show me
+  // where it went wrong" un-ending this one), so the next real solve/fail
+  // shows the veil again normally.
+  var veilDismissed = false;
   function renderVeil() {
     var v = document.getElementById("veil"), btns = document.getElementById("veilBtns");
-    veilPeeking = false; v.classList.remove("peeking"); // any fresh render starts un-peeked
+    var gameOver = game.solved || (!isSlow() && game.hearts === 0 && !game.revealedSolution);
+    if (!gameOver) { veilDismissed = false; v.classList.remove("show"); return; }
+    // dismissed to look at (and fully use) the finished board — every render
+    // between now and the next real game-over transition re-hits this
+    // branch, so don't force the veil back just because game.solved is
+    // still true; veilDismissed only clears when gameOver goes false above.
+    if (veilDismissed) return;
     if (game.solved) {
       document.getElementById("veilTitle").textContent = "A perfect field.";
       renderWinStats(lastRecord);
@@ -2261,7 +2371,7 @@
         addVeilBtn("choose a field", function () { openCreate(); }, false);
       }
       v.classList.add("show");
-    } else if (!isSlow() && game.hearts === 0 && !game.revealedSolution) {
+    } else {
       renderFailStats();
       renderVeilFav();
       showVeilVignette("assets/illustration/fail-vignette.png");
@@ -2300,8 +2410,6 @@
       }
       addVeilBtn("show me where it went wrong", function () { revealSolution(); }, false);
       v.classList.add("show");
-    } else {
-      v.classList.remove("show");
     }
   }
   function addVeilBtn(label, fn, primary) {
@@ -2310,27 +2418,18 @@
     document.getElementById("veilBtns").appendChild(b);
   }
 
-  // tap the backdrop (not the card) to peek at the board underneath the
-  // results screen; tap *anywhere* afterward brings the card straight back.
-  // Captured at the document level so "anywhere" really means anywhere —
-  // including cells and action-bar buttons — without also triggering
-  // whatever that tap would normally do (the game's locked at this point
-  // regardless, so nothing real is lost by swallowing it).
-  var veilPeeking = false;
+  // tap the backdrop (not the card) to dismiss the results screen for good —
+  // a real close, same as every other sheet, not a toggle. The finished
+  // board and its action bar (undo/peek/clear/new field/trails/history) are
+  // fully live afterward; renderVeil() won't force the veil back just
+  // because game.solved/hearts-empty is still true (see veilDismissed).
   document.getElementById("veil").addEventListener("click", function (e) {
-    if (veilPeeking) return; // the capture-phase listener below handles this click
     var card = e.currentTarget.querySelector(".card");
     if (card && !card.contains(e.target)) {
-      veilPeeking = true;
-      e.currentTarget.classList.add("peeking");
+      veilDismissed = true;
+      e.currentTarget.classList.remove("show");
     }
   });
-  document.addEventListener("click", function (e) {
-    if (!veilPeeking) return;
-    e.preventDefault(); e.stopPropagation();
-    veilPeeking = false;
-    document.getElementById("veil").classList.remove("peeking");
-  }, true);
 
   // ---- controls ----
   function segOn(segId, attr, val) {
@@ -2396,9 +2495,10 @@
   document.addEventListener("click", function (e) {
     if (!menu.hidden && !menu.contains(e.target) && e.target !== menuBtn) openMenu(false);
     if (clearArmed && !clearBtnEl.contains(e.target)) disarmClear();
+    if (packDelArmed && !packDelBtn.contains(e.target)) disarmPackDelete();
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") { openMenu(false); closeSheet("createBack"); closeSheet("histBack"); closeSheet("infoBack"); closeSheet("trailsBack"); disarmClear(); }
+    if (e.key === "Escape") { openMenu(false); closeSheet("createBack"); closeSheet("histBack"); closeSheet("infoBack"); closeSheet("trailsBack"); disarmClear(); disarmPackDelete(); }
     if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
       var t = e.target; if (t && /^(INPUT|TEXTAREA)$/.test(t.tagName)) return;  // leave text fields alone
       e.preventDefault(); undo();
@@ -2410,12 +2510,6 @@
     if (e.key === "n" || e.key === "N") openCreate();
   });
 
-  document.getElementById("stakesSeg").onclick = function (e) {
-    var b = e.target.closest("button[data-stakes]"); if (!b) return;
-    game.stakes = b.dataset.stakes; game.lockedStakes = false; saveStakes(game.stakes);
-    if (game.stakes === "slow") game.hearts = game.maxHearts; // a clean slate — slow removes the stakes entirely
-    persist(); render();
-  };
   document.getElementById("peekBtn").onclick = function () { peek(); };
 
   document.getElementById("soundSeg").onclick = function (e) {
@@ -2809,6 +2903,10 @@
   //  HISTORY & CURATION
   // ======================================================================
   var hTab = "recent";
+  // which player pack the curated tab is currently showing/managing (B7.3 —
+  // there can be more than one now). Re-validated on every render, so a
+  // deleted/renamed pack never leaves this pointing at nothing.
+  var hCuratedPack = null;
 
   function openHistory() { closeMenu(); hTab = "recent"; segTab(); renderHistory(); openSheet("histBack"); }
   function segTab() {
@@ -2822,7 +2920,13 @@
 
   function fmtTime(ms) { if (ms == null) return "—"; var s = Math.round(ms / 1000), m = Math.floor(s / 60); s %= 60; return m + ":" + (s < 10 ? "0" : "") + s; }
   function slips(n) { return n === 1 ? "1 slip" : n + " slips"; }
-  function isCurated(code) { return getCurated().some(function (x) { return x.code === code; }); }
+  // packId omitted = "is it in the default target pack" (what the ☆ toggle
+  // itself reflects). isCuratedAnywhere is for a lighter "saved somewhere at
+  // all" signal, independent of whichever pack happens to be the default.
+  function isCurated(code, packId) { return getCurated(packId).some(function (x) { return x.code === code; }); }
+  function isCuratedAnywhere(code) {
+    return loadPacks().some(function (p) { return p.fields.some(function (x) { return x.code === code; }); });
+  }
 
   function renderHistory() {
     releaseMinis();
@@ -2838,17 +2942,42 @@
 
     var list = document.getElementById("hList");
     var curatedTab = hTab === "curated";
-    document.getElementById("exportBar").hidden = !curatedTab || !curatedOrdered().length;
-    var items = curatedTab ? getCurated() : dedupeByCode(getHistory());
+    document.getElementById("hPackRow").hidden = !curatedTab;
+    document.getElementById("hPackMgmt").hidden = !curatedTab;
+
+    if (curatedTab) {
+      var packs = playerPacks();
+      if (!packs.some(function (p) { return p.id === hCuratedPack; })) {
+        hCuratedPack = packs.length ? packs[0].id : null;
+      }
+      document.getElementById("hPack").innerHTML = packs.map(function (p) {
+        return '<button data-pack="' + p.id + '">' + p.name +
+          ' <span class="packn">' + p.fields.length + "</span></button>";
+      }).join("") + '<button data-newpack="1" title="create a new pack">+ new</button>';
+      segOn("hPack", "pack", hCuratedPack);
+      var nameInput = document.getElementById("hPackName");
+      if (document.activeElement !== nameInput) {
+        var curPack = packs.filter(function (p) { return p.id === hCuratedPack; })[0];
+        nameInput.value = curPack ? curPack.name : "";
+      }
+      // a lone, never-touched "my trail" placeholder isn't a real pack yet
+      // (nothing written to storage) — deleting it would be a no-op anyway,
+      // so there's nothing meaningful to delete until it actually exists.
+      document.getElementById("hPackDelete").disabled = loadPacks().length === 0;
+    }
+
+    document.getElementById("exportBar").hidden = !curatedTab || !curatedOrdered(hCuratedPack).length;
+    var items = curatedTab ? getCurated(hCuratedPack) : dedupeByCode(getHistory());
     if (!items.length) {
+      var curPackName = curatedTab ? (findPack(hCuratedPack) || {}).name || "this pack" : "";
       list.innerHTML = '<div class="hempty"><img src="assets/illustration/' +
         (curatedTab ? "empty-curated" : "empty-history") + '.png" alt="">' + (curatedTab
-        ? "No curated fields yet.<br>Star a field you loved from the recent list."
+        ? "No fields in " + curPackName + " yet.<br>Star a field you loved from the recent list."
         : "No fields tended yet.<br>Settle a piggy or two and they’ll gather here.") + "</div>";
       return;
     }
     list.innerHTML = "";
-    items.forEach(function (rec) { list.appendChild(historyCard(rec, curatedTab)); });
+    items.forEach(function (rec) { list.appendChild(historyCard(rec, curatedTab, hCuratedPack)); });
     drainMinis();
   }
 
@@ -2859,14 +2988,15 @@
   document.getElementById("campExport").onclick = function () {
     // include assist/stakes only when present, so a plain field without an
     // authored override doesn't clutter the JSON with redundant keys
-    var fields = curatedOrdered().map(function (f) {
+    var fields = curatedOrdered(hCuratedPack).map(function (f) {
       var out = { code: f.code, name: f.name || "" };
       if (f.assist != null) out.assist = f.assist;
       if (f.stakes != null) out.stakes = f.stakes;
       if (f.fog) out.fog = true;
       return out;
     });
-    var pack = { id: "my-pack", name: "my trail", note: "", fields: fields };
+    var src = findPack(hCuratedPack);
+    var pack = { id: "my-pack", name: (src && src.name) || "my trail", note: "", fields: fields };
     copyToClipboard(JSON.stringify(pack, null, 2), "pack JSON copied · paste into campaigns.js");
   };
 
@@ -2891,11 +3021,14 @@
     return rec.hiScore != null ? rec.hiScore : null;
   }
 
-  function historyCard(rec, curatedTab) {
+  // packId only means something on the curated tab (which specific player
+  // pack this card belongs to / whose membership the star toggles) — the
+  // recent tab has no pack context, so its star always targets the default.
+  function historyCard(rec, curatedTab, packId) {
     var el = document.createElement("div"); el.className = "hcard";
     var band = rec.band || rec.reqDifficulty || "meadow";
     var cat = curatedTab ? (rec.category || diffCategory(rec)) : diffCategory(rec);
-    var badge = (curatedTab && isCampaignDone("curated", rec.code) ? '<span class="tended" title="tended on this trail">✓</span>' : "") +
+    var badge = (curatedTab && isCampaignDone(packId, rec.code) ? '<span class="tended" title="tended on this trail">✓</span>' : "") +
                 '<span class="badge ' + (cat === "lost-cause" ? "lostcause" : cat) + '">' +
                 (CAT_LABEL[cat] || cat) + "</span>";
 
@@ -2933,16 +3066,18 @@
       "</div>" +
       '<div class="hacts">' +
         '<button class="play" data-act="replay">play</button>' +
-        '<button class="fav ' + (isCurated(rec.code) ? "on" : "") + '" data-act="curate" ' +
-          'aria-label="favorite" title="favorite">' + (isCurated(rec.code) ? "★" : "☆") + "</button>" +
+        '<button class="fav ' + (isCurated(rec.code, curatedTab ? packId : null) ? "on" : "") + '" data-act="curate" ' +
+          'aria-label="favorite" title="favorite">' + (isCurated(rec.code, curatedTab ? packId : null) ? "★" : "☆") + "</button>" +
       "</div>";
 
     queueMini(el.querySelector("[data-mini]"));
     el.querySelector('[data-act="replay"]').onclick = function () { closeSheet("histBack"); replayBoard(rec); };
-    el.querySelector('[data-act="curate"]').onclick = function () { toggleCurate(rec); renderHistory(); };
+    el.querySelector('[data-act="curate"]').onclick = function () {
+      toggleCurate(rec, curatedTab ? packId : null); renderHistory();
+    };
     if (curatedTab) {
       var nm = el.querySelector(".hname");
-      nm.onchange = nm.onblur = function () { renameCurated(rec.code, this.value); };
+      nm.onchange = nm.onblur = function () { renameCurated(packId, rec.code, this.value); };
       nm.onkeydown = function (e) { if (e.key === "Enter") this.blur(); };
     }
     return el;
@@ -2975,34 +3110,58 @@
     renderMini(el, pz);
   }
 
-  function renameCurated(code, name) {
-    var cur = getCurated(), i = cur.findIndex(function (x) { return x.code === code; });
+  // a field's name is per pack-entry, not global — the same code can carry
+  // a different name in two different packs — so this always needs to know
+  // which pack's copy to edit.
+  function renameCurated(packId, code, name) {
+    var packs = loadPacks(), pack = packs.filter(function (p) { return p.id === packId; })[0];
+    if (!pack) return;
+    var i = pack.fields.findIndex(function (x) { return x.code === code; });
     if (i < 0) return;
     var v = String(name || "").trim().slice(0, 40);
-    if ((cur[i].name || "") === v) return;
-    cur[i].name = v; sset("curated", cur);
+    if ((pack.fields[i].name || "") === v) return;
+    pack.fields[i].name = v;
+    savePacks(packs);
   }
 
-  function toggleCurate(rec) {
-    var cur = getCurated();
-    var i = cur.findIndex(function (x) { return x.code === rec.code; });
-    if (i >= 0) { cur.splice(i, 1); toast("uncurated"); }
+  // packId omitted = the default target (loadLastPackId()) — what the veil's
+  // ☆ and a history card's one-tap star both use, so starring stays exactly
+  // one tap for anyone who never touches pack management. A brand-new
+  // profile's very first star auto-creates "my trail", matching the exact
+  // one-tap behavior this had before B7.3 introduced multiple packs.
+  function toggleCurate(rec, packId) {
+    var packs = loadPacks();
+    var pid = packId || loadLastPackId();
+    var pack = pid && packs.filter(function (p) { return p.id === pid; })[0];
+    if (!pack) {
+      pack = { id: "curated", name: "my trail",
+               note: "Your own curated fields, tended gentlest to knottiest.",
+               createdAt: Date.now(), fields: [] };
+      packs.push(pack);
+    }
+    var i = pack.fields.findIndex(function (x) { return x.code === rec.code; });
+    if (i >= 0) { pack.fields.splice(i, 1); toast("uncurated"); }
     else {
       // carries everything needed to faithfully recreate the exact run this
       // field was played under (not just which board it is) — assist and
       // stakes both meaningfully change the experience, so a starred field
       // replays (or exports into a pack) exactly as it was played, not under
       // whatever the player's current defaults happen to be.
-      cur.unshift({ code: rec.code, name: rec.name || "", size: rec.size, seed: rec.seed,
+      pack.fields.unshift({ code: rec.code, name: rec.name || "", size: rec.size, seed: rec.seed,
                     reqDifficulty: rec.reqDifficulty, mode: rec.mode, band: rec.band,
                     assist: rec.assist, stakes: rec.stakes, fog: !!rec.fog, campaignPack: rec.campaignPack || null,
                     ladderRung: rec.ladderRung || 0, gauntletStep: rec.gauntletStep || 0,
                     aScore: rec.aScore, eScore: rec.eScore, solved: !!rec.solved,
                     category: diffCategory(rec), hiScore: bestScore(rec), addedAt: Date.now() });
-      if (cur.length > 100) cur.length = 100;
+      if (pack.fields.length > 100) pack.fields.length = 100;
       toast("curated · " + rec.code);
     }
-    sset("curated", cur);
+    savePacks(packs);
+    // only the implicit default-target call (no explicit packId — the
+    // simple one-tap star) should shift what "default" means going
+    // forward; a deliberate placement into a specific *other* pack (the
+    // multi-pack picker) shouldn't silently change it.
+    if (!packId) saveLastPackId(pack.id);
   }
 
   document.getElementById("hTabs").onclick = function (e) {
@@ -3011,11 +3170,51 @@
   };
   document.getElementById("hClose").onclick = function () { closeSheet("histBack"); };
   document.getElementById("hClear").onclick = function () {
-    if (hTab === "curated") { sset("curated", []); toast("curated cleared"); }
+    if (hTab === "curated") { clearPackFields(hCuratedPack); toast("pack cleared"); }
     else { sset("history", []); toast("history cleared"); }
     renderHistory();
   };
   document.getElementById("historyBtn").onclick = openHistory;
+
+  document.getElementById("hPack").onclick = function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.newpack) {
+      var p = createPack("untitled trail");
+      hCuratedPack = p.id;
+      renderHistory();
+      var nameInput = document.getElementById("hPackName");
+      nameInput.focus(); nameInput.select();
+      return;
+    }
+    hCuratedPack = b.dataset.pack;
+    saveLastPackId(hCuratedPack); // viewing a pack here is a deliberate pick, same as Trails'
+    renderHistory();
+  };
+  document.getElementById("hPackName").onchange =
+  document.getElementById("hPackName").onblur = function () {
+    if (!hCuratedPack) return;
+    renamePack(hCuratedPack, this.value);
+    renderHistory();
+  };
+  document.getElementById("hPackName").onkeydown = function (e) { if (e.key === "Enter") this.blur(); };
+
+  // same "tap again to confirm" pattern as the board's clear button
+  var packDelArmed = false, packDelTimer = null;
+  var packDelBtn = document.getElementById("hPackDelete");
+  function disarmPackDelete() { packDelArmed = false; clearTimeout(packDelTimer); packDelBtn.textContent = "delete pack"; }
+  packDelBtn.onclick = function () {
+    if (!hCuratedPack) return;
+    if (!packDelArmed) {
+      packDelArmed = true; packDelBtn.textContent = "sure? tap again";
+      packDelTimer = setTimeout(disarmPackDelete, 2200);
+      return;
+    }
+    disarmPackDelete();
+    deletePack(hCuratedPack);
+    hCuratedPack = null; // renderHistory() re-derives a valid one
+    toast("pack deleted");
+    renderHistory();
+  };
 
   // ---- a cozy little saying, picked fresh on each load ----
   var SAYINGS = [

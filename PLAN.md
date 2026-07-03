@@ -1189,6 +1189,159 @@ specs, no fresh-seed rolling, no special-cased trails list.)*
   game finishes with no "climb higher" offered; full suite + WebKit
   spot-check.
 
+### B7. Post-B6 play-test round — **4 of 5 done 2026-07-03** (B7.5 is a future note, not built) (user-directed)
+
+Five items from a fresh play-test pass, ordered smallest/most-precedented
+first: a real bug, a scope cut, a new feature, a content/visual project,
+and a forward-looking architecture note.
+
+#### B7.1 Veil-dismiss bug: action bar dead after viewing the finished board — **done**
+- Root cause: the outside-tap gesture on the win/fail veil was a *toggle*,
+  not a close — `veilPeeking` hid the veil via `display:none` for exactly
+  one moment, then a document-level capture-phase listener swallowed the
+  *next* click anywhere (`preventDefault`+`stopPropagation`) purely to flip
+  it back — so a genuine tap on undo/peek/clear/new field/trails/history
+  never reached its own handler. Separately, `renderVeil()` ran on every
+  `render()` pass and was gated only on the persistent `game.solved` /
+  `hearts===0` state, so even a "real" dismiss would've been re-shown by
+  the very next re-render.
+- Fixed both: outside-tap is now a real, permanent dismiss (`veilDismissed
+  = true`, remove "show" — same as every other sheet); `renderVeil()`
+  computes `gameOver` once and short-circuits when `veilDismissed`, only
+  clearing that flag when `gameOver` itself goes false (a fresh game, or
+  "fresh start"/"show me where it went wrong"). Deleted the now-dead
+  `veilPeeking`/capture-listener/`.peeking` CSS entirely.
+- Verify: `scripts/test_veil_dismiss.js` (9 checks) — dismiss on both win
+  and fail veils, action-bar buttons genuinely fire (not swallowed),
+  dismissal doesn't leak into the next game's own win.
+
+#### B7.2 Stakes: remove the player-facing toggle, keep the mechanic — **done**
+- **Not a removal of the mechanic** — `stakes` is deeply load-bearing
+  (Wallow forces `"stern"`, peek is free under `"slow"`, the whole
+  fidelity/pack-override chain persists it per-record/per-field) — ripping
+  it out would touch B1, B4.2, and B3's pack system. This mirrors the B6
+  sunset pattern exactly: remove the settings-menu surface, keep
+  `STAKES_MODES`, `loadStakes()`, `game.stakes`, mode-forced overrides
+  (Wallow), and pack-authored per-field overrides fully intact.
+- Delete the `#stakesSeg` row from the ⚙ menu (`index.html` ~line 460) and
+  its click handler. `loadStakes()` keeps returning whatever's saved
+  (nothing changes for a returning player — their prior explicit choice,
+  if any, still applies); a fresh profile's default stays `"gentle"`
+  permanently now that there's no UI to change it, same as it always was
+  out of the box.
+- Info sheet's "Stakes" section: reword from "here's the control and its 4
+  values" to a one-paragraph explainer of how hearts get docked by
+  default, folded into the Rules or Controls section rather than kept as
+  its own heading — there's no live control left to document separately.
+- Verify: menu no longer shows a stakes row; a fresh profile still plays
+  gentle stakes; Wallow still forces stern; a pack-authored stakes
+  override on a field still applies; full regression suite (the existing
+  `#stakesSeg button[data-stakes="..."]` calls throughout the test files
+  that set stakes via the menu need a different mechanism — direct
+  `localStorage` write for `arcade.v1.sowduku.stakes`, matching how tests
+  already seed other saved prefs).
+
+#### B7.3 Multiple player-created trail packs — **done**
+- Today: exactly one virtual pack ("my trail", id `"curated"`), assembled
+  at render time from a single flat `sget("curated")` array via
+  `curatedPack()`/`curatedOrdered()`. Starring a field (`toggleCurate`)
+  always adds to that one array; `renameCurated(code, name)` renames a
+  *field*, not a pack.
+- **Data model**: replace the single flat array with `sget("packs")` →
+  `[{ id, name, note, createdAt, fields: [...] }]` — same field shape
+  already in use (`{code, name, note, assist, stakes, fog, addedAt,
+  category, eScore, aScore, ...}` — unchanged, `normalizePackField`
+  already handles both curated-shape and built-in-shape fields
+  uniformly). **One-time migration**: on first load after this ships, if
+  `sget("curated")` exists and `sget("packs")` doesn't, wrap the old flat
+  array into a single pack `{ id: "curated", name: "my trail", fields:
+  <old array> }` — same id as today's virtual pack, so existing progress
+  (`campaignDone.curated`, any exported JSON, any history record's
+  `campaignPack: "curated"`) keeps working with zero further changes.
+  Delete `sget("curated")` only after a successful migration write, same
+  pattern as the existing `campaignDone` array→object migration
+  (`loadCampaignDone()`).
+- A field may belong to more than one pack (no exclusivity) — the data is
+  small (a code + a few strings) and forcing a move-not-copy decision
+  every time a player stars something into a second pack would be
+  needless friction for no real storage cost.
+- **v1 scope, deliberately minimal** (reorder-within-pack, cross-pack
+  drag, and pack templates/duplication are explicit backlog, not v1):
+  - Create a pack (name it; note is optional, editable later).
+  - Rename a pack, delete a pack (deleting a pack does not delete its
+    fields from any *other* pack they're also in — only removes that
+    pack's own entry).
+  - Starring a field (veil ☆, history "curate" action) that's not yet in
+    *any* player pack: adds to the most-recently-used pack by default
+    (first star ever creates "my trail" automatically, preserving exact
+    current one-tap behavior for a player who never touches pack
+    management) — with a small "+ add to another pack" affordance next to
+    the star for anyone who wants to place it deliberately, rather than a
+    forced picker interrupting every single star.
+  - `allPacks()` now concatenates *every* player pack, not just one
+    synthesized one — the Trails sheet's pack picker (already a scrolling
+    `.seg.wrap` of pill buttons, already tested up to 3 packs) needs no
+    structural change to show more, just a "manage" affordance (rename/
+    delete) reachable from there, e.g. a small ✎ on each pill or a
+    dedicated "manage trails" row.
+  - Export-as-JSON (already built, one pack at a time) needs no format
+    change — just needs to target whichever pack is currently selected in
+    the Trails sheet, not always the one hardcoded "curated" id.
+- Verify: migration round-trips existing "my trail" progress/exports with
+  zero data loss (test against a pre-migration `localStorage` snapshot);
+  create/rename/delete a pack; a field can be starred into two packs and
+  independently tracked/cleared in each (`campaignDone` is already keyed
+  by packId, so this should fall out for free); deleting a pack a game is
+  currently mid-way through doesn't crash (falls back the same way an
+  unknown `campaignPack` id already has to); WebKit spot-check the pack
+  picker with 4+ packs.
+
+#### B7.4 Info sheet: visual redesign with generated imagery — **done**
+- Prompts only in this pass — image generation happens externally, same
+  workflow as every prior asset (`ASSET_PROMPTS.md`). New prompts get
+  appended there under a new "Info sheet" heading, using the existing
+  style preamble verbatim so they match the win/fail vignettes and
+  mode-badge set already shipped.
+- The sheet is currently five text-only sections (Rules, Controls,
+  Difficulty, Stakes, Assist) in one scrolling column — B7.2 removes
+  Stakes as its own heading, leaving four. Each gets one small illustration
+  in the same "vignette" slot pattern already used on the win/fail veil
+  (`.vvignette` — wide, short, 3:1ish), giving the sheet a rhythm of
+  text/image/text/image instead of a wall of paragraphs.
+- Draft prompt set (final copy once B7.2's Stakes-fold is written):
+  1. **Rules** — the four settled piglets, one per pen, spaced apart, *no*
+     two touching even corner-to-corner (visually demonstrates the Wallow
+     Rule the paragraph describes).
+  2. **Controls** — a single piglet mid-gesture: one trotter tapping a
+     cell, a small hoofprint mark already stamped in the pen beside it —
+     tap and hoofprint shown side by side in one frame.
+  3. **Difficulty** — four small pens in a row, each a shade knottier than
+     the last (echoing Sunbeam→Meadow→Hilltop→Crag's escalating fence
+     complexity), a fifth smaller pen at the end just barely visible
+     off-frame for the Wallow notch.
+  4. **Assist** — a single pen shown twice side by side: left half
+     ordinary, right half with the "dead cells" softly shaded — the same
+     visual language the live board itself uses, so the illustration
+     teaches by matching what they'll actually see.
+- Verify: no code changes needed to *land* the prompts (this sub-item is
+  content-only); once images exist, wiring them is the same one-line
+  `<img class="vvignette" src="assets/illustration/info-*.png">` pattern
+  already used twice — flag as a small separate follow-up once art lands
+  rather than blocking on it now.
+
+#### B7.5 Future: trail pack sharing via phone share integration — **not started, noted for architecture**
+- Not built this round — noted so B7.3's data model doesn't need
+  revisiting later. The existing export-as-JSON flow (`#campExport`,
+  clipboard-only today) already produces exactly the payload a share
+  sheet would need (`{id, name, note, fields}`, self-contained, no
+  external references) — B7.3 keeps that shape. When this gets built:
+  `navigator.share()` with a `Blob`/`File` (falls back to the existing
+  clipboard copy on browsers/contexts without the Web Share API, e.g.
+  desktop Safari/Firefox), and an **import** side (paste-JSON today has
+  no UI at all — reading a shared pack back in is the actual missing
+  half, not just sending one out). Revisit once B7.3 ships and multi-pack
+  management has had some real play-testing.
+
 ---
 
 ## Status log
@@ -1728,3 +1881,92 @@ specs, no fresh-seed rolling, no special-cased trails list.)*
   item from the original 6 play-test findings and the ladder/gauntlet/
   wallow simplification is now implemented. Remaining: B5 (mud puddles →
   hoofcap → settled → daily rotation → twin litters), not yet started.
+- 2026-07-03 — **User opened a fresh play-test round mid-B5, adding B7**
+  (bug fix, stakes scope-cut, multi-pack trails, info-sheet redesign,
+  future share-integration note) ahead of B5 in the build order.
+  **B7.1 implemented and verified**: the win/fail veil's outside-tap
+  gesture was a toggle-peek, not a real close — a document-level
+  capture-phase listener swallowed the *next* click anywhere purely to
+  flip it back, so a genuine tap on any action-bar button while "peeking"
+  never reached its own handler; separately `renderVeil()` ran on every
+  render and was gated only on persistent `game.solved`/`hearts===0`
+  state, so even a real dismiss would've been re-shown by the next
+  re-render. Fixed both: outside-tap now permanently dismisses (matching
+  every other sheet's click-outside-to-close), and a new `veilDismissed`
+  flag short-circuits `renderVeil()` until the underlying game-over state
+  itself changes. Deleted the dead `veilPeeking`/capture-listener/
+  `.peeking` CSS. 9 new checks (`test_veil_dismiss.js`), full suite still
+  145+9=154 green. **B7.2 implemented and verified**: deleted `#stakesSeg`
+  from the ⚙ menu and its click handler, plus the now-unused `saveStakes()`
+  — `STAKES_MODES`/`loadStakes()`/`game.stakes`/`game.lockedStakes` all
+  stay exactly as they were, so Wallow's forced "stern" and any
+  pack-authored per-field stakes override still work unchanged; a fresh
+  profile still plays "gentle" (loadStakes()'s existing fallback), and a
+  pre-B7.2 profile's saved choice is still honored (nothing writes over it
+  anymore, but nothing clears it either). Info sheet's standalone "Stakes"
+  heading removed; folded a one-sentence heart-docking explainer into "The
+  rules" instead, and trimmed the "(free under slow stakes)" aside out of
+  the Controls/peek description since a new player has no way to reach
+  that tier anymore. README's Stakes section reframed from "a player
+  setting, in the ⚙ menu" to "one internal spectrum"; the storage-key
+  table's `stakes` row marked legacy. 10 existing Playwright checks across
+  5 files referenced `#stakesSeg` (menu clicks to set stakes before/during
+  a test) — switched all to direct `localStorage` writes matching how
+  every other saved pref is already seeded in tests; one redundant
+  UI-readout check in `test_history_fidelity.js` (`#stakesSeg button.on`)
+  was replaced by the behavioral heart-docking check that already proved
+  the same thing one line below it. Full suite: 153 green (net -1 from the
+  consolidated check), WebKit spot-check of both the menu and info sheet.
+  Next: B7.3 (multiple player-created trail packs) — the biggest item in
+  this batch, will pause for a visual check-in once there's a concrete
+  "manage trails" UI to show, same as B4.1's pattern.
+- 2026-07-03 — **B7.3 implemented and verified**: storage kept the same
+  "curated" key (mirroring `loadCampaignDone()`'s in-place migration
+  pattern rather than the plan's originally-sketched separate "packs" key)
+  but its shape changed from one flat field array to an array of packs,
+  each `{id, name, note, createdAt, fields}` — migrated in place on first
+  read. Caught and fixed a real bug during implementation: `Array.isArray()`
+  can't tell a pre-B7.3 flat field array from a post-B7.3 pack array (both
+  are arrays), so the naive migration check re-wrapped an already-migrated
+  array on every single `loadPacks()` call, nesting it infinitely (one
+  manual repro produced 6 levels of nesting after ~5 reads). Fixed by
+  checking `d[0].fields == null` instead — a field entry never has its own
+  `.fields`, a pack entry always does. Also caught `syncCuratedScore()`
+  (updates a curated copy's high score after a new best) still writing a
+  bare fields array straight to the `"curated"` key, which would have
+  silently reverted the whole store back to the old flat shape the next
+  time anything read it — fixed to sweep every pack a code appears in and
+  go through `savePacks()` (the whole array), not the storage key
+  directly. A field can belong to more than one pack (no exclusivity,
+  confirmed independent progress tracking per pack — `campaignDone` was
+  already keyed by packId so this fell out for free). Starring stays
+  exactly one tap for a player who never touches pack management (first
+  star auto-creates "my trail"); a deliberate pack switch in the History
+  sheet's new pack picker becomes the new default target for future
+  one-tap stars (not for explicit-packId calls, which don't disturb it).
+  New UI: a pack-picker pill row + rename input + "delete pack" (same
+  tap-again-to-confirm pattern as the board's clear button) in the History
+  sheet's curated tab; "+ new" creates and focuses the name field
+  immediately. Trails sheet needed zero structural changes — `allPacks()`
+  already fed it, so every player pack just started appearing. Export
+  targets whichever pack is currently selected, not always "my trail". 22
+  new checks (`test_b7_multipack.js`) covering migration stability across
+  repeated loads, one-tap default behavior, create/rename/delete,
+  cross-pack independence, and export targeting; 175 total green across 11
+  files; WebKit spot-check with 3 packs. **B7.4 implemented and verified**:
+  the info sheet's four remaining sections (Rules/Controls/Difficulty/
+  Assist — Stakes folded away in B7.2) each got a `.vvignette`-slot image
+  tag (same pattern as the win/fail veil) with `onerror="this.hidden=true"`,
+  so the sheet reads perfectly well as text-only right now and will start
+  showing art the moment matching-named PNGs land in
+  `assets/illustration/` — zero further code changes needed then. Four
+  prompts written into `ASSET_PROMPTS.md` under a new "Info sheet
+  illustrations" heading, using the existing style preamble verbatim; not
+  generated (explicitly prompts-only per the request). Full suite stayed
+  175 green (pure addition, no logic touched); WebKit-verified both that
+  the vignettes gracefully collapse today and that the rest of the sheet's
+  layout is untouched. **This closes out B7.1–B7.4 — every item from this
+  play-test round is implemented except B7.5, which was always meant as a
+  forward-looking architecture note, not something to build now.**
+  Remaining across the whole plan: B5 (mud puddles → hoofcap → settled →
+  daily rotation → twin litters), not yet started.

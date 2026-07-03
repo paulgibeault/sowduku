@@ -172,11 +172,9 @@ async function run() {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    // set honest stakes via the settings menu, then tend a known field with assist off
-    await page.click("#menuBtn");
-    await page.waitForSelector("#menu:not([hidden])");
-    await page.click('#stakesSeg button[data-stakes="honest"]');
-    await page.click("#menuBtn"); // close
+    // stakes has no live control anymore (B7.2) — seed the saved default
+    // directly, then tend a known field with assist off
+    await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest")));
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
     await page.fill("#cSeed", "6m-1"); // known intro-pack code; solution row0 is col 2

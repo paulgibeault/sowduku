@@ -76,17 +76,17 @@ you hadn't settled correctly — a look, not another guess, and it doesn't
 touch your record. Clear the board when you're ready and the field starts
 fresh, full hearts and all.
 
-### Stakes — one spectrum, from ritual to rigorous
+### Stakes — how strictly a heart gets docked
 
-**Stakes** (a player setting, in the ⚙ menu) decides which mistakes actually
-cost a heart — one dial, from most to least forgiving, rather than a stakes
-setting and a separate slow-mode toggle bolted on beside it:
+**Stakes** is one internal spectrum, from most to least forgiving — no
+player-facing dial anymore (it was, briefly; removed as one setting too
+many), just the rule underneath ordinary play plus the odd field that asks
+for more:
 
 - **slow** — no hearts, no failure, just the ritual. Hearts disappear from the
-  field entirely; nothing you do here can end a field early. For when you
-  want the puzzle without the pressure.
-- **gentle** — the default. Only a placement that breaks a rule against pigs
-  already on the field costs a heart.
+  field entirely; nothing you do here can end a field early.
+- **gentle** — the default for every ordinary field. Only a placement that
+  breaks a rule against pigs already on the field costs a heart.
 - **honest** — also costs a heart for a piggy that's *legal right now* but
   isn't where it truly belongs, and for fencing a whole pen out of room with
   your own hoofprints (blocking off a color so no piggy can ever land there).
@@ -158,14 +158,11 @@ curated series of fields, not something you're "creating."
   your starred list into ready-to-paste JSON for building a new built-in
   trail.
 
-Want the ritual without the stakes? Set **stakes** to *slow* (in the ⚙ menu)
-over any field — no hearts, no failure, infinite markers.
-
 A **gentle hint** ("peek", in the docked action bar) glows the next
 logically-forced piggy — never a guess, just the field pointing at the
-deduction you already had the pieces for. It trades a heart for the
-hint (free under slow stakes, and it never asks for a heart you can't
-spare — it simply won't offer once only one is left).
+deduction you already had the pieces for. It trades a heart for the hint,
+and it never asks for a heart you can't spare — it simply won't offer once
+only one is left.
 
 Difficulty is shaped by *pen geometry and deduction depth*, never by hidden
 timers or trick layouts. A hard puzzle rewards patience; it doesn't punish you.
@@ -245,7 +242,7 @@ along in the launcher's cross-device save file for free:
 | `arcade.v1.sowduku.stats`       | Lifetime tallies: fields played/solved, slips, best ladder rung |
 | `arcade.v1.sowduku.curated`     | Hand-picked fields (by board code) worth keeping and replaying  |
 | `arcade.v1.sowduku.assist`      | Assist preference (on / off), persists across fields |
-| `arcade.v1.sowduku.stakes`      | Stakes preference (slow / gentle / honest / stern), persists across fields |
+| `arcade.v1.sowduku.stakes`      | Stakes preference (slow / gentle / honest / stern) — legacy, no live control writes it anymore, but a profile that saved one before still gets it back |
 
 ```js
 Arcade.state.set('inProgress', JSON.stringify(board));   // autosave each move

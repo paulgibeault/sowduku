@@ -59,8 +59,9 @@ async function run() {
     await page.click("#historyBtn");
     await page.waitForSelector(".hcard");
     await page.click('.hcard [data-act="curate"]');
+    // storage shape (B7.3): an array of packs, each with its own fields array
     const curated = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.curated")));
-    ok(curated[0].campaignPack === "intro", "curated campaign-mode entry stores campaignPack=intro, got " + curated[0].campaignPack);
+    ok(curated[0].fields[0].campaignPack === "intro", "curated campaign-mode entry stores campaignPack=intro, got " + curated[0].fields[0].campaignPack);
 
     // replay it from the curated tab and confirm the pack gets credited on a solve
     await page.click('#hTabs button[data-tab="curated"]');

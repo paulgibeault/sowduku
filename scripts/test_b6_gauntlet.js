@@ -150,9 +150,7 @@ async function run() {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    await page.click("#menuBtn");
-    await page.click('#stakesSeg button[data-stakes="honest"]');
-    await page.click("#menuBtn");
+    await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest")));
     await page.click("#trailsBtn");
     await page.click('#tPack button[data-pack="gauntlet"]');
     await page.click("#tTend");

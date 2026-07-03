@@ -21,6 +21,11 @@ clarity" over showing genuine restraint. Their prompts are left below for
 whenever a concrete use surfaces (e.g. a first-run flow for Dozing) —
 don't generate them without a call site decided first.
 
+**New, planned but not generated (B7.4):** four Info sheet illustrations
+(Rules/Controls/Difficulty/Assist) — unlike the "on hold" set above, these
+already have a concrete, wired call site (`index.html`'s `.info-body`,
+graceful `onerror` fallback in the meantime) — just waiting on generation.
+
 ## Style preamble (prepend to every prompt)
 
 ```
@@ -178,6 +183,49 @@ slot as the win vignette. Shared across all fail paths, gauntlet included.
 > mildly affronted, one eyebrow raised each — comedy through restraint, no
 > distress, no tears, no dramatic lighting. Same line-art and pastel-fill
 > style as the rest of the set.
+
+### Info sheet illustrations — **planned, prompts only (B7.4)**
+`assets/illustration/info-rules.png`, `info-controls.png`,
+`info-difficulty.png`, `info-assist.png` — one per remaining section of the
+"how to play" sheet (Rules, Controls, Difficulty, Assist; Stakes was folded
+into Rules' own paragraph in B7.2 and no longer has a section of its own).
+Same slot pattern as the win/fail vignette (`.vvignette`, wide-and-short,
+between the `<h3>` heading and its paragraph) — code is already wired
+(`index.html`'s `.info-body`) with a graceful `onerror` fallback, so the
+sheet reads perfectly well as text-only until these are actually generated
+and dropped in with these exact filenames. Not generated yet — this is the
+prompt-writing pass only, per explicit request; do not generate without a
+further go-ahead.
+
+**(a) Rules**
+> A small vignette, wide and short composition (3:1): four piglets each
+> settled in their own patch of a pastel field, spaced generously apart —
+> not one of them touching a neighbor, not even corner to corner,
+> demonstrating the Wallow Rule the paragraph describes. Same line-art and
+> pastel-fill style as the win/fail vignettes.
+
+**(b) Controls**
+> A small vignette: one piglet mid-tap, a trotter reaching down toward a
+> cell about to settle, and beside it in the next pen over, a small
+> two-toed hoofprint mark already stamped down — tap and hoofprint shown
+> together in one calm frame, no motion lines or speed effects, just the
+> two gestures side by side.
+
+**(c) Difficulty**
+> A small vignette: four little fenced pens in a row, each visibly a shade
+> more intricate than the last — the first a single simple square, the
+> last a knot of small irregular divisions — echoing Sunbeam through Crag's
+> escalating fence complexity. A fifth, smaller pen sits just past the
+> fourth, partly cropped off the right edge of the frame, hinting at the
+> Wallow one notch further without fully showing it.
+
+**(d) Assist**
+> A small vignette, split down the middle: the same fenced pen shown twice
+> side by side. Left half: an ordinary pen, plain. Right half: the
+> identical pen with its unusable cells softly shaded in a pale wash — the
+> same visual language the live board itself uses for assist, so the
+> illustration teaches by matching exactly what a player will actually see
+> in play.
 
 ### Empty-state spots
 `assets/illustration/empty-history.png`, `empty-curated.png` — **done**,

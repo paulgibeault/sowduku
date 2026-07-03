@@ -25,10 +25,9 @@ async function run() {
   const page = await ctx.newPage();
   await gotoAndDismissIntro(page);
 
-  // set honest stakes + assist off, tend 6s-1, solve it, curate the record
-  await page.click("#menuBtn");
-  await page.click('#stakesSeg button[data-stakes="honest"]');
-  await page.click("#menuBtn");
+  // set honest stakes + assist off, tend 6s-1, solve it, curate the record.
+  // Stakes has no live control anymore (B7.2) — seed the saved default directly.
+  await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest")));
   await page.click("#newBtn");
   await page.fill("#cSeed", "6s-1");
   await page.click('#cAssist button[data-assist="off"]');
@@ -42,9 +41,11 @@ async function run() {
   await page.waitForSelector(".hcard");
   await page.click('.hcard [data-act="curate"]');
 
+  // storage shape (B7.3): an array of packs, each with its own fields array
   const curated = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.curated")));
-  ok(curated[0].assist === "off", "curated entry stores assist=off, got " + curated[0].assist);
-  ok(curated[0].stakes === "honest", "curated entry stores stakes=honest, got " + curated[0].stakes);
+  const curatedField = curated[0].fields[0];
+  ok(curatedField.assist === "off", "curated entry stores assist=off, got " + curatedField.assist);
+  ok(curatedField.stakes === "honest", "curated entry stores stakes=honest, got " + curatedField.stakes);
 
   // export pack JSON should carry both through
   await page.click('#hTabs button[data-tab="curated"]');
@@ -59,9 +60,7 @@ async function run() {
   // replay the curated field — it should use its own recorded settings, not
   // whatever the player's current defaults happen to be.
   await page.click("#hClose");
-  await page.click("#menuBtn");
-  await page.click('#stakesSeg button[data-stakes="gentle"]');
-  await page.click("#menuBtn");
+  await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("gentle")));
   await page.click("#newBtn");
   await page.click('#cAssist button[data-assist="on"]');
   await page.click("#cTend");
@@ -72,16 +71,16 @@ async function run() {
   await page.click('.hcard [data-act="replay"]');
   await page.waitForFunction(() => document.getElementById("codeChip").textContent.trim() === "6s-1");
 
-  await page.click("#menuBtn");
-  const stakesOn = await page.locator("#stakesSeg button.on").getAttribute("data-stakes");
-  ok(stakesOn === "honest", "replayed field restores stakes=honest (not the live gentle default), got " + stakesOn);
-  await page.click("#menuBtn");
-
+  // stakes has no live UI readout anymore (B7.2) — infer it the same
+  // behavioral way the assist check below does: a wrong-but-legal placement
+  // only docks a heart under honest+ stakes, never under gentle, so this
+  // proves the replayed field kept its own recorded "honest", not the live
+  // "gentle" default just set above.
   const heartsBefore = await page.locator("#hearts img.heart:not(.lost)").count();
   await page.click('[data-r="0"][data-c="0"]'); // wrong-but-legal for 6s-1 (solution row0 is col4)
   await page.waitForTimeout(300);
   const heartsAfter = await page.locator("#hearts img.heart:not(.lost)").count();
-  ok(heartsAfter === heartsBefore - 1, "replayed field docks a heart under its own honest stakes, " + heartsBefore + " -> " + heartsAfter);
+  ok(heartsAfter === heartsBefore - 1, "replayed field restores stakes=honest (not the live gentle default) — a wrong-but-legal placement docks a heart, " + heartsBefore + " -> " + heartsAfter);
 
   // assist=off should also have been restored (not the live "on" default) —
   // proven indirectly: no dead-cell shading appears after this placement,
