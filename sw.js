@@ -2,7 +2,7 @@
 // the network for anything else (e.g. the arcade SDK, which needs to be live
 // to see fresh cross-device state). Bump CACHE on any shell/asset change so
 // old installs pick up the new files instead of serving stale ones forever.
-const CACHE = "sowdoku-shell-v2";
+const CACHE = "sowdoku-shell-v3";
 const SHELL = [
   "./",
   "index.html",
