@@ -212,18 +212,20 @@ further go-ahead.
 > two gestures side by side.
 
 **(c) Difficulty**
-> A small vignette: four little fenced pens in a row, each visibly a shade
-> more intricate than the last — the first a single simple square, the
-> last a knot of small irregular divisions — echoing Sunbeam through Crag's
-> escalating fence complexity. A fifth, smaller pen sits just past the
-> fourth, partly cropped off the right edge of the frame, hinting at the
-> Wallow one notch further without fully showing it.
+> A small vignette showing four fenced grids in a horizontal row on a warm parchment
+> background under a soft watercolor sun. The grids increase in size and division complexity
+> from left to right: a simple 4x4 green grid, a 6x6 orange/clay grid, an 8x8 grid with
+> four quadrant regions, and a 10x10 grid with complex multi-colored pen regions. This
+> illustrates the escalating scale and complexity of the different difficulty tiers.
 
 **(d) Assist**
-> A small vignette, split down the middle: the same fenced pen shown twice
-> side by side. Left half: an ordinary pen, plain. Right half: the
-> identical pen with its unusable cells softly shaded in a pale wash — the
-> same visual language the live board itself uses for assist, so the
+> A small vignette: a simple 4x4 grid of cells drawn with clean charcoal line art. A
+> single cute piglet sits in the third row, third column. Light blue highlight lines
+> run horizontally and vertically through the piglet's cell to show row and column
+> exclusions, and a rounded light blue square outlines the 3x3 area of cells immediately
+> surrounding the piglet (to show the diagonal and orthogonal Wallow rule exclusion zone).
+> Soft watercolor pastel fills shade the pens, with a warm off-white parchment background.
+> The title at the top of the image reads "FOCUS ON A SINGLE PIG: ROW, COLUMN, & REGION", so the
 > illustration teaches by matching exactly what a player will actually see
 > in play.
 
