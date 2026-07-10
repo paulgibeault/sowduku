@@ -762,6 +762,23 @@
     if (A && A.state) A.state.set(key, val);
   }
 
+  // Escape any user- or pack-authored text before it reaches innerHTML. Pack
+  // and field names/codes round-trip through save export→import and the "share
+  // a pack" flow, so unescaped they are a stored-XSS vector in the same-origin
+  // iframe. Prefers the SDK helper (Arcade.html.escape); the local fallback
+  // keeps it safe standalone and before the SDK update has propagated.
+  function esc(s) {
+    if (A && A.html && A.html.escape) return A.html.escape(s);
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;"
+        : c === '"' ? "&quot;" : "&#39;";
+    });
+  }
+
+  // Acceptance sentinel (GAME_INTEGRATION §13): no legacy keys to move, but the
+  // platform check looks for a migrate() call. A no-op keeps it honest.
+  if (A && A.state && A.state.migrate) A.state.migrate("v1", function () {});
+
   // 10 distinct pens for a 10×10 board — one entry short and two regions
   // would silently share a colour (PALETTE[id % PALETTE.length] wrapping).
   var PALETTE = ["#cdd6bb","#e6cdb8","#e3c2cb","#c3d0d8","#ecdcae","#d3cadf","#cad9c6","#e9d3bd","#dcb9a6","#b9c9dc"];
@@ -2786,9 +2803,9 @@
       var hi = bestScore(f);
       var band = f.reqDifficulty || f.band || "meadow";
       var selected = tState.fieldCode === f.code;
-      return '<button class="tfrow' + (selected ? ' on' : '') + '" data-code="' + f.code + '">' +
+      return '<button class="tfrow' + (selected ? ' on' : '') + '" data-code="' + esc(f.code) + '">' +
         '<span class="tfnum">' + (i + 1) + '</span>' +
-        '<span class="tfname">' + (f.name || f.code) + '</span>' +
+        '<span class="tfname">' + esc(f.name || f.code) + '</span>' +
         '<span class="tfmeta">' + f.size + '×' + f.size + ' · ' + band + '</span>' +
         '<span class="tftended">' + (tended ? "✓" : "") + '</span>' +
         '<span class="tfscore">' + (hi != null ? hi.toLocaleString() : "") + '</span>' +
@@ -2810,7 +2827,7 @@
     document.getElementById("tPack").innerHTML = packs.map(function (p) {
       var total = packFields(p).length, done = campaignDoneCount(p.id);
       var runNote = p.run ? " · cleared " + getPackClearedCount(p.id) + "×" : "";
-      return '<button data-pack="' + p.id + '">' + p.name +
+      return '<button data-pack="' + esc(p.id) + '">' + esc(p.name) +
         ' <span class="packn">' + done + '/' + total + runNote + '</span></button>';
     }).join("");
     segOn("tPack", "pack", tState.pack);
@@ -2967,7 +2984,7 @@
         hCuratedPack = packs.length ? packs[0].id : null;
       }
       document.getElementById("hPack").innerHTML = packs.map(function (p) {
-        return '<button data-pack="' + p.id + '">' + p.name +
+        return '<button data-pack="' + esc(p.id) + '">' + esc(p.name) +
           ' <span class="packn">' + p.fields.length + "</span></button>";
       }).join("") + '<button data-newpack="1" title="create a new pack">+ new</button>';
       segOn("hPack", "pack", hCuratedPack);
@@ -3066,16 +3083,16 @@
     // curated fields lead with an editable name; recent ones don't
     var nameField = curatedTab
       ? '<input class="hname" maxlength="40" placeholder="name this field" value="' +
-        String(rec.name || "").replace(/"/g, "&quot;") + '">'
+        esc(rec.name) + '">'
       : "";
 
     el.innerHTML =
       nameField +
       '<div class="hmain">' +
-        '<div class="miniboard sm" data-mini data-size="' + rec.size + '" data-seed="' + rec.seed +
-          '" data-diff="' + (rec.reqDifficulty || band) + '"></div>' +
+        '<div class="miniboard sm" data-mini data-size="' + rec.size + '" data-seed="' + esc(rec.seed) +
+          '" data-diff="' + esc(rec.reqDifficulty || band) + '"></div>' +
         '<div class="hinfo">' +
-          '<div class="htop"><span class="hcode">' + rec.code + '</span><span class="hbadges">' + badge + "</span></div>" +
+          '<div class="htop"><span class="hcode">' + esc(rec.code) + '</span><span class="hbadges">' + badge + "</span></div>" +
           '<div class="hset">' + modeCfg(rec.mode).label + " · " + rec.size + "×" + rec.size + " · " + band + "</div>" +
           outcome + score +
         "</div>" +
