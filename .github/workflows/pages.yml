@@ -22,8 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Stage runtime files only
+        run: |
+          mkdir _site
+          cp index.html sowdoku.js campaigns.js sw.js _site/
+          cp -R assets _site/assets
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
