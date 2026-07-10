@@ -1643,16 +1643,32 @@
   }
 
   // ---- quiet play-time accrual (visible only in history, never as a timer) ----
-  var lastTick = Date.now(), tickN = 0;
+  var lastTick = Date.now(), tickN = 0, suspended = false, tickTimer = null;
   function flushTick() {
     var now = Date.now(), dt = now - lastTick; lastTick = now;
-    if (game && game.metrics && game.metrics.firstMoveAt && !game.solved && !game.recorded &&
+    if (!suspended && game && game.metrics && game.metrics.firstMoveAt && !game.solved && !game.recorded &&
         document.visibilityState === "visible" && dt > 0 && dt < 8000) {
       game.metrics.playMs += dt;
     }
   }
-  setInterval(function () { flushTick(); if (game && !game.recorded && (++tickN % 6 === 0)) persist(); }, 1000);
+  function startTickTimer() {
+    if (tickTimer) return;
+    tickTimer = setInterval(function () { flushTick(); if (game && !game.recorded && (++tickN % 6 === 0)) persist(); }, 1000);
+  }
+  startTickTimer();
   document.addEventListener("visibilitychange", function () { lastTick = Date.now(); });
+  if (A && A.onSuspend) {
+    A.onSuspend(function () {
+      suspended = true;
+      flushTick();
+      persist();
+      if (audioCtx) audioCtx.suspend();
+      clearInterval(tickTimer); tickTimer = null;
+    });
+  }
+  if (A && A.onResume) {
+    A.onResume(function () { suspended = false; lastTick = Date.now(); startTickTimer(); });
+  }
 
   // ---- helpers ----
   var key = function (r, c) { return r + "," + c; };
