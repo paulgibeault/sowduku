@@ -2,7 +2,7 @@
 // the network for anything else (e.g. the arcade SDK, which needs to be live
 // to see fresh cross-device state). Bump CACHE on any shell/asset change so
 // old installs pick up the new files instead of serving stale ones forever.
-const CACHE = "sowdoku-shell-v3";
+const CACHE = "sowdoku-shell-v4";
 const SHELL = [
   "./",
   "index.html",
@@ -48,7 +48,10 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
-  if (url.origin !== location.origin) return; // leave the arcade SDK etc. to the network
+  if (url.origin !== location.origin) return;
+  // Scope-prefix guard: never cache /arcade-sdk.js or other launcher-root
+  // files this worker doesn't own, in the arcade or the dev harness alike.
+  if (!url.pathname.startsWith("/sowduku/")) return;
 
   e.respondWith(
     caches.match(e.request).then((cached) => {
