@@ -749,22 +749,17 @@
 
   // ---- Arcade platform bridge ----
   // Arcade.init() ran in <head>. The SDK gives same-origin storage, settings,
-  // and lifecycle when framed or served over http; it degrades gracefully to
-  // plain localStorage when absent (e.g. opened straight from file://). All
-  // persistent state rides under the arcade.v1.sowduku.* namespace so it lands
-  // in the launcher's cross-device save bundle for free.
+  // and lifecycle when framed or served over http, falling back to plain
+  // localStorage itself when standalone — no need to duplicate that here.
+  // All persistent state rides under the arcade.v1.sowduku.* namespace so it
+  // lands in the launcher's cross-device save bundle for free.
   var A = window.Arcade;
-  var NS = "arcade.v1.sowduku.";
   function sget(key) {
-    if (A && A.state) { var v = A.state.get(key); return v == null ? null : v; }
-    var raw = localStorage.getItem(NS + key);
-    if (raw == null) return null;
-    try { return JSON.parse(raw); }
-    catch (e) { return raw; } // tolerate legacy plain-string values (e.g. old `assist`)
+    if (!A || !A.state) return null;
+    var v = A.state.get(key); return v == null ? null : v;
   }
   function sset(key, val) {
     if (A && A.state) A.state.set(key, val);
-    else localStorage.setItem(NS + key, JSON.stringify(val));
   }
 
   // 10 distinct pens for a 10×10 board — one entry short and two regions
