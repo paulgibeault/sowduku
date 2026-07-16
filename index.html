@@ -3362,23 +3362,31 @@
   // first field instead (the how-to-play sheet opens on top of it below).
   // Computed before `seenIntro` is set, so both this and the onboarding check
   // below agree on who counts as "new."
-  var hadSavedField = restore();
-  var isNewPlayer = !hadSavedField && !sget("seenIntro") && getHistory().length === 0 && getStats().played === 0;
-  if (!hadSavedField) {
-    var introField = isNewPlayer ? nextCampaign("intro") : null;
-    if (introField) beginCampaignField("intro", introField);
-    else startDaily();
-  }
-  render();
+  // Deferred until Arcade.ready: when framed by the launcher, storage is
+  // bridged and pre-ready state reads return EMPTY (GAME_INTEGRATION §"Await
+  // Arcade.ready") — booting at parse time made every launch look like a
+  // first visit and the fresh field's persist() clobbered the stored save.
+  function boot() {
+    var hadSavedField = restore();
+    var isNewPlayer = !hadSavedField && !sget("seenIntro") && getHistory().length === 0 && getStats().played === 0;
+    if (!hadSavedField) {
+      var introField = isNewPlayer ? nextCampaign("intro") : null;
+      if (introField) beginCampaignField("intro", introField);
+      else startDaily();
+    }
+    render();
 
-  // ---- first-run onboarding: open "how to play" once, automatically ----
-  // only for a genuinely new player. Anyone with a saved field, or history/
-  // stats from before this flag existed, already knows how to play — mark
-  // them seen without interrupting whatever they came back to do.
-  if (!sget("seenIntro")) {
-    sset("seenIntro", true);
-    if (isNewPlayer) openSheet("infoBack");
+    // ---- first-run onboarding: open "how to play" once, automatically ----
+    // only for a genuinely new player. Anyone with a saved field, or history/
+    // stats from before this flag existed, already knows how to play — mark
+    // them seen without interrupting whatever they came back to do.
+    if (!sget("seenIntro")) {
+      sset("seenIntro", true);
+      if (isNewPlayer) openSheet("infoBack");
+    }
   }
+  if (A && A.ready) A.ready.then(boot);
+  else boot(); // SDK failed to load — no persistence anyway, boot fresh
 
   // offline shell — registered last, after the game is already up and
   // playable, so a slow or failed registration never blocks first paint
