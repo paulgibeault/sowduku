@@ -779,6 +779,19 @@
   // platform check looks for a migrate() call. A no-op keeps it honest.
   if (A && A.state && A.state.migrate) A.state.migrate("v1", function () {});
 
+  // v2: the lifetime-stats blob moves from Arcade.state's own key into the
+  // SDK's Arcade.stats namespace (stats.lifetime). One-shot with the old key
+  // removed only after the write, so existing installs keep their tallies.
+  // In bridged mode the SDK defers this until the welcome snapshot arrives —
+  // still ahead of the ready-gated boot below, so boot reads the new home.
+  if (A && A.state && A.state.migrate) A.state.migrate("v2", function () {
+    var old = A.state.get("stats");
+    if (old && A.stats) {
+      A.stats.update("lifetime", function (cur) { return Object.assign({}, cur, old); });
+      A.state.remove("stats");
+    }
+  });
+
   // 10 distinct pens for a 10×10 board — one entry short and two regions
   // would silently share a colour (PALETTE[id % PALETTE.length] wrapping).
   var PALETTE = ["#cdd6bb","#e6cdb8","#e3c2cb","#c3d0d8","#ecdcae","#d3cadf","#cad9c6","#e9d3bd","#dcb9a6","#b9c9dc"];
@@ -1486,7 +1499,10 @@
 
   // ---- history + stats + curated boards ----
   function getHistory()  { return sget("history") || []; }
-  function getStats()    { return sget("stats") || { played: 0, solved: 0, mistakes: 0, playMs: 0, bestLadder: 0 }; }
+  // fresh object each call — Arcade.stats.getOrInit hands the defaults object
+  // itself back on first run and callers mutate the result before saving.
+  function statsZero() { return { played: 0, solved: 0, mistakes: 0, playMs: 0, bestLadder: 0 }; }
+  function getStats()    { return (A && A.stats) ? A.stats.getOrInit("lifetime", statsZero()) : statsZero(); }
   // best-ever run for each board, keyed by code. Durable on its own so a high
   // score survives a history clear and rides the arcade export — the raw
   // material a campaign mode sorts pre-tested fields by.
@@ -1630,7 +1646,7 @@
     } else {
       st.cleanStreak = 0;
     }
-    sset("stats", st);
+    if (A && A.stats) A.stats.update("lifetime", function () { return st; });
   }
 
   // if a curated field just earned a new best, keep its stored copy in step so
