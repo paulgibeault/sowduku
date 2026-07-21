@@ -792,6 +792,30 @@
     }
   });
 
+  // records-v1: seed the per-size best-time records (sowduku#3) so returning
+  // players keep their history. The lifetime-stats blob tracks no per-size
+  // solve time, but the durable per-code hiScores map records each field's
+  // best run's playMs + size — so take the fastest recorded solve per size as
+  // the seed. best() only ever improves (a later real solve still wins) and
+  // hiScores is left untouched (R3/R4 — stats stay the game view, records the
+  // launcher view). Skips cleanly when nothing is stored yet.
+  if (A && A.state && A.state.migrate && A.records) {
+    A.state.migrate("records-v1", function () {
+      var hs = getHiScores(), bySize = {};
+      Object.keys(hs).forEach(function (code) {
+        var e = hs[code];
+        if (!e || !Number.isFinite(e.playMs) || e.playMs <= 0 || !Number.isFinite(e.size)) return;
+        if (bySize[e.size] == null || e.playMs < bySize[e.size]) bySize[e.size] = e.playMs;
+      });
+      Object.keys(bySize).forEach(function (n) {
+        A.records.best("best_time_" + n + "x" + n, {
+          value: bySize[n], direction: "lower",
+          format: "duration-ms", label: "Best time — " + n + "×" + n,
+        });
+      });
+    });
+  }
+
   // 10 distinct pens for a 10×10 board — one entry short and two regions
   // would silently share a colour (PALETTE[id % PALETTE.length] wrapping).
   var PALETTE = ["#cdd6bb","#e6cdb8","#e3c2cb","#c3d0d8","#ecdcae","#d3cadf","#cad9c6","#e9d3bd","#dcb9a6","#b9c9dc"];
@@ -961,9 +985,12 @@
   function stakesAtLeast(level) { return STAKES_RANK[game.stakes] >= STAKES_RANK[level]; }
   function isSlow() { return game.stakes === "slow"; }
 
-  // ---- sound: a few quiet, synthesized cues — off by default. No audio
-  // files (nothing to source/host) — everything's a couple of oscillators or
-  // a filtered noise burst, generated on the fly with the Web Audio API. ----
+  // ---- sound: a few quiet, synthesized cues — off by default. Now played
+  // through the SDK's managed WebAudio layer (Arcade.audio): the launcher owns
+  // the AudioContext, first-gesture unlock, master volume + global mute, and
+  // suspend/resume, so none of that plumbing is hand-rolled here anymore. The
+  // cue specs below port the old oscillator/noise parameters verbatim, so the
+  // thud, chime, snuffle, slip and fail still sound like themselves. ----
   var SOUND_MODES = ["off", "on"];
   function loadSound() { var v = sget("sound"); return SOUND_MODES.indexOf(v) >= 0 ? v : "off"; }
   function saveSound(v) { sset("sound", v); }
@@ -975,131 +1002,54 @@
   function savePenLabels(v) { sset("penLabels", v); }
   function penLetter(id) { return String.fromCharCode(65 + id); } // 0..9 -> A..J, covers every board size
 
-  var audioCtx = null, noiseBuffer = null, masterGain = null;
-  function getAudioCtx() {
-    var Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return null;
-    if (!audioCtx) {
-      audioCtx = new Ctx();
-      masterGain = audioCtx.createGain();
-      masterGain.connect(audioCtx.destination);
-    }
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    masterGain.gain.value = (A && A.settings) ? A.settings.audioVolume() : 1;
-    return audioCtx;
-  }
-  // one shared burst of white noise, filtered per-use into whatever texture a
-  // sound needs (regenerated only if a context with a different sample rate
-  // ever shows up, which in practice never happens on a given device).
-  function getNoiseBuffer(ctx) {
-    if (!noiseBuffer || noiseBuffer.sampleRate !== ctx.sampleRate) {
-      var len = Math.floor(ctx.sampleRate * 0.5);
-      noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
-      var data = noiseBuffer.getChannelData(0);
-      for (var i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-    }
-    return noiseBuffer;
+  // one play-site guard (A2): feature-detect the SDK audio API AND honour the
+  // in-game off-by-default sound setting. Volume + global mute are launcher-
+  // owned — the game grows no volume slider or mute button of its own (A3).
+  function sfx(name, opts) {
+    if (A && A.audio && soundOn()) A.audio.play(name, opts);
   }
 
-  // a soft wooden thud — a piggy settling into its patch
-  function playThud() {
-    if (!soundOn()) return;
-    var ctx = getAudioCtx(); if (!ctx) return;
-    var t = ctx.currentTime;
-    var o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = "sine";
-    o.frequency.setValueAtTime(150, t);
-    o.frequency.exponentialRampToValueAtTime(65, t + 0.12);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.3, t + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-    o.connect(g).connect(masterGain);
-    o.start(t); o.stop(t + 0.2);
+  // register every cue once, right after Arcade.init (audio is purely local —
+  // no ready-gate needed). Each spec ports the old synth's type/freq/duration/
+  // gain verbatim; a quick attack + long release approximates the old
+  // exponential decay tails. Multi-note phrases are sequences whose `delay`
+  // reproduces the original per-note start offsets. The launcher-managed layer
+  // handles ctx/unlock/volume/suspend, so none of that lives here anymore.
+  if (A && A.audio) {
+    // a soft wooden thud — a piggy settling into its patch (150→65 Hz sine)
+    A.audio.cue("thud", { type: "sine", freq: 150, toFreq: 65, dur: 0.2, gain: 0.3, attack: 0.008, release: 0.19 });
+    // a brief, warm chime — a pen's found its one piggy (three sine notes, ~chord)
+    A.audio.cue("chime", [
+      { type: "sine", freq: 660,  dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53 },
+      { type: "sine", freq: 880,  dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53, delay: 0.03 },
+      { type: "sine", freq: 1100, dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53, delay: 0.03 },
+    ]);
+    // a contented snuffle — the whole field's settled (three soft noise puffs)
+    A.audio.cue("snuffle", [
+      { type: "noise", dur: 0.14, gain: 0.18, attack: 0.03, release: 0.11 },
+      { type: "noise", dur: 0.14, gain: 0.18, attack: 0.03, release: 0.11, delay: 0.16 },
+      { type: "noise", dur: 0.14, gain: 0.18, attack: 0.03, release: 0.11, delay: 0.16 },
+    ]);
+    // a soft two-note dip — a slip (illegal/wrong placement); a gentle "no"
+    A.audio.cue("slip", [
+      { type: "triangle", freq: 220, dur: 0.18, gain: 0.15, attack: 0.012, release: 0.17 },
+      { type: "triangle", freq: 175, dur: 0.18, gain: 0.15, attack: 0.012, release: 0.17, delay: 0.09 },
+    ]);
+    // a slow, three-note descending phrase — hearts spent, field done for now
+    A.audio.cue("fail", [
+      { type: "sine", freq: 392, dur: 0.45, gain: 0.13, attack: 0.02, release: 0.43 },
+      { type: "sine", freq: 330, dur: 0.45, gain: 0.13, attack: 0.02, release: 0.43, delay: 0.15 },
+      { type: "sine", freq: 262, dur: 0.45, gain: 0.13, attack: 0.02, release: 0.43, delay: 0.15 },
+    ]);
   }
 
-  // a brief, warm chime — a pen's found its one piggy. Starts a beat after
-  // the thud (its own internal offset) so the two read as cause-then-effect
-  // rather than one blurred sound, even though they're triggered together.
-  function playChime() {
-    if (!soundOn()) return;
-    var ctx = getAudioCtx(); if (!ctx) return;
-    var t = ctx.currentTime + 0.09;
-    [660, 880, 1100].forEach(function (freq, i) {
-      var o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = "sine"; o.frequency.value = freq;
-      var start = t + i * 0.03;
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(0.1, start + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.5);
-      o.connect(g).connect(masterGain);
-      o.start(start); o.stop(start + 0.55);
-    });
-  }
-
-  // a contented little snuffle — the whole field's settled. The winning
-  // placement always also fires a thud + chime (every pen completes the
-  // instant its one piggy lands, and the last piggy is no exception) — a
-  // 0.6s head start lets those finish decaying first, so the snuffle reads
-  // as its own, distinct "and now the whole field" moment instead of
-  // getting acoustically buried under the placement sound it coincides with.
-  function playSnuffle() {
-    if (!soundOn()) return;
-    var ctx = getAudioCtx(); if (!ctx) return;
-    var t = ctx.currentTime + 0.6;
-    for (var i = 0; i < 3; i++) {
-      var start = t + i * 0.16;
-      var src = ctx.createBufferSource(); src.buffer = getNoiseBuffer(ctx);
-      var band = ctx.createBiquadFilter();
-      band.type = "bandpass"; band.Q.value = 1.2;
-      band.frequency.setValueAtTime(300, start);
-      band.frequency.exponentialRampToValueAtTime(700, start + 0.1);
-      var g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(0.18, start + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.12);
-      src.connect(band).connect(g).connect(masterGain);
-      src.start(start); src.stop(start + 0.14);
-    }
-  }
-
-  // a soft, two-note dip — a slip: an illegal placement, a wrong-but-legal
-  // patch, or a hoofprint that shouldn't have gone there. Deliberately
-  // quieter and lower than the thud so a mistake reads as "gentle no" and
-  // never as a punishment.
-  function playSlip() {
-    if (!soundOn()) return;
-    var ctx = getAudioCtx(); if (!ctx) return;
-    var t = ctx.currentTime;
-    [220, 175].forEach(function (freq, i) {
-      var o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = "triangle"; o.frequency.value = freq;
-      var start = t + i * 0.09;
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(0.15, start + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
-      o.connect(g).connect(masterGain);
-      o.start(start); o.stop(start + 0.18);
-    });
-  }
-
-  // a slow, three-note descending phrase — hearts spent, the field's done
-  // for now. Matches the "no harm done" copy on the fail veil: unhurried and
-  // soft, not a harsh buzzer.
-  function playFail() {
-    if (!soundOn()) return;
-    var ctx = getAudioCtx(); if (!ctx) return;
-    var t = ctx.currentTime;
-    [392, 330, 262].forEach(function (freq, i) {
-      var o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = "sine"; o.frequency.value = freq;
-      var start = t + i * 0.15;
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(0.13, start + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.4);
-      o.connect(g).connect(masterGain);
-      o.start(start); o.stop(start + 0.45);
-    });
-  }
+  // thin wrappers keep every existing call-site unchanged; each fires its cue
+  // through the single sfx() gate above.
+  function playThud()    { sfx("thud"); }
+  function playChime()   { sfx("chime"); }
+  function playSnuffle() { sfx("snuffle"); }
+  function playSlip()    { sfx("slip"); }
+  function playFail()    { sfx("fail"); }
 
   // ---- generation with a small retry so we never hand back a null puzzle ----
   function makeBoard(size, reqDiff, seed) {
@@ -1614,6 +1564,18 @@
         syncCuratedScore(rec.code, hs[rec.code]);
         rec.isNewHigh = true; // rec === lastRecord, so the win veil picks this up too
       }
+      // launcher-formatted personal best: fastest solve per board size
+      // (sowduku#3). One self-describing best per size — the per-code hiScores
+      // map above stays the keyed store (R4). best() only improves and ties
+      // never write, so this is idempotent; categories are created on demand
+      // from the solved size (the game ships 6×6..10×10).
+      if (A && A.records && Number.isFinite(rec.playMs) && rec.playMs > 0 && Number.isFinite(rec.size)) {
+        var recN = rec.size;
+        A.records.best("best_time_" + recN + "x" + recN, {
+          value: rec.playMs, direction: "lower",
+          format: "duration-ms", label: "Best time — " + recN + "×" + recN,
+        });
+      }
     }
 
     var st = getStats();
@@ -1695,7 +1657,8 @@
       suspended = true;
       flushTick();
       persist();
-      if (audioCtx) audioCtx.suspend();
+      // audio suspend/resume is launcher-managed now (Arcade.audio) — the SDK
+      // suspends its own ctx on the same lifecycle hook, so nothing to do here.
       clearInterval(tickTimer); tickTimer = null;
     });
   }
