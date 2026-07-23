@@ -391,6 +391,17 @@ integration, neither caused by the generation itself:
       placement *and* on a Honest+ wrong-but-legal patch; a slip *and* a
       fail firing together the moment a Wallow round runs out of its one
       heart; 3 buffer sources (now delayed) still firing on a full solve.
+      **Migration note (2026-07-21):** the hand-rolled `AudioContext` +
+      oscillator/noise-buffer synth described above was replaced with the
+      launcher's managed `Arcade.audio` (SDK 3.5.0+) — same five cues
+      (`thud`/`chime`/`snuffle`/`slip`/`fail`), same parameters ported
+      verbatim, but the launcher now owns AudioContext lifecycle, gesture
+      unlock, and volume/mute (incl. the global mute button). The
+      off-by-default `sound` toggle in the ⚙ menu is unchanged — it still
+      gates the `Arcade.audio.play()` calls exactly as it gated the old
+      manual oscillators. Part of the same PR, best solve time per board
+      size was also added via `Arcade.records` (`best_time_6x6` …
+      `best_time_10x10`), closing #3.
 - [x] Colorblind support — an optional per-pen letter (⚙ menu, off by
       default, persisted): `A`–`J` covering every board size up to 10×10,
       appended as a small corner `<span>` (not `innerHTML`'d, so it never
