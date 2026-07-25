@@ -985,12 +985,17 @@
   function stakesAtLeast(level) { return STAKES_RANK[game.stakes] >= STAKES_RANK[level]; }
   function isSlow() { return game.stakes === "slow"; }
 
-  // ---- sound: a few quiet, synthesized cues — off by default. Now played
-  // through the SDK's managed WebAudio layer (Arcade.audio): the launcher owns
-  // the AudioContext, first-gesture unlock, master volume + global mute, and
-  // suspend/resume, so none of that plumbing is hand-rolled here anymore. The
-  // cue specs below port the old oscillator/noise parameters verbatim, so the
-  // thud, chime, snuffle, slip and fail still sound like themselves. ----
+  // ---- sound: a few quiet, synthesized cues — off by default. Played through
+  // the SDK's managed WebAudio layer (Arcade.audio): the launcher owns the
+  // AudioContext, first-gesture unlock, master volume + global mute, and
+  // suspend/resume, so none of that plumbing is hand-rolled here.
+  //
+  // The palette is deliberately *material*, not musical: this is a field of
+  // mud, straw and small warm animals, so almost every cue leads with a soft
+  // noise transient (the surface) and lets a low, dull pitched body ring under
+  // it (the creature). Nothing here is allowed to sound struck, metallic or
+  // bright — attacks stay slow enough that no cue clicks, and the pitched
+  // voices sit low and use sine bodies rather than anything with edge. ----
   var SOUND_MODES = ["off", "on"];
   function loadSound() { var v = sget("sound"); return SOUND_MODES.indexOf(v) >= 0 ? v : "off"; }
   function saveSound(v) { sset("sound", v); }
@@ -1002,44 +1007,61 @@
   function savePenLabels(v) { sset("penLabels", v); }
   function penLetter(id) { return String.fromCharCode(65 + id); } // 0..9 -> A..J, covers every board size
 
-  // one play-site guard (A2): feature-detect the SDK audio API AND honour the
+  // one play-site guard: feature-detect the SDK audio API AND honour the
   // in-game off-by-default sound setting. Volume + global mute are launcher-
-  // owned — the game grows no volume slider or mute button of its own (A3).
+  // owned — the game grows no volume slider or mute button of its own.
   function sfx(name, opts) {
     if (A && A.audio && soundOn()) A.audio.play(name, opts);
   }
 
   // register every cue once, right after Arcade.init (audio is purely local —
-  // no ready-gate needed). Each spec ports the old synth's type/freq/duration/
-  // gain verbatim; a quick attack + long release approximates the old
-  // exponential decay tails. Multi-note phrases are sequences whose `delay`
-  // reproduces the original per-note start offsets. The launcher-managed layer
-  // handles ctx/unlock/volume/suspend, so none of that lives here anymore.
+  // no ready-gate needed). In an array cue each voice starts `delay` seconds
+  // after the *previous voice's start*, so a small delay layers voices into one
+  // event and a larger one strings them into a phrase. Nothing here takes a
+  // per-play override, which is why every cue is free to be an array.
   if (A && A.audio) {
-    // a soft wooden thud — a piggy settling into its patch (150→65 Hz sine)
-    A.audio.cue("thud", { type: "sine", freq: 150, toFreq: 65, dur: 0.2, gain: 0.3, attack: 0.008, release: 0.19 });
-    // a brief, warm chime — a pen's found its one piggy (three sine notes, ~chord)
+    // a piggy flopping into mud: a short, dull noise splat for the wet surface,
+    // with a low sine body dropping 150→65 Hz a hair behind it for the weight
+    // of the animal. The noise leads by 10 ms so you hear contact *then* mass —
+    // reversed, or without the noise at all, it reads as a synth kick drum.
+    A.audio.cue("thud", [
+      { type: "noise", dur: 0.09, gain: 0.14, attack: 0.004, release: 0.07 },
+      { type: "sine", freq: 150, toFreq: 65, dur: 0.2, gain: 0.24, attack: 0.008, release: 0.19, delay: 0.01 },
+    ]);
+    // a pen has found its one piggy: three sines rolled in over 30 ms so they
+    // bloom rather than strike. Sine + slow attack keeps it a warm swell, not a
+    // bell — the only bright thing in the palette, and it stays soft.
     A.audio.cue("chime", [
       { type: "sine", freq: 660,  dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53 },
       { type: "sine", freq: 880,  dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53, delay: 0.03 },
       { type: "sine", freq: 1100, dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53, delay: 0.03 },
     ]);
-    // a contented snuffle — the whole field's settled (three soft noise puffs)
+    // the whole field settled: three breathy noise puffs. Deliberately uneven —
+    // each puff differs in length, level and spacing — because three identical
+    // puffs on a fixed pulse read as a machine, and this is meant to read as a
+    // creature exhaling. Pure noise, no pitch: it's breath, not a note.
     A.audio.cue("snuffle", [
-      { type: "noise", dur: 0.14, gain: 0.18, attack: 0.03, release: 0.11 },
-      { type: "noise", dur: 0.14, gain: 0.18, attack: 0.03, release: 0.11, delay: 0.16 },
-      { type: "noise", dur: 0.14, gain: 0.18, attack: 0.03, release: 0.11, delay: 0.16 },
+      { type: "noise", dur: 0.13, gain: 0.17, attack: 0.03, release: 0.10 },
+      { type: "noise", dur: 0.16, gain: 0.19, attack: 0.035, release: 0.13, delay: 0.16 },
+      { type: "noise", dur: 0.12, gain: 0.14, attack: 0.04, release: 0.09, delay: 0.19 },
     ]);
-    // a soft two-note dip — a slip (illegal/wrong placement); a gentle "no"
+    // a slip (illegal or wrong placement): two triangle notes stepping down a
+    // minor third. Low, quiet and quickly over — a disappointed grunt, never a
+    // buzzer. Triangle gives it just enough edge to be noticed at low level.
     A.audio.cue("slip", [
       { type: "triangle", freq: 220, dur: 0.18, gain: 0.15, attack: 0.012, release: 0.17 },
       { type: "triangle", freq: 175, dur: 0.18, gain: 0.15, attack: 0.012, release: 0.17, delay: 0.09 },
     ]);
-    // a slow, three-note descending phrase — hearts spent, field done for now
+    // hearts spent: a tired sigh, not a game-over fanfare. Three low sines with
+    // long swelling attacks (no note is ever struck), each sagging a little in
+    // pitch as it sounds, stepping down in small tired intervals rather than
+    // arpeggiating a triad — then a very quiet noise breath under the last note
+    // to land it as an exhale from the same animal as the snuffle.
     A.audio.cue("fail", [
-      { type: "sine", freq: 392, dur: 0.45, gain: 0.13, attack: 0.02, release: 0.43 },
-      { type: "sine", freq: 330, dur: 0.45, gain: 0.13, attack: 0.02, release: 0.43, delay: 0.15 },
-      { type: "sine", freq: 262, dur: 0.45, gain: 0.13, attack: 0.02, release: 0.43, delay: 0.15 },
+      { type: "sine", freq: 262, toFreq: 247, dur: 0.5, gain: 0.12, attack: 0.09, release: 0.4 },
+      { type: "sine", freq: 233, toFreq: 220, dur: 0.5, gain: 0.11, attack: 0.09, release: 0.4, delay: 0.22 },
+      { type: "sine", freq: 196, toFreq: 175, dur: 0.7, gain: 0.1, attack: 0.12, release: 0.55, delay: 0.24 },
+      { type: "noise", dur: 0.22, gain: 0.07, attack: 0.09, release: 0.13, delay: 0.18 },
     ]);
   }
 
