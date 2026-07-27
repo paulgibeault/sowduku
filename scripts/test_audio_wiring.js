@@ -112,25 +112,24 @@ async function run() {
     });
     ok(roomLive, "the shared room bus exists (room() ran)");
 
-    // ---- every cue plays, through the real call path, at the real setting ----
-    // A user gesture first: the launcher unlocks the AudioContext on one, and
-    // sound is off by default, so it has to be turned on the way a player
-    // would — through the ⚙ menu.
-    console.log("\n[playback] all five cues fire from the live game without throwing");
+    // ---- there is no in-game sound control ----
+    // The launcher owns volume and mute for the whole arcade. A second switch
+    // in here could only disagree with it, so the ⚙ menu must not grow one
+    // back: this is the regression guard for that.
+    console.log("\n[no second switch] the ⚙ menu offers no sound control");
     const infoHidden = await page.getAttribute("#infoBack", "hidden");
     if (infoHidden === null) await page.click("#infoClose");
     await page.click("#menuBtn");
     await page.waitForSelector("#menu:not([hidden])");
-    const soundOnBtn = page.locator('#soundSeg button[data-sound="on"]');
-    if (await soundOnBtn.count()) await soundOnBtn.click();
+    const soundControls = await page.locator("#soundSeg, [data-sound]").count();
+    ok(soundControls === 0, "no sound toggle anywhere in the ⚙ menu");
+    ok(
+      await page.evaluate(() => !window.SowdokuAudio.setGate),
+      "the audio module exposes no setGate hook for one to reattach to"
+    );
 
-    const gateOpen = await page.evaluate(() => {
-      // the ⚙ toggle wrote the setting; the module reads it through setGate
-      const A = window.Arcade;
-      return !!(A && A.state && A.state.get("sound") === "on");
-    });
-    ok(gateOpen, "the ⚙ sound toggle turned sound on");
-
+    // ---- every cue plays, through the real call path ----
+    console.log("\n[playback] all five cues fire from the live game without throwing");
     const played = await page.evaluate((cues) => {
       const a = window.Arcade.audio;
       const seen = [];
@@ -155,21 +154,42 @@ async function run() {
       `all five cues reached Arcade.audio.play (${played.seen.join(", ")})`
     );
 
-    // ---- the gate: sound off means nothing plays at all ----
-    console.log("\n[gate] the off-by-default setting still silences every cue");
-    const soundOffBtn = page.locator('#soundSeg button[data-sound="off"]');
-    if (await soundOffBtn.count()) await soundOffBtn.click();
-    const whenOff = await page.evaluate((cues) => {
-      const a = window.Arcade.audio;
+    // ---- the launcher's mute is the one control, and it reaches in here ----
+    // With the in-game switch gone this is the whole story for silencing the
+    // game, so it is worth asserting rather than assuming: the SDK reports
+    // itself disabled and short-circuits before touching the AudioContext.
+    console.log("\n[mute] the launcher's global mute silences the game");
+    const enabledBefore = await page.evaluate(() => window.Arcade.audio.enabled());
+    ok(enabledBefore === true, "audio reports enabled at the launcher's default volume");
+
+    // Exactly the key the launcher's mute button writes, then a reload so the
+    // SDK picks it up the way a freshly-mounted game would.
+    await page.evaluate(() => {
+      localStorage.setItem("arcade.v1.global.audioVolume", JSON.stringify(0));
+    });
+    await page.reload();
+    await page.waitForSelector(".board .cell");
+
+    const whenMuted = await page.evaluate((cues) => {
+      const A = window.Arcade;
+      const a = A.audio;
       const seen = [];
       const realPlay = a.play.bind(a);
       a.play = function (n, o) { seen.push(n); return realPlay(n, o); };
       const M = window.SowdokuAudio;
-      [M.playThud, M.playChime, M.playSnuffle, M.playSlip, M.playFail].forEach((f) => f());
+      const threw = [];
+      [M.playThud, M.playChime, M.playSnuffle, M.playSlip, M.playFail]
+        .forEach((f, i) => { try { f(); } catch (e) { threw.push(cues[i] + ": " + e.message); } });
       a.play = realPlay;
-      return seen;
+      return { volume: A.settings.audioVolume(), enabled: a.enabled(), seen, threw };
     }, CUES);
-    ok(whenOff.length === 0, "zero play() calls while sound is off");
+
+    ok(whenMuted.volume === 0, "the launcher's mute reached the game (audioVolume 0)");
+    ok(whenMuted.enabled === false, "Arcade.audio reports itself disabled while muted");
+    ok(whenMuted.threw.length === 0, "every wrapper is still safe to call while muted");
+
+    // Restore, so the muted state cannot leak into the fallback-path context.
+    await page.evaluate(() => localStorage.removeItem("arcade.v1.global.audioVolume"));
 
     ok(errors.length === 0, "still no page errors after playing every cue");
     await ctx.close();
@@ -201,10 +221,6 @@ async function run() {
 
     const infoHidden2 = await page.getAttribute("#infoBack", "hidden");
     if (infoHidden2 === null) await page.click("#infoClose");
-    await page.click("#menuBtn");
-    await page.waitForSelector("#menu:not([hidden])");
-    const onBtn = page.locator('#soundSeg button[data-sound="on"]');
-    if (await onBtn.count()) await onBtn.click();
 
     const played = await page.evaluate((cues) => {
       const a = window.Arcade.audio;

@@ -477,11 +477,6 @@
         <button class="iconbtn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-label="settings" title="settings">⚙</button>
         <div class="menu" id="menu" hidden role="menu" aria-label="Play settings">
           <button class="infobtn" id="infoBtn"><span class="icon">ℹ</span>how to play</button>
-          <div class="row"><span class="lab" title="a few quiet, synthesized sounds — a thud, a chime, a snuffle">sound</span>
-            <div class="seg" id="soundSeg">
-              <button data-sound="off">off</button>
-              <button data-sound="on">on</button>
-            </div></div>
           <div class="row"><span class="lab" title="a small letter on every pen, for telling colors apart without relying on hue">pen labels</span>
             <div class="seg" id="labelsSeg">
               <button data-labels="off">off</button>
@@ -994,35 +989,23 @@
   function stakesAtLeast(level) { return STAKES_RANK[game.stakes] >= STAKES_RANK[level]; }
   function isSlow() { return game.stakes === "slow"; }
 
-  // ---- sound: five quiet cues — off by default. Registered and played by
-  // js/audio.js, which is loaded in <head> above; the design itself lives in
-  // js/soundpack.js and is documented in docs/audio-overhaul.md.
-  //
-  // The palette is deliberately *material*, not musical: this is a field of
-  // mud, straw and small warm animals, so every cue is either a surface
-  // yielding (mud, straw, wood) or the creature itself (breath, voice).
-  // Nothing is allowed to sound struck, metallic or bright.
-  //
-  // What stays here is the SETTING — the off-by-default on/off row in the ⚙
-  // menu — and nothing else. js/audio.js asks for it through setGate below, so
-  // this remains the single source of truth for whether sound is on. Volume
-  // and global mute are launcher-owned; the game grows no controls of its own.
-  var SOUND_MODES = ["off", "on"];
-  function loadSound() { var v = sget("sound"); return SOUND_MODES.indexOf(v) >= 0 ? v : "off"; }
-  function saveSound(v) { sset("sound", v); }
-  function soundOn() { return loadSound() === "on"; }
-
   // ---- pen labels: an optional letter per pen (colorblind support) ----
   var PEN_LABEL_MODES = ["off", "on"];
   function loadPenLabels() { var v = sget("penLabels"); return PEN_LABEL_MODES.indexOf(v) >= 0 ? v : "off"; }
   function savePenLabels(v) { sset("penLabels", v); }
   function penLetter(id) { return String.fromCharCode(65 + id); } // 0..9 -> A..J, covers every board size
 
-  // js/audio.js registered the cues at load and owns every play-site guard —
-  // but the sound SETTING lives here, so hand it the reader. Everything below
-  // this line is a thin wrapper, and every existing call-site is unchanged.
+  // ---- sound: five quiet cues — mud, straw and small warm animals. Registered
+  // and played by js/audio.js, loaded in <head> above; the design lives in
+  // js/soundpack.js and is documented in docs/audio-overhaul.md.
+  //
+  // There is no in-game sound setting. Volume and mute belong to the launcher,
+  // which has one global control for the whole arcade, and a second switch
+  // here would only let the two disagree — the player mutes the arcade and one
+  // game keeps talking, or turns a game on and hears nothing. Arcade.audio is
+  // already free and silent when muted, so these wrappers are a pure feature
+  // detect. Same shape as every other game in the fleet.
   var SFX = window.SowdokuAudio || null;
-  if (SFX) SFX.setGate(soundOn);
 
   function playThud()    { if (SFX) SFX.playThud(); }
   function playChime()   { if (SFX) SFX.playChime(); }
@@ -1969,7 +1952,6 @@
     document.getElementById("peekCost").hidden = !peekCosts();
 
     // reflect current state inside the ⚙ menu
-    segOn("soundSeg", "sound", loadSound());
     segOn("labelsSeg", "labels", loadPenLabels());
     var penLabelsOn = loadPenLabels() === "on";
 
@@ -2503,12 +2485,6 @@
 
   document.getElementById("peekBtn").onclick = function () { peek(); };
 
-  document.getElementById("soundSeg").onclick = function (e) {
-    var b = e.target.closest("button[data-sound]"); if (!b) return;
-    saveSound(b.dataset.sound);
-    segOn("soundSeg", "sound", b.dataset.sound);
-    if (b.dataset.sound === "on") playChime(); // a little confirmation blip, on the same gesture that unlocked audio
-  };
   document.getElementById("labelsSeg").onclick = function (e) {
     var b = e.target.closest("button[data-labels]"); if (!b) return;
     savePenLabels(b.dataset.labels);

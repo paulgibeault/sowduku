@@ -84,10 +84,21 @@ async function run() {
     await page.fill("#cSeed", "6s-1");
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
-    await page.evaluate(() => {
-      const s = JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress"));
-      s.mode = "ladder"; s.ladderRung = 2;
-      localStorage.setItem("arcade.v1.sowduku.inProgress", JSON.stringify(s));
+    // Relabel on the NEXT load rather than this one. Writing the fixture here
+    // and reloading cannot work: `pagehide` fires on reload and the game
+    // persists its in-memory state from onSuspend, landing on top of the
+    // fixture — the board came back an ordinary amble and every ladder
+    // assertion below failed. An init script runs before any of the page's own
+    // scripts on the next navigation, so it lands after that final persist and
+    // before boot reads storage.
+    await ctx.addInitScript(() => {
+      try {
+        const raw = localStorage.getItem("arcade.v1.sowduku.inProgress");
+        if (!raw) return;
+        const s = JSON.parse(raw);
+        s.mode = "ladder"; s.ladderRung = 2;
+        localStorage.setItem("arcade.v1.sowduku.inProgress", JSON.stringify(s));
+      } catch (e) { /* leave storage alone if it is not there yet */ }
     });
     await page.reload();
     await page.waitForSelector(".board .cell");

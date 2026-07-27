@@ -72,13 +72,17 @@ async function run() {
       // stakes has no live control anymore (B7.2) — seed the saved default
       // directly; restore() re-derives an unlocked game's stakes from it
       localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest"));
-      const s = JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress"));
-      s.hearts = 1;
-      localStorage.setItem("arcade.v1.sowduku.inProgress", JSON.stringify(s));
     });
     await page.reload();
     await page.waitForSelector(".board .cell");
-    await page.click('[data-r="0"][data-c="0"]'); // wrong vs 6s-1's row-0 solution (col4) -> docks the last heart
+    // Spend all five hearts for real. Seeding hearts=1 into inProgress and
+    // reloading cannot work: `pagehide` fires on reload and the game persists
+    // its in-memory state from onSuspend, landing on top of the seed — the
+    // board always came back with five hearts and the veil never appeared.
+    // 6s-1's row-0 solution is col4, so every other column in the row docks.
+    for (const c of [0, 1, 2, 3, 5]) {
+      await page.click(`[data-r="0"][data-c="${c}"]`);
+    }
     await page.waitForSelector("#veil.show", { timeout: 5000 });
     await dismissVeil(page);
     const veilHidden = await page.locator("#veil.show").count();
