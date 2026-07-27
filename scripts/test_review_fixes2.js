@@ -4,8 +4,8 @@
 // sheet gets, and toggleCurate()/replayBoard() didn't carry a curated campaign
 // field's own campaignPack, so replaying (or exporting-then-replaying) a
 // curated campaign-mode field silently dropped it into no pack at all.
-const { chromium } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
-const BASE = "http://localhost:8934";
+const { chromium } = require("./lib/playwright");
+const { BASE } = require("./lib/base");
 const SOL_6S1 = [[0,4],[2,3],[3,1],[1,0],[4,5],[5,2]];
 
 let pass = 0, fail = 0;

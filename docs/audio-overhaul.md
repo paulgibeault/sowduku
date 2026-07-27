@@ -104,7 +104,8 @@ confirms 0% of every cue's energy sits above 4 kHz.
 ## How it is wired
 
 `index.html` loads three scripts in `<head>`, right after `Arcade.init()`:
-`/arcade-audio.js` (the shared element library — launcher-root, optional),
+`/sdk/v3/arcade-audio.js` (the shared element library — launcher-root, optional,
+major-pinned like the SDK beside it),
 `js/soundpack.js` (the pack), `js/audio.js` (registration). All are plain
 scripts, not ES modules, because the game itself is one inline IIFE at the end
 of `<body>`.
@@ -115,14 +116,15 @@ copied verbatim. Both paths register the same five cue names, so no call site
 in the game branches on the path — the game just calls the five `play*()`
 wrappers exactly as before.
 
-The one thing that stayed in `index.html` is the **setting**: the
-off-by-default `sound` row in the ⚙ menu is still the single source of truth,
-and it is handed to the module via `SowdokuAudio.setGate(soundOn)`. Volume and
-global mute remain launcher-owned.
+There is no in-game sound control. The ⚙ menu's `sound` row and the
+`SowdokuAudio.setGate()` hook it drove were both removed (B7.3): volume and
+mute are launcher-owned for the whole arcade, and a second switch in here could
+only disagree with the first. `test_audio_wiring.js` guards that — it asserts
+the menu offers no sound control and that no `setGate` remains to reattach to.
 
-`sw.js` precaches `js/soundpack.js` and `js/audio.js` (cache bumped to v7).
-It deliberately does **not** cache `/arcade-audio.js` — that is launcher-root
-and outside this worker's scope, the same rule `/arcade-sdk.js` already
+`sw.js` precaches `js/soundpack.js` and `js/audio.js` (cache `sowduku-shell-v8`).
+It deliberately does **not** cache `/sdk/v3/arcade-audio.js` — that is
+launcher-root and outside this worker's scope, the same rule the SDK already
 followed. If it is unavailable, the fallback path covers it.
 
 ## Verified
@@ -131,13 +133,15 @@ followed. If it is unavailable, the fallback path covers it.
   `scripts/test_audio_wiring.js` stages the launcher root at `/` with the game
   at `/sowduku/` (matching production, since the script tags are root-relative)
   and asserts the shared room bus exists — only `room()` creates it.
-- **All five cues play from the live game** through the real call path, after
-  turning sound on the way a player does (the ⚙ menu, which is also the
-  gesture that unlocks the AudioContext). No wrapper throws; no page errors.
-- **The gate still holds:** with sound off, zero `play()` calls are made.
-- **The fallback path works** with `/arcade-audio.js` served as a 404 — the
+- **All five cues play from the live game** through the real call path. No
+  wrapper throws; no page errors.
+- **There is no second sound switch:** the ⚙ menu offers no sound control and
+  the module exposes no `setGate` for one to reattach to. The launcher's global
+  mute is the one control, and it reaches in here — muted, `Arcade.audio`
+  reports itself disabled and short-circuits before touching the AudioContext.
+- **The fallback path works** with `/sdk/v3/arcade-audio.js` served as a 404 — the
   stale-cache case the two-path module exists for. All five spec cues still
-  play, nothing throws. 20 assertions total, all passing.
+  play, nothing throws. 24 assertions total, all passing.
 - **moon-lit and hecknsic are untouched by the shared-library change.**
   Baseline auditions of both packs were rendered before the element patch and
   re-rendered after; `wavdiff.mjs` puts the delta at 1 LSB peak (−90 dBFS,
@@ -158,15 +162,16 @@ additive companion-library gestures, no `Arcade.audio` surface change, but the
 pinned copy `sdk/v3/arcade-audio.js` and the changelog move on the same
 version line. `sw.js` `CACHE_NAME` bumped to `paul-arcade-v63`.
 
-### Unrelated pre-existing test failures
+### Unrelated pre-existing test failures — resolved
 
-Four of the game's older suites fail both with these changes and at pristine
-`HEAD` (34c9cdd), verified by running each against a clean worktree — they are
-not caused by the audio work and are not addressed here:
-`test_b3_regression.js` (3 assertions about a retired ladder mode),
-`test_b4_trails_list.js` and `test_b6_gauntlet.js` (both throw on a null
-`packCleared`), and `test_veil_dismiss.js` (timeout).
+Four of the game's older suites failed both with these changes and at pristine
+`HEAD` (34c9cdd): `test_b3_regression.js` (3 assertions about a retired ladder
+mode), `test_b4_trails_list.js` and `test_b6_gauntlet.js` (both threw on a null
+`packCleared`), and `test_veil_dismiss.js` (timeout). All were repaired in
+61a5268 and 7197d29, and the whole tier now runs in CI on every push and PR.
 
-Worth knowing for anyone running these: they need the launcher root staged
-alongside the game, or `/arcade-sdk.js` 404s, `window.Arcade` is undefined and
-most of them fail for that reason alone rather than on anything they test.
+The staging note that used to live here is no longer anyone's problem to
+remember: `npm test` stages the launcher at `/` and this game at `/sowduku/`
+itself. Served without the launcher, `/sdk/v3/arcade-sdk.js` 404s,
+`window.Arcade` is undefined, and most suites fail for that reason alone rather
+than on anything they test.

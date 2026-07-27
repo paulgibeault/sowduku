@@ -249,9 +249,12 @@ Sowdoku drops into the launcher with one script tag and lights up extras when
 framed — while playing perfectly well standalone.
 
 ```html
-<script src="/arcade-sdk.js"></script>
+<script src="/sdk/v3/arcade-sdk.js"></script>
 <script>Arcade.init({ gameId: 'sowduku' });</script>
 ```
+
+The path is major-pinned rather than the evergreen `/arcade-sdk.js` alias, so a
+future v4 launcher deploy can't brick this game before it has migrated.
 
 ### Storage — progress that follows you
 
@@ -330,6 +333,60 @@ half-solved field from laptop to phone and pick up at the exact piggy.
   engagement earned through the quality of the deduction, not dark patterns.
 - **Tiny footprint.** Pure logic puzzle, line-art only; safe for the iframe pool,
   instant to relaunch, kind to the WebGL-less.
+
+---
+
+## Tests
+
+```bash
+npm test
+```
+
+Fourteen suites: thirteen Playwright suites that drive the real game in a real
+browser, plus a browser-free gate on what the Pages deploy publishes. Then the
+arcade's own integration checklist, which lives in the launcher repo and is not
+this repo's to reimplement:
+
+```bash
+npm run acceptance
+```
+
+Both run in CI on every PR and every push to `main`, and the deploy job needs
+them — main cannot ship red.
+
+`scripts/run-tests.js` finds suites by name (`scripts/test_*.js`), so a new one
+is covered the moment it lands. Pass substrings to narrow a run:
+
+```bash
+node scripts/run-tests.js stakes veil
+```
+
+**The game needs the launcher behind it.** The arcade serves the launcher at `/`
+and every game at `/<gameId>/` from one origin; `index.html` loads
+`/sdk/v3/arcade-sdk.js` root-relative, and the SDK is what persists every
+`arcade.v1.sowduku.*` key. So the runner stages that exact shape — launcher
+checkout at `/`, this game's built artifact at `/sowduku/`. Served at the origin
+root instead, the board renders and nothing saves, the service worker's scope
+guard never fires, and a dozen suites fail on a null where a save should be.
+
+Clone [paulgibeault.github.io](https://github.com/paulgibeault/paulgibeault.github.io)
+beside this repo, or point `ARCADE_LAUNCHER` at it.
+
+The suites run against `dist/` (`npm run build`), not the source tree — the file
+set Pages actually publishes. That is deliberate: the month the deploy silently
+omitted `js/`, every suite here would have said so.
+
+If a `dev.sh` session is already serving the game, `npm test` reuses it, so the
+harness the arcade documents works unchanged:
+
+```bash
+cd ../paulgibeault.github.io && ./dev.sh ../sow-duku
+```
+
+Playwright resolves from this repo's `node_modules` if present and the
+launcher's otherwise, so a machine that already has the launcher's browsers
+needs no second copy. The pinned version matches the launcher's on purpose —
+see the note in `package.json`.
 
 ---
 
