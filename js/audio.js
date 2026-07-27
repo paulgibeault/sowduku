@@ -3,7 +3,7 @@
  * This is the game's single audio registration site.
  *
  * A plain script, not an ES module, because the game itself is one inline IIFE
- * in index.html: this runs before it and hands it five play wrappers on
+ * in index.html: this runs before it and hands it seven play wrappers on
  * `window.SowdokuAudio`. The <script> order in index.html is what guarantees
  * `Arcade.init()` and `window.SowDukuPack` have both already run by the time
  * this evaluates.
@@ -13,11 +13,11 @@
  *   GRAPH PATH (the SDK's /arcade-audio.js companion loaded) — the real sound
  *     design. js/soundpack.js holds the pack; every cue is a WebAudio node
  *     graph built from physical-gesture elements (squelch, breath, grunt,
- *     pluck, thump, rustle — the first three of which this game drove into the
+ *     thump, rustle — the first three of which this game drove into the
  *     shared library), and every cue feeds one shared convolution room so
  *     overlapping sounds fuse into one place — a small farmyard pen after rain
- *     — instead of stacking into a pile. That pack was rendered to an audition
- *     WAV and approved by ear at v1; do not retune it from here.
+ *     — instead of stacking into a pile. That pack is rendered to an audition
+ *     WAV and approved by ear before it ships; do not retune it from here.
  *
  *     NO SYNTHESIS LIVES IN THIS GAME. Every gesture the pack is built from is
  *     an element in the launcher's shared library. What belongs to sow-duku is
@@ -26,15 +26,23 @@
  *     library lacks goes into the library.
  *
  *   FALLBACK PATH (older cached SDK/companion, or standalone without
- *     /arcade-audio.js) — the archived spec-cue profile, copied verbatim from
+ *     /arcade-audio.js) — the archived spec-cue profile, copied from
  *     index.html as it stood before this overhaul. Oscillator-plus-envelope
  *     voices: the only thing a pre-3.6.0 `Arcade.audio` can play. It exists
  *     because a player on a stale service-worker cache should get the old
  *     sound rather than silence; that is an expected state, not an error, so
  *     it is not logged. See NEEDED_ELEMENTS below for what decides the path.
  *
- * Both paths register the same five cue names, so every call site in the game
- * works unchanged either way — no wrapper here has to branch on the path.
+ *     Its BODIES are frozen — that profile was tuned as a whole and should be
+ *     kept in sync with the archive rather than edited here. Its KEYS are not:
+ *     they have to track whatever the wrappers below call, so the two cues
+ *     renamed in pack v3 (`chime` → `pen`, `snuffle` → `oink`) are renamed
+ *     here too. A stale cache hearing the old sound is the point; a stale
+ *     cache hearing silence because a key drifted is a bug.
+ *
+ * Both paths register the same seven cue names, so every call site in the
+ * game works unchanged either way — no wrapper here has to branch on the
+ * path.
  *
  * Conventions (fleet Arcade.audio conventions, launcher GAME_INTEGRATION.md §5):
  *   A1 — cues are registered ONCE here at load. Audio is purely local, so no
@@ -47,8 +55,11 @@
  *        its own off-by-default switch, which meant two controls could
  *        disagree: mute the arcade and one game keeps talking, or switch a
  *        game on and hear nothing. One control, and it is the launcher's.
- *   A4 — cue names are lowercase and event-shaped, and are unchanged from the
- *        pre-overhaul profile.
+ *   A4 — cue names are lowercase and event-shaped. `thud`, `slip` and `fail`
+ *        are unchanged from the pre-overhaul profile; `chime` and `snuffle`
+ *        were renamed to `pen` and `oink` in pack v3 when the sounds they
+ *        named stopped being what those cues do; `hoof` and `star` are new in
+ *        pack v5 (their call sites had no sound at all before it).
  */
 
 (function (global) {
@@ -83,10 +94,13 @@
   }
 
   // ─── fallback: the archived spec-cue profile ──────────────────────────────
-  // Copied verbatim from index.html as it stood before the graph overhaul,
-  // which froze the game's pre-graph sound. Keep it in sync with that archive
-  // rather than editing it here — it is what a player on a stale
-  // service-worker cache hears, and it was tuned as a whole.
+  // Copied from index.html as it stood before the graph overhaul, which froze
+  // the game's pre-graph sound. Keep the cue BODIES in sync with that archive
+  // rather than editing them here — it is what a player on a stale
+  // service-worker cache hears, and it was tuned as a whole. The two renamed
+  // keys are the one deliberate deviation (see the header): the bodies below
+  // are still the pre-overhaul sounds, so the comments describe those and not
+  // the piglet the graph path now plays.
 
   function registerSpecCues(a) {
     // a piggy flopping into mud: a short, dull noise splat for the wet surface,
@@ -100,7 +114,7 @@
     // a pen has found its one piggy: three sines rolled in over 30 ms so they
     // bloom rather than strike. Sine + slow attack keeps it a warm swell, not a
     // bell — the only bright thing in the palette, and it stays soft.
-    a.cue("chime", [
+    a.cue("pen", [
       { type: "sine", freq: 660,  dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53 },
       { type: "sine", freq: 880,  dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53, delay: 0.03 },
       { type: "sine", freq: 1100, dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53, delay: 0.03 },
@@ -109,7 +123,7 @@
     // each puff differs in length, level and spacing — because three identical
     // puffs on a fixed pulse read as a machine, and this is meant to read as a
     // creature exhaling. Pure noise, no pitch: it's breath, not a note.
-    a.cue("snuffle", [
+    a.cue("oink", [
       { type: "noise", dur: 0.13, gain: 0.17, attack: 0.03, release: 0.10 },
       { type: "noise", dur: 0.16, gain: 0.19, attack: 0.035, release: 0.13, delay: 0.16 },
       { type: "noise", dur: 0.12, gain: 0.14, attack: 0.04, release: 0.09, delay: 0.19 },
@@ -131,6 +145,17 @@
       { type: "sine", freq: 233, toFreq: 220, dur: 0.5, gain: 0.11, attack: 0.09, release: 0.4, delay: 0.22 },
       { type: "sine", freq: 196, toFreq: 175, dur: 0.7, gain: 0.1, attack: 0.12, release: 0.55, delay: 0.24 },
       { type: "noise", dur: 0.22, gain: 0.07, attack: 0.09, release: 0.13, delay: 0.18 },
+    ]);
+    // The two v5 cues have no archived body — they postdate the archive — so
+    // they get minimal spec voices in the same idiom: a hoofprint is a tiny
+    // dry tick of noise, a star two short soft blips. A stale cache hears
+    // something plausible instead of silence at these two call sites.
+    a.cue("hoof", [
+      { type: "noise", dur: 0.05, gain: 0.06, attack: 0.003, release: 0.04 },
+    ]);
+    a.cue("star", [
+      { type: "sine", freq: 740, dur: 0.12, gain: 0.07, attack: 0.012, release: 0.10 },
+      { type: "sine", freq: 988, dur: 0.16, gain: 0.07, attack: 0.012, release: 0.14, delay: 0.09 },
     ]);
   }
 
@@ -173,10 +198,12 @@
     // True when the graph pack registered — for diagnostics and tests; the
     // game itself never needs to branch on it.
     isGraphMode: function () { return graphMode; },
-    playThud:    function () { sfx("thud"); },
-    playChime:   function () { sfx("chime"); },
-    playSnuffle: function () { sfx("snuffle"); },
-    playSlip:    function () { sfx("slip"); },
-    playFail:    function () { sfx("fail"); },
+    playThud: function () { sfx("thud"); },
+    playHoof: function () { sfx("hoof"); },
+    playPen:  function () { sfx("pen"); },
+    playOink: function () { sfx("oink"); },
+    playSlip: function () { sfx("slip"); },
+    playFail: function () { sfx("fail"); },
+    playStar: function () { sfx("star"); },
   };
 })(typeof window !== "undefined" ? window : globalThis);

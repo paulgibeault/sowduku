@@ -140,8 +140,12 @@ Drawn straight from the house style — **calm clarity**.
   unimpressed eye.
 - **Typography.** A modern, highly-legible sans for UI (logic and clarity),
   paired with a warm rounded serif for headers (the human, cozy touch).
-- **Sound.** Optional, quiet by default: a wooden *thud* on placement, a faint
-  chime when a pen completes, and one long, contented snuffle at solve.
+- **Sound.** Optional, quiet by default, and all of it the piglet and its
+  mud — nothing musical anywhere: a soft *thud* of a trotter on placement
+  with a happy two-note "uh-huh!" on top, a tiny scratch for each hoofprint,
+  a startled wheek when you get one wrong, a climbing celebration with
+  scampering trotters when the last pen closes, and a pleased sniff when you
+  star a field worth keeping.
 
 ---
 

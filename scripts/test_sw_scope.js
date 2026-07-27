@@ -25,6 +25,13 @@ function ok(cond, msg) {
   else { fail++; console.log("  FAIL - " + msg); }
 }
 
+// The CURRENT cache name, read from sw.js itself rather than repeated here:
+// the name bumps on every shell change (CI's check-sw-bump insists on it),
+// and a hardcoded copy made this suite fail on every legitimate bump.
+const SW_SRC = fs.readFileSync(path.resolve(__dirname, "..", "sw.js"), "utf8");
+const CURRENT_CACHE = (SW_SRC.match(/const CACHE = "([^"]+)"/) || [])[1];
+if (!CURRENT_CACHE) throw new Error("cannot find `const CACHE = \"...\"` in sw.js");
+
 /** Load sw.js with stub globals; returns its registered handlers. */
 function loadWorker() {
   const handlers = {};
@@ -34,7 +41,7 @@ function loadWorker() {
     URL,
     caches: {
       keys: async () => [
-        "sowduku-shell-v8",   // ours, current
+        CURRENT_CACHE,        // ours, current
         "sowdoku-shell-v7",   // ours, the old spelling
         "paul-arcade-v63",    // the LAUNCHER's
         "hecknsic-v3",        // a sibling game's
@@ -55,7 +62,7 @@ function loadWorker() {
   };
   vm.createContext(sandbox);
   vm.runInContext(
-    fs.readFileSync(path.resolve(__dirname, "..", "sw.js"), "utf8"),
+    SW_SRC,
     sandbox,
     { filename: "sw.js" }
   );
@@ -81,7 +88,7 @@ async function run() {
   await Promise.all(waits);
 
   ok(deleted.includes("sowdoku-shell-v7"), "our own stale cache is cleaned up");
-  ok(!deleted.includes("sowduku-shell-v8"), "the current cache survives");
+  ok(!deleted.includes(CURRENT_CACHE), "the current cache survives");
   for (const foreign of ["paul-arcade-v63", "hecknsic-v3", "moon-lit-shell-v2"]) {
     ok(!deleted.includes(foreign), `${foreign} is left alone (not ours)`);
   }
