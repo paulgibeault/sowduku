@@ -7,19 +7,18 @@
 //      be a total loss of the work
 //   2. every one of the five cues plays from the live game without throwing,
 //      through the real call path (window.SowdokuAudio), at the real setting
-//   3. the FALLBACK path still works when /arcade-audio.js is unavailable —
-//      the stale-service-worker-cache case the two-path module exists for
+//   3. the FALLBACK path still works when the audio companion is unavailable
+//      — the stale-service-worker-cache case the two-path module exists for
 //
-// Staged like production: launcher root files at /, the game at /sowduku/,
-// because index.html loads /arcade-sdk.js and /arcade-audio.js root-relative.
+// Runs on its own port against the shared staged origin (lib/serve.js:
+// launcher at /, this game's built artifact at /sowduku/), because the
+// fallback case needs a server that can be told to withhold one file.
 
 const { chromium } = require("./lib/playwright");
-const http = require("http");
-const fs = require("fs");
-const path = require("path");
+const { createServer } = require("./lib/serve");
 
-const { LAUNCHER } = require("./lib/launcher");
-const GAME = path.join(__dirname, "..");
+// The optional element library, at the major-pinned path index.html loads.
+const AUDIO_LIB = "/sdk/v3/arcade-audio.js";
 const PORT = 8937;
 
 let pass = 0, fail = 0;
@@ -28,31 +27,10 @@ function ok(cond, msg) {
   else { fail++; console.log("  FAIL - " + msg); }
 }
 
-const TYPES = {
-  ".html": "text/html", ".js": "text/javascript", ".json": "application/json",
-  ".png": "image/png", ".woff2": "font/woff2", ".ico": "image/x-icon",
-};
-
-// `blockAudioLib` serves a 404 for /arcade-audio.js, which is exactly what a
-// player on a stale cache (or standalone off the launcher origin) sees.
+// A 404 for the audio library is exactly what a player on a stale cache (or
+// standalone, off the launcher origin) sees.
 function makeServer(blockAudioLib) {
-  return http.createServer((req, res) => {
-    const url = new URL(req.url, "http://x");
-    let p = decodeURIComponent(url.pathname);
-    if (blockAudioLib && p === "/arcade-audio.js") { res.writeHead(404); res.end(); return; }
-    let file;
-    if (p.startsWith("/sowduku/")) {
-      file = path.join(GAME, p.slice("/sowduku/".length) || "index.html");
-    } else {
-      file = path.join(LAUNCHER, p === "/" ? "index.html" : p.slice(1));
-    }
-    if (file.endsWith("/")) file += "index.html";
-    fs.readFile(file, (err, buf) => {
-      if (err) { res.writeHead(404); res.end(); return; }
-      res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] || "application/octet-stream" });
-      res.end(buf);
-    });
-  });
+  return createServer(blockAudioLib ? { block: [AUDIO_LIB] } : {});
 }
 
 function listen(server) {
@@ -196,7 +174,7 @@ async function run() {
     await close(server);
   }
 
-  // ---- the fallback path: /arcade-audio.js unavailable ----
+  // ---- the fallback path: the audio companion unavailable ----
   {
     console.log("\n[fallback path] stale cache — no element library, spec cues instead of silence");
     const server = makeServer(true);

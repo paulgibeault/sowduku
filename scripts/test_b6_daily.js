@@ -4,7 +4,7 @@
 // touched-but-abandoned attempt doesn't lock a player out for the rest of
 // the day. Also spot-checks that the create sheet is genuinely tabless.
 const { chromium } = require("./lib/playwright");
-const BASE = "http://localhost:8934";
+const { BASE } = require("./lib/base");
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {

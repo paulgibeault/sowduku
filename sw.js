@@ -2,16 +2,31 @@
 // the network for anything else (e.g. the arcade SDK, which needs to be live
 // to see fresh cross-device state). Bump CACHE on any shell/asset change so
 // old installs pick up the new files instead of serving stale ones forever.
-const CACHE = "sowdoku-shell-v7";
+//
+// Every game and the launcher share ONE origin, which is what makes the two
+// arcade rules (tools/templates/game-sw.js) load-bearing here: own nothing
+// outside /sowduku/, and never clean up anything that isn't ours.
+//
+// v8: the shell list finally matches what ships — js/soundpack.js and
+// js/audio.js were precached but never published, and cache.addAll() is
+// all-or-nothing, so install() had been rejecting outright and no visitor
+// since the audio overhaul had an offline shell at all.
+const CACHE = "sowduku-shell-v8";
+// Caches this game has owned, across the sowdoku→sowduku spelling. Cleanup is
+// filtered to exactly these prefixes: caches.keys() returns every cache on the
+// origin — the launcher's and every sibling game's — so a bare "not the
+// current one" filter deletes the whole arcade's offline support.
+const OURS = ["sowduku-", "sowdoku-"];
 const SHELL = [
   "./",
   "index.html",
   "sowdoku.js",
   "campaigns.js",
-  // Sound. The element library itself (/arcade-audio.js) is launcher-root and
-  // deliberately NOT cached here — same rule as /arcade-sdk.js below: this
-  // worker only owns files under its own scope. If it is unavailable, these
-  // two fall back to the pre-overhaul spec cues on their own.
+  // Sound. The element library itself (/sdk/v3/arcade-audio.js) is launcher-
+  // root and deliberately NOT cached here — same rule as the SDK below: this
+  // worker only owns files under its own scope, and the SDK reports a console
+  // error when it finds launcher files in a game's cache. If it is
+  // unavailable, these two fall back to the spec cues on their own.
   "js/soundpack.js",
   "js/audio.js",
   "assets/fonts/fraunces-variable.woff2",
@@ -38,14 +53,27 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
+  // Per-asset add(), not addAll(): addAll rejects the WHOLE install if any one
+  // entry 404s, which is how a single unpublished file (js/, for a month) cost
+  // every visitor their offline shell with nothing said. One gap should cost
+  // one file and a console line. Same reasoning as the launcher's own worker.
+  e.waitUntil(caches.open(CACHE).then((c) =>
+    Promise.all(SHELL.map((asset) =>
+      c.add(asset).catch((err) =>
+        console.warn("[sw] precache skipped", asset, err && err.message))
+    ))
+  ));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter((k) => k !== CACHE && OURS.some((p) => k.startsWith(p)))
+          .map((k) => caches.delete(k))
+      )
     )
   );
   self.clients.claim();

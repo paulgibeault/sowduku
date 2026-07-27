@@ -21,16 +21,20 @@
 <meta name="twitter:description" content="A field of contented little piggies, and the quiet logic of giving each one its own patch of mud." />
 <meta name="twitter:image" content="assets/social/og-image.png" />
 <!-- Paul's Arcade SDK: same-origin storage, settings, lifecycle. Root-relative
-     so it resolves both in production and the local dev harness. -->
-<script src="/arcade-sdk.js"></script>
+     so it resolves both in production and the local dev harness, and
+     MAJOR-PINNED (/sdk/v3/) rather than the evergreen /arcade-sdk.js alias —
+     the pin is what keeps a future v4 launcher deploy from bricking this game
+     before it has migrated. Feature compatibility inside a major is negotiated
+     at runtime by welcome.caps, never by the URL. -->
+<script src="/sdk/v3/arcade-sdk.js"></script>
 <script>if (window.Arcade) Arcade.init({ gameId: "sowduku" });</script>
 <!-- Sound: the SDK's optional element library, then the game's own pack, then
-     the registration module. Root-relative like the SDK itself, and OPTIONAL —
-     on a stale cache (or standalone off the launcher origin) it simply 404s and
-     js/audio.js falls back to the pre-overhaul spec cues rather than silence.
-     All three must load before the game IIFE at the end of <body>, which asks
-     window.SowdokuAudio for its five play wrappers. -->
-<script src="/arcade-audio.js"></script>
+     the registration module. Major-pinned and root-relative like the SDK
+     itself, and OPTIONAL — on a stale cache (or standalone off the launcher
+     origin) it simply 404s and js/audio.js falls back to the pre-overhaul spec
+     cues rather than silence. All three must load before the game IIFE at the
+     end of <body>, which asks window.SowdokuAudio for its five play wrappers. -->
+<script src="/sdk/v3/arcade-audio.js"></script>
 <script src="js/soundpack.js"></script>
 <script src="js/audio.js"></script>
 <style>
@@ -3397,10 +3401,22 @@
   else boot(); // SDK failed to load — no persistence anyway, boot fresh
 
   // offline shell — registered last, after the game is already up and
-  // playable, so a slow or failed registration never blocks first paint
-  if ("serviceWorker" in navigator) {
+  // playable, so a slow or failed registration never blocks first paint.
+  //
+  // Two guards the arcade requires (tools/templates/game-sw.js):
+  //   - an explicit scope, so this worker can only ever control /sowduku/ and
+  //     never the launcher or a sibling game sharing the origin
+  //   - a loopback skip, matching the launcher's own worker, so a stale cache
+  //     can't mask local edits — or serve one test suite the previous suite's
+  //     files, which is a debugging afternoon nobody enjoys
+  // Fire-and-forget with a .catch: inside a launcher frame the SDK shims
+  // navigator.serviceWorker with an inert stub whose register() rejects.
+  if ("serviceWorker" in navigator &&
+      !/^(127\.|localhost$|0\.0\.0\.0$|::1$)/.test(location.hostname)) {
     window.addEventListener("load", function () {
-      navigator.serviceWorker.register("sw.js").catch(function () {}); // offline just won't work; the game still does
+      navigator.serviceWorker
+        .register("sw.js", { scope: "/sowduku/" })
+        .catch(function () {}); // offline just won't work; the game still does
     });
   }
 })();

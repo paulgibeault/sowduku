@@ -6,7 +6,7 @@
 // credit for the gauntlet); re-tapping a selected row falls back to the
 // pack's default flow; selection resets when switching packs.
 const { chromium } = require("./lib/playwright");
-const BASE = "http://localhost:8934";
+const { BASE } = require("./lib/base");
 
 const SOLS = {
   "6m-8z": [[4,5],[3,1],[2,3],[1,0],[0,4],[5,2]],

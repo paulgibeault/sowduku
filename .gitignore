@@ -8,5 +8,8 @@ game.png
 node_modules/
 package-lock.json
 
+# the built deploy artifact (npm run build); what dev.sh stages and Pages ships
+dist/
+
 # os / editor cruft
 .DS_Store

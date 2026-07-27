@@ -5,7 +5,7 @@
 // field's own campaignPack, so replaying (or exporting-then-replaying) a
 // curated campaign-mode field silently dropped it into no pack at all.
 const { chromium } = require("./lib/playwright");
-const BASE = "http://localhost:8934";
+const { BASE } = require("./lib/base");
 const SOL_6S1 = [[0,4],[2,3],[3,1],[1,0],[4,5],[5,2]];
 
 let pass = 0, fail = 0;

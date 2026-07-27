@@ -2,8 +2,15 @@
 //
 // Discovery, not enumeration — every scripts/test_*.js runs here, so a new
 // suite is covered by CI the moment it lands, with no workflow edit. Suites
-// are plain node scripts that exit non-zero on failure; this stages the server
-// they expect, runs them one at a time, and reports.
+// are plain node scripts that exit non-zero on failure; this builds the
+// artifact, stages it the way the arcade serves it, runs the suites one at a
+// time, and reports.
+//
+// If a dev.sh session is already serving the game (GAME_INTEGRATION §12), that
+// origin is reused as-is — so the documented workflow needs nothing extra:
+//
+//   ./dev.sh ../sow-duku     # in the launcher repo
+//   npm test
 //
 // Usage:
 //   node scripts/run-tests.js              # everything
@@ -13,8 +20,8 @@ const { execFileSync, spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const { serve } = require("./lib/serve");
+const { BASE, PORT } = require("./lib/base");
 
-const PORT = 8934;               // the BASE every browser suite hard-codes
 const HERE = __dirname;
 const ROOT = path.resolve(HERE, "..");
 
@@ -34,6 +41,16 @@ function run(file) {
     const child = spawn(process.execPath, [file], { stdio: "inherit" });
     child.on("close", (code) => resolve(code === null ? 1 : code));
   });
+}
+
+/** True when something already answers at `url` — a dev.sh session, usually. */
+async function reachable(url) {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(1500) });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 function suites(filters) {
@@ -57,21 +74,30 @@ async function main() {
     console.log("  ok - " + f);
   }
 
-  let stop;
-  try {
-    stop = await serve(PORT);
-  } catch (e) {
-    if (e.code === "EADDRINUSE") {
-      console.error(
-        `\nPort ${PORT} is already taken, and the suites hard-code it. Stop whatever\n` +
-        `is listening there and re-run — a plain static server on ${PORT} is NOT a\n` +
-        `substitute, since it won't serve /arcade-sdk.js and nothing will save.`
-      );
-      process.exit(1);
+  console.log("\n== build ==");
+  execFileSync(process.execPath, [path.join(HERE, "stage-site.js"), path.join(ROOT, "dist")],
+    { stdio: "inherit" });
+
+  // Reuse whatever is already serving the game — a dev.sh session, typically.
+  let stop = async () => {};
+  if (await reachable(BASE + "/index.html")) {
+    console.log(`\nreusing the origin already serving ${BASE} (dev.sh?)`);
+    console.log("  note: dev.sh stages a COPY — re-run it to pick up source edits");
+  } else {
+    try {
+      stop = await serve(PORT);
+    } catch (e) {
+      if (e.code === "EADDRINUSE") {
+        console.error(
+          `\nSomething is on port ${PORT} but it is not serving ${BASE}.\n` +
+          `Stop it, or point SOWDUKU_BASE at a staged origin of your own.`
+        );
+        process.exit(1);
+      }
+      throw e;
     }
-    throw e;
+    console.log(`\nstaged ${BASE} (launcher at /, built game at /sowduku/)`);
   }
-  console.log(`\nstaged server on http://localhost:${PORT} (game over launcher)`);
 
   const failed = [];
   for (const f of files) {

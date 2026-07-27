@@ -20,34 +20,50 @@ jobs:
   # The gate. A broken PR fails here and never reaches the deploy job.
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sow-duku
     steps:
+      # Checked out as siblings, the same layout a dev machine has: the arcade
+      # serves the launcher at / and this game at /sowduku/ from one origin, so
+      # the suites stage both. index.html loads /sdk/v3/arcade-sdk.js
+      # root-relative and the SDK is what persists every save — served without
+      # the launcher behind it, the board renders and nothing saves.
       - uses: actions/checkout@v4
-
-      # The game is not self-contained: index.html loads /arcade-sdk.js and
-      # /arcade-audio.js from the launcher origin, and the SDK is what persists
-      # every save. The suites stage the launcher behind the game to match
-      # production — without it the board renders and nothing saves.
-      - name: Check out the arcade launcher (staged behind the game)
-        uses: actions/checkout@v4
+        with:
+          path: sow-duku
+      - uses: actions/checkout@v4
         with:
           repository: paulgibeault/paulgibeault.github.io
-          path: .launcher
+          path: paulgibeault.github.io
 
       - uses: actions/setup-node@v4
         with:
           node-version: 24
 
-      - name: Install deps + browsers
+      - name: Install deps
+        run: npm install
+      - name: Install launcher deps (acceptance runner lives there)
+        working-directory: paulgibeault.github.io
+        run: npm install
+
+      # Each checkout pins its own Playwright, so install browsers for both —
+      # they share one cache and a mismatch only costs a download.
+      - name: Install browsers
         run: |
-          npm install
           npx playwright install --with-deps chromium webkit
+          cd ../paulgibeault.github.io && npx playwright install --with-deps chromium
 
       # Discovery, not enumeration: runs every scripts/test_*.js, so a new
       # suite is covered the moment it lands, with no edit to this file.
       - name: Test tier (13 browser suites + the deploy-staging gate)
-        env:
-          ARCADE_LAUNCHER: ${{ github.workspace }}/.launcher
         run: npm test
+
+      # The arcade's own GAME_INTEGRATION §13 checklist — framed handshake,
+      # namespaced storage, save/load round-trip, caps negotiation. Not ours to
+      # reimplement, so we run theirs against the artifact we just built.
+      - name: Arcade integration acceptance (launcher's tools/acceptance.mjs)
+        run: npm run acceptance
 
   deploy:
     needs: test
@@ -58,13 +74,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # The published file set lives in scripts/stage-site.js, and
-      # test_deploy_staging.js checks it against what index.html and sw.js
-      # actually ask for. Keep it there — a `cp` line here goes stale in silence.
-      - name: Stage runtime files only
-        run: node scripts/stage-site.js _site
+      # Same build the suites ran against — the published file set lives in
+      # scripts/stage-site.js, and test_deploy_staging.js holds it against what
+      # index.html and sw.js actually ask for. Keep it there: a `cp` line here
+      # goes stale in silence, which is how js/ went a month unpublished.
+      - name: Build the deploy artifact
+        run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: dist
       - id: deployment
         uses: actions/deploy-pages@v4

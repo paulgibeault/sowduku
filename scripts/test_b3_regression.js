@@ -6,7 +6,7 @@
 // behavior, ladder/gauntlet start flows, plain amble persistence+restore,
 // and the daily/keyboard-shortcut paths.
 const { chromium } = require("./lib/playwright");
-const BASE = "http://localhost:8934";
+const { BASE } = require("./lib/base");
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {

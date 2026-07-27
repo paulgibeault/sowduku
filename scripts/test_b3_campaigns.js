@@ -5,7 +5,7 @@
 // Playwright scripts were session-scratch and never landed in the repo.
 const { chromium, webkit } = require("./lib/playwright");
 
-const BASE = "http://localhost:8934";
+const { BASE } = require("./lib/base");
 
 // solver traces for the six intro-pack fields, captured by
 // scripts/verify_intro_seeds.js — each is a full list of the puzzle's

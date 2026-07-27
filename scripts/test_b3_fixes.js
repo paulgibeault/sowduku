@@ -2,7 +2,7 @@
 // initial B3 implementation: replayBoard() dropping campaign identity, and
 // "walk it again" (create sheet) ignoring a done pack's authored assist.
 const { chromium } = require("./lib/playwright");
-const BASE = "http://localhost:8934";
+const { BASE } = require("./lib/base");
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {
