@@ -1063,11 +1063,13 @@
   // detect. Same shape as every other game in the fleet.
   var SFX = window.SowdokuAudio || null;
 
-  function playThud()    { if (SFX) SFX.playThud(); }
-  function playChime()   { if (SFX) SFX.playChime(); }
-  function playSnuffle() { if (SFX) SFX.playSnuffle(); }
-  function playSlip()    { if (SFX) SFX.playSlip(); }
-  function playFail()    { if (SFX) SFX.playFail(); }
+  function playThud() { if (SFX) SFX.playThud(); }
+  function playHoof() { if (SFX) SFX.playHoof(); }
+  function playPen()  { if (SFX) SFX.playPen(); }
+  function playOink() { if (SFX) SFX.playOink(); }
+  function playSlip() { if (SFX) SFX.playSlip(); }
+  function playFail() { if (SFX) SFX.playFail(); }
+  function playStar() { if (SFX) SFX.playStar(); }
 
   // ---- generation with a small retry so we never hand back a null puzzle ----
   function makeBoard(size, reqDiff, seed) {
@@ -1670,7 +1672,7 @@
     flushTick();
     if (game.mode === "campaign" && game.campaignPack && game.campaignCode) markCampaignDone(game.campaignPack, game.campaignCode);
     finalizeGame(true);
-    playSnuffle();
+    playOink();
   }
 
   // ---- quiet play-time accrual (visible only in history, never as a timer) ----
@@ -1774,7 +1776,12 @@
     // just before this mark, so a pen already stuck from earlier never re-docks.
     var before = stakesAtLeast("honest")
       ? starvedByFences(game.puzzle.size, game.puzzle.regions, game.piggies, game.hoofprints) : null;
-    if (!game.hoofprints.has(k)) game.metrics.hoofprints++;
+    // the tiny scratch sounds only for a FRESH mark — a drag re-crossing its
+    // own prints, or a repeated tap, changes nothing and should say nothing.
+    // (If the honest check below then docks a heart, the slip lands ~50 ms
+    // after this and reads as mark-then-ding, which is the actual order of
+    // events.)
+    if (!game.hoofprints.has(k)) { game.metrics.hoofprints++; playHoof(); }
     game.hoofprints.add(k);
     if (before) {
       var after = starvedByFences(game.puzzle.size, game.puzzle.regions, game.piggies, game.hoofprints);
@@ -1835,7 +1842,7 @@
   var shimmerPenId = null, shimmerTimer = null;
   function shimmerPen(id) {
     shimmerPenId = id;
-    playChime();
+    playPen();
     clearTimeout(shimmerTimer);
     shimmerTimer = setTimeout(function () { shimmerPenId = null; render(); }, 700);
   }
@@ -3200,6 +3207,7 @@
                     category: diffCategory(rec), hiScore: bestScore(rec), addedAt: Date.now() });
       if (pack.fields.length > 100) pack.fields.length = 100;
       toast("curated · " + rec.code);
+      playStar();   // starring only — un-starring stays quiet, the toast has it
     }
     savePacks(packs);
     // only the implicit default-target call (no explicit packId — the

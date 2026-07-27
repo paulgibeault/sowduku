@@ -5,7 +5,7 @@
 //   1. the game takes the GRAPH path in a real browser — not silently falling
 //      back to the archived spec cues, which would sound fine in isolation and
 //      be a total loss of the work
-//   2. every one of the five cues plays from the live game without throwing,
+//   2. every one of the seven cues plays from the live game without throwing,
 //      through the real call path (window.SowdokuAudio), at the real setting
 //   3. the FALLBACK path still works when the audio companion is unavailable
 //      — the stale-service-worker-cache case the two-path module exists for
@@ -40,7 +40,7 @@ function close(server) {
   return new Promise((resolve) => server.close(() => resolve()));
 }
 
-const CUES = ["thud", "chime", "snuffle", "slip", "fail"];
+const CUES = ["thud", "hoof", "pen", "oink", "slip", "fail", "star"];
 
 async function run() {
   const browser = await chromium.launch();
@@ -78,7 +78,7 @@ async function run() {
     ok(state.graphMode === true, "GRAPH path taken (not the spec-cue fallback)");
     ok(
       CUES.every((c) => state.packCues.includes(c)) && state.packCues.length === CUES.length,
-      "the pack defines exactly the five cues the game calls"
+      "the pack defines exactly the cues the game calls"
     );
 
     // The shared room only exists if room() was called, which only the graph
@@ -107,7 +107,7 @@ async function run() {
     );
 
     // ---- every cue plays, through the real call path ----
-    console.log("\n[playback] all five cues fire from the live game without throwing");
+    console.log("\n[playback] all seven cues fire from the live game without throwing");
     const played = await page.evaluate((cues) => {
       const a = window.Arcade.audio;
       const seen = [];
@@ -115,8 +115,8 @@ async function run() {
       a.play = function (n, o) { seen.push(n); return realPlay(n, o); };
       const M = window.SowdokuAudio;
       const calls = {
-        thud: M.playThud, chime: M.playChime, snuffle: M.playSnuffle,
-        slip: M.playSlip, fail: M.playFail,
+        thud: M.playThud, hoof: M.playHoof, pen: M.playPen, oink: M.playOink,
+        slip: M.playSlip, fail: M.playFail, star: M.playStar,
       };
       const threw = [];
       for (const c of cues) {
@@ -129,7 +129,7 @@ async function run() {
     ok(played.threw.length === 0, "no wrapper threw" + (played.threw.length ? ": " + played.threw[0] : ""));
     ok(
       CUES.every((c) => played.seen.includes(c)),
-      `all five cues reached Arcade.audio.play (${played.seen.join(", ")})`
+      `all seven cues reached Arcade.audio.play (${played.seen.join(", ")})`
     );
 
     // ---- the launcher's mute is the one control, and it reaches in here ----
@@ -156,7 +156,7 @@ async function run() {
       a.play = function (n, o) { seen.push(n); return realPlay(n, o); };
       const M = window.SowdokuAudio;
       const threw = [];
-      [M.playThud, M.playChime, M.playSnuffle, M.playSlip, M.playFail]
+      [M.playThud, M.playHoof, M.playPen, M.playOink, M.playSlip, M.playFail, M.playStar]
         .forEach((f, i) => { try { f(); } catch (e) { threw.push(cues[i] + ": " + e.message); } });
       a.play = realPlay;
       return { volume: A.settings.audioVolume(), enabled: a.enabled(), seen, threw };
@@ -207,14 +207,14 @@ async function run() {
       a.play = function (n, o) { seen.push(n); return realPlay(n, o); };
       const M = window.SowdokuAudio;
       const threw = [];
-      const calls = [M.playThud, M.playChime, M.playSnuffle, M.playSlip, M.playFail];
+      const calls = [M.playThud, M.playHoof, M.playPen, M.playOink, M.playSlip, M.playFail, M.playStar];
       calls.forEach((f, i) => { try { f(); } catch (e) { threw.push(cues[i] + ": " + e.message); } });
       a.play = realPlay;
       return { seen, threw };
     }, CUES);
 
     ok(played.threw.length === 0, "no wrapper threw on the fallback path");
-    ok(CUES.every((c) => played.seen.includes(c)), "all five spec cues still play");
+    ok(CUES.every((c) => played.seen.includes(c)), "all seven spec cues still play");
     ok(errors.length === 0, "no page errors after playing on the fallback path");
 
     await ctx.close();

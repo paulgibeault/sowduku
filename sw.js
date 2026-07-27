@@ -11,7 +11,10 @@
 // js/audio.js were precached but never published, and cache.addAll() is
 // all-or-nothing, so install() had been rejecting outright and no visitor
 // since the audio overhaul had an offline shell at all.
-const CACHE = "sowduku-shell-v8";
+// v9: sound pack v5.1 (the cozy/cute/fun redesign — seven cues, chime on the
+// win, sad trombone on the fail) touched index.html, js/soundpack.js and
+// js/audio.js, all of which are precached above this line.
+const CACHE = "sowduku-shell-v9";
 // Caches this game has owned, across the sowdoku→sowduku spelling. Cleanup is
 // filtered to exactly these prefixes: caches.keys() returns every cache on the
 // origin — the launcher's and every sibling game's — so a bare "not the

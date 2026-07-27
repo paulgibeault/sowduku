@@ -9,7 +9,8 @@ rather than silence.
 
 ## Why
 
-The five shipped cues (thud, chime, snuffle, slip, fail) are `Arcade.audio`
+The five shipped cues (thud, pen, oink, slip, fail — `pen` and `oink` were
+named `chime` and `snuffle` before pack v3) are `Arcade.audio`
 spec cues — one raw oscillator per voice into a gain envelope. The comments in
 `index.html` describe mud, straw and a breathing animal; the synthesis is a
 chiptune synthesizer by construction and cannot make those sounds, only
@@ -42,9 +43,10 @@ wooden rails, open sky. STYLE.md's brief — calm clarity, tactile and grounded,
 low stakes — translated into sound rules:
 
 - **Nothing is struck, metallic or bright.** Every cue is either a surface
-  yielding (mud, straw, wood) or the creature itself (breath, voice). The one
-  pitched cue (`chime`) is plucked warm wood — a thumb piano made of fence
-  rail, never a bell.
+  yielding (mud, straw, wood) or the creature itself (breath, voice). The only
+  pitched material — a single warm tick under `pen` — is plucked wood, a thumb
+  piano made of fence rail, never a bell. It began as the whole pen cue and was
+  reduced to a garnish in v3, when the piglet took the moment over.
 - **Silence is the ambience.** No sustained bed of any kind. The game's whole
   philosophy is zero interruptions; between placements the yard stands quiet.
   (This is the same call moon-lit made, for the same reason, and the opposite
@@ -61,11 +63,22 @@ names *sound like*, nothing about when they fire:
 
 | cue | fires on | gesture |
 |---|---|---|
-| `thud` | every placement | squelch (mud receives) + thump (the weight) + occasional straw rustle |
-| `chime` | pen solved | two warm wood plucks a sixth apart + a breath of straw |
-| `snuffle` | board solved | three uneven breaths, the middle one voiced — a contented snort |
-| `slip` | wrong/illegal placement | reversed squelch (the piggy backs out) + short unimpressed grunt |
-| `fail` | hearts spent | sigh (breath + sagging grunt) → body settles (soft thump) → last breath |
+| `thud` | every placement | squelch (mud receives) + a light swell of weight + occasional straw |
+| `hoof` | hoofprint marked (v5) | a tiny squelch scratch — the thud at half size, half level |
+| `pen` | placement correct | "uh-huh!" — two smooth voiced calls, the second stepped UP |
+| `oink` | board solved | three calls CLIMBING + a scamper of trotters + a happy breath |
+| `slip` | wrong/illegal placement | reversed squelch + one rough wheek sliding up, cut off |
+| `fail` | hearts spent | a long sagging sigh, a smaller echo, the flop into straw, a last breath |
+| `star` | field starred (v5) | interested double-sniff + a pleased little hum |
+
+v5 removed every pitched-melodic element from the pack — no chimes, no
+plucked notes ("no music" is a hard rule from the game's owner). The verdicts
+are carried entirely by the piglet's voice, and by SHAPE rather than register:
+the yes is two smooth discrete steps up, the wheek one rough continuous slide
+up cut short, the win the yes grown into a climb, the fail a sag. Steps say
+settled; slides say unsettled; up is good; down is over. Two earlier failures
+taught this grammar: a level murmur carried no verdict at all, and a win built
+of falling calls read as a loss.
 
 ## New framework sound types (phase 1 — shipped)
 
@@ -93,9 +106,9 @@ adding elements):
 Register plan, so simultaneous cues occupy different bands instead of masking
 each other:
 
-    thud weight 50–170 · fail sigh 80–900 · squelch smear 140–520
-    grunt voice 85–1100 · squelch pops 200–1300 · breath 350–1600
-    wood plucks 390–2200
+    thud weight 60–170 · squelch smear 140–520 · squelch pops 200–1300
+    piglet voice 240–1100 · breath/snuffle 400–1900 · squeal 500–2400
+    wood tick 390–1800
 
 Deliberately dark and narrow compared to hecknsic (3.6× centroid spread vs
 their glass registers): everything in this yard is soft. `analyze.mjs`
