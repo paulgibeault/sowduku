@@ -3,7 +3,29 @@
 // exact run can be faithfully recreated later — not just which board it is.
 const { chromium } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
 const BASE = "http://localhost:8934";
-const SOL_6S1 = [[0,4],[2,3],[3,1],[1,0],[4,5],[5,2]];
+// The field to curate and replay. Hilltop, because stakes ride the difficulty
+// band now — a hilltop field IS an honest field, and honest is what this test
+// needs in order to prove a wrong-but-legal placement costs a heart.
+const FIELD = "6h-1";
+
+// Solve whatever field is on the board, read from the save rather than a
+// hardcoded table, so the field above can change without stranding a
+// constant that silently no longer matches it.
+async function solveCurrent(page) {
+  const sol = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress")).solution);
+  for (let r = 0; r < sol.length; r++) {
+    await page.click('[data-r="' + r + '"][data-c="' + sol[r] + '"]');
+  }
+}
+// Any column in row 0 other than the solution's: legal against the board so
+// far, but not this piggy's patch.
+async function wrongColRow0(page) {
+  return page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress"));
+    return s.solution[0] === 0 ? 1 : 0;
+  });
+}
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {
@@ -25,15 +47,15 @@ async function run() {
   const page = await ctx.newPage();
   await gotoAndDismissIntro(page);
 
-  // set honest stakes + assist off, tend 6s-1, solve it, curate the record.
-  // Stakes has no live control anymore (B7.2) — seed the saved default directly.
-  await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest")));
+  // tend the hilltop field with assist off, solve it, curate the record. The
+  // honest stakes come from the band — there is no profile-wide setting left
+  // to seed.
   await page.click("#newBtn");
-  await page.fill("#cSeed", "6s-1");
+  await page.fill("#cSeed", FIELD);
   await page.click('#cAssist button[data-assist="off"]');
   await page.click("#cTend");
   await page.waitForSelector(".board .cell");
-  for (const [r, c] of SOL_6S1) await page.click('[data-r="' + r + '"][data-c="' + c + '"]');
+  await solveCurrent(page);
   await page.waitForSelector("#veil.show");
   await page.click('#veilBtns button:has-text("tend another")'); // real state change, clears .show for real
   await page.waitForFunction(() => !document.getElementById("veil").classList.contains("show"));
@@ -56,11 +78,10 @@ async function run() {
   ok(parsed.fields[0].assist === "off", "exported field carries assist=off");
   ok(parsed.fields[0].stakes === "honest", "exported field carries stakes=honest");
 
-  // now flip the LIVE defaults to the opposite of what was curated, then
+  // now flip the LIVE assist default to the opposite of what was curated, then
   // replay the curated field — it should use its own recorded settings, not
   // whatever the player's current defaults happen to be.
   await page.click("#hClose");
-  await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("gentle")));
   await page.click("#newBtn");
   await page.click('#cAssist button[data-assist="on"]');
   await page.click("#cTend");
@@ -69,18 +90,18 @@ async function run() {
   await page.click('#hTabs button[data-tab="curated"]');
   await page.waitForSelector(".hcard");
   await page.click('.hcard [data-act="replay"]');
-  await page.waitForFunction(() => document.getElementById("codeChip").textContent.trim() === "6s-1");
+  await page.waitForFunction((code) =>
+    document.getElementById("codeChip").textContent.trim() === code, FIELD);
 
-  // stakes has no live UI readout anymore (B7.2) — infer it the same
-  // behavioral way the assist check below does: a wrong-but-legal placement
-  // only docks a heart under honest+ stakes, never under gentle, so this
-  // proves the replayed field kept its own recorded "honest", not the live
-  // "gentle" default just set above.
+  // stakes has no live UI readout — infer it the same behavioral way the
+  // assist check below does: a wrong-but-legal placement only docks under
+  // honest+, so this proves the replayed field came back at the stakes it was
+  // recorded at rather than at whatever the last-tended field was playing.
   const heartsBefore = await page.locator("#hearts img.heart:not(.lost)").count();
-  await page.click('[data-r="0"][data-c="0"]'); // wrong-but-legal for 6s-1 (solution row0 is col4)
+  await page.click(`[data-r="0"][data-c="${await wrongColRow0(page)}"]`);
   await page.waitForTimeout(300);
   const heartsAfter = await page.locator("#hearts img.heart:not(.lost)").count();
-  ok(heartsAfter === heartsBefore - 1, "replayed field restores stakes=honest (not the live gentle default) — a wrong-but-legal placement docks a heart, " + heartsBefore + " -> " + heartsAfter);
+  ok(heartsAfter === heartsBefore - 1, "replayed field restores stakes=honest — a wrong-but-legal placement docks a heart, " + heartsBefore + " -> " + heartsAfter);
 
   // assist=off should also have been restored (not the live "on" default) —
   // proven indirectly: no dead-cell shading appears after this placement,

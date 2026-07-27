@@ -111,7 +111,7 @@ async function run() {
     const runAgain = await page.locator('#veilBtns button:has-text("run it again")').count();
     ok(runAgain === 1, "veil offers 'run it again' once cleared");
 
-    const stats = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.stats")));
+    const stats = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.stats.lifetime")));
     ok(stats.packCleared && stats.packCleared.gauntlet === 1, "stats.packCleared.gauntlet incremented to 1, got " + JSON.stringify(stats.packCleared));
 
     const curated = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.campaignDone")));
@@ -129,13 +129,12 @@ async function run() {
     await page.click('#tPack button[data-pack="gauntlet"]');
     await page.click("#tTend");
     await page.waitForSelector(".board .cell");
-    await page.evaluate(() => {
-      const s = JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress"));
-      s.hearts = 1;
-      localStorage.setItem("arcade.v1.sowduku.inProgress", JSON.stringify(s));
-    });
-    await page.reload();
-    await page.waitForSelector(".board .cell");
+    // Spend two of the run's three hearts for real. Seeding hearts=1 into
+    // inProgress and reloading cannot work: `pagehide` fires on reload and the
+    // game persists its in-memory state from onSuspend, overwriting the seed —
+    // so the board always came back with a full three hearts.
+    await page.click('[data-r="0"][data-c="0"]'); // wrong vs 7m-1's row-0 solution (col6)
+    await page.click('[data-r="0"][data-c="1"]'); // likewise
     await page.click('[data-r="6"][data-c="5"]'); // 7m-1's actual row-6 solution — a clean, non-docking placement
     await page.click("#clearBtn"); await page.click("#clearBtn");
     await page.waitForTimeout(200);
@@ -150,19 +149,22 @@ async function run() {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest")));
     await page.click("#trailsBtn");
     await page.click('#tPack button[data-pack="gauntlet"]');
     await page.click("#tTend");
     await page.waitForSelector(".board .cell");
-    await page.evaluate(() => {
-      const s = JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress"));
-      s.hearts = 1;
-      localStorage.setItem("arcade.v1.sowduku.inProgress", JSON.stringify(s));
-    });
-    await page.reload();
-    await page.waitForSelector(".board .cell");
-    await page.click('[data-r="0"][data-c="0"]'); // wrong vs 7m-1's row-0 solution (col6) under honest stakes -> docks the last heart
+    // Spend the run's three hearts for real, rather than writing hearts=1 into
+    // inProgress and reloading: `pagehide` fires on reload, the game persists
+    // its in-memory state from onSuspend, and that write lands on top of the
+    // seeded one — so the reload always came back with a full three hearts and
+    // the last-heart branch was never reached. Columns 0-2 of row 0 are all
+    // wrong against 7m-1 (whose row-0 solution is col6). The gauntlet carries a
+    // minStakes floor of honest — its whole premise is a dwindling shared
+    // heart line, and its opening meadow could not dock at all without it —
+    // so each wrong-but-legal placement costs one.
+    for (const c of [0, 1, 2]) {
+      await page.click(`[data-r="0"][data-c="${c}"]`);
+    }
     await page.waitForSelector("#veil.show", { timeout: 5000 });
     const veilTitle = await page.textContent("#veilTitle");
     ok(veilTitle.trim() === "The gauntlet ends here.", "fail veil title reads correctly (no double 'the'), got " + veilTitle.trim());
@@ -214,7 +216,7 @@ async function run() {
     const veilText = await page.textContent("#veilText");
     ok(!veilText.includes("cleared") && !veilText.includes("hearts steady"),
        "standalone solve shows ordinary trail copy, not run-in-progress copy, got: " + veilText.trim());
-    const stats = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.stats")));
+    const stats = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.stats.lifetime")));
     ok(stats.packCleared && stats.packCleared.gauntlet === 1, "standalone practice did NOT bump cleared count past the real run's 1, got " + JSON.stringify(stats.packCleared));
     await ctx.close();
   }

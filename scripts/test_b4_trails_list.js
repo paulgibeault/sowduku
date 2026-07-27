@@ -118,7 +118,7 @@ async function run() {
     ok(hearts === 5, "standalone gauntlet field gets amble's normal 5 hearts, not the run's 3, got " + hearts);
     await solve(page, "8h-1");
     await page.waitForSelector("#veil.show");
-    const stats = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.stats")));
+    const stats = await page.evaluate(() => JSON.parse(localStorage.getItem("arcade.v1.sowduku.stats.lifetime")));
     ok(!stats.packCleared || !stats.packCleared.gauntlet, "standalone field solve does not credit a gauntlet run, got " + JSON.stringify(stats.packCleared));
     await ctx.close();
   }

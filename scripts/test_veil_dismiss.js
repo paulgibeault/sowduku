@@ -68,17 +68,25 @@ async function run() {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    await page.evaluate(() => {
-      // stakes has no live control anymore (B7.2) — seed the saved default
-      // directly; restore() re-derives an unlocked game's stakes from it
-      localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest"));
-      const s = JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress"));
-      s.hearts = 1;
-      localStorage.setItem("arcade.v1.sowduku.inProgress", JSON.stringify(s));
-    });
-    await page.reload();
+    // A hilltop field, because stakes ride the difficulty band now and honest
+    // is the first tier at which a wrong-but-legal placement costs anything.
+    await page.click("#newBtn");
+    await page.fill("#cSeed", "6h-1");
+    await page.click("#cTend");
     await page.waitForSelector(".board .cell");
-    await page.click('[data-r="0"][data-c="0"]'); // wrong vs 6s-1's row-0 solution (col4) -> docks the last heart
+    // Spend all five hearts for real. Seeding hearts=1 into inProgress and
+    // reloading cannot work: `pagehide` fires on reload and the game persists
+    // its in-memory state from onSuspend, landing on top of the seed — the
+    // board always came back with five hearts and the veil never appeared.
+    // Every column in row 0 except the solution's docks a heart.
+    const solCol = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress")).solution[0]);
+    let spent = 0;
+    for (let c = 0; c < 6 && spent < 5; c++) {
+      if (c === solCol) continue;
+      await page.click(`[data-r="0"][data-c="${c}"]`);
+      spent++;
+    }
     await page.waitForSelector("#veil.show", { timeout: 5000 });
     await dismissVeil(page);
     const veilHidden = await page.locator("#veil.show").count();

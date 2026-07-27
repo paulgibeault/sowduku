@@ -49,7 +49,13 @@
       id: "gauntlet",
       name: "the gauntlet",
       note: "Three fields, back to back, escalating from Meadow to Hilltop to Crag — one shared line of hearts. Run dry and the whole gauntlet ends; clear it and every heart you kept is a small triumph.",
-      run: { hearts: 3, carry: true },
+      // minStakes: a run's hearts have to be losable from its first field, or
+      // "one shared line of hearts" is only true on paper. This pack opens on
+      // a Meadow, which by band alone plays at gentle — and gentle's only cost
+      // is an outright illegal patch, which the default assist already
+      // prevents. The floor lifts the opener to honest; the later fields are
+      // Hilltop and Crag, so they still climb past it on their own.
+      run: { hearts: 3, carry: true, minStakes: "honest" },
       fields: [
         { code: "7m-1", name: "field one" },
         { code: "8h-1", name: "field two" },

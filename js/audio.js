@@ -39,14 +39,14 @@
  * Conventions (fleet Arcade.audio conventions, launcher GAME_INTEGRATION.md §5):
  *   A1 — cues are registered ONCE here at load. Audio is purely local, so no
  *        `await Arcade.ready` is needed.
- *   A2 — every play-site in the game goes through a wrapper below, which
- *        feature-detects `Arcade.audio` AND honours sow-duku's off-by-default
- *        `sound` setting. The setting reader is injected by index.html
- *        (setGate) rather than read from storage here, so the ⚙ menu stays the
- *        single source of truth for it.
+ *   A2 — every play-site in the game goes through a wrapper below, which is a
+ *        pure feature detect. sow-duku has NO in-game sound setting.
  *   A3 — the launcher owns volume + the global mute button; this module adds
- *        no volume slider and no mute of its own. `play()` is free + silent
- *        when the user has muted.
+ *        no volume slider, no mute and no on/off toggle of its own. `play()`
+ *        is free + silent when the user has muted. The game briefly carried
+ *        its own off-by-default switch, which meant two controls could
+ *        disagree: mute the arcade and one game keeps talking, or switch a
+ *        game on and hear nothing. One control, and it is the launcher's.
  *   A4 — cue names are lowercase and event-shaped, and are unchanged from the
  *        pre-overhaul profile.
  */
@@ -61,20 +61,15 @@
     return global.SowDukuPack || null;
   };
 
-  // The in-game sound setting, injected by index.html. Until it is set, the
-  // gate is closed: sound is off by default in this game, and a cue that
-  // slipped out before the setting was wired would be a sound the player
-  // never asked for.
-  var gate = function () { return false; };
-
   // ─── the play wrappers (A2) ───────────────────────────────────────────────
-  // Silent no-ops when Arcade.audio is absent, when the player has sound off,
-  // or when the launcher has muted (the SDK short-circuits before touching the
-  // AudioContext). These must never throw: they are called from the input path.
+  // Silent no-ops when Arcade.audio is absent, or when the launcher has muted
+  // (the SDK short-circuits before touching the AudioContext, so a muted play
+  // costs nothing). These must never throw: they are called from the input
+  // path.
 
   function sfx(name, opts) {
     var a = audio();
-    if (a && gate()) a.play(name, opts);
+    if (a) a.play(name, opts);
   }
 
   // ─── registration ─────────────────────────────────────────────────────────
@@ -175,8 +170,6 @@
   })();
 
   global.SowdokuAudio = {
-    // index.html injects its `soundOn` reader here, right after Arcade.init.
-    setGate: function (fn) { if (typeof fn === "function") gate = fn; },
     // True when the graph pack registered — for diagnostics and tests; the
     // game itself never needs to branch on it.
     isGraphMode: function () { return graphMode; },
