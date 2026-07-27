@@ -12,7 +12,7 @@
 // not merely by reading the stored value back — a stakes string in storage
 // proves nothing about whether a heart actually moves.
 
-const { chromium } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
+const { chromium } = require("./lib/playwright");
 const BASE = "http://localhost:8934";
 
 let pass = 0, fail = 0;

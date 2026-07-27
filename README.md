@@ -333,6 +333,39 @@ half-solved field from laptop to phone and pick up at the exact piggy.
 
 ---
 
+## Tests
+
+```bash
+npm test
+```
+
+Fourteen suites: thirteen Playwright suites that drive the real game in a real
+browser, plus a browser-free gate on what the Pages deploy publishes. Every run
+is also gated in CI on pushes to `main` and on every PR — a red suite blocks the
+deploy job, so main cannot ship broken.
+
+`scripts/run-tests.js` finds suites by name (`scripts/test_*.js`), so a new one
+is covered the moment it lands. Pass substrings to narrow a run:
+
+```bash
+node scripts/run-tests.js stakes veil
+```
+
+**The game needs the launcher behind it.** `index.html` loads `/arcade-sdk.js`
+root-relative, and the SDK is what persists every `arcade.v1.sowduku.*` key, so
+the runner stages this repo at `/` with the launcher checkout behind it as a
+fallback — production's layout. Served alone, the board renders and nothing
+saves, and a dozen suites fail on a null where a save should be. Clone
+[paulgibeault.github.io](https://github.com/paulgibeault/paulgibeault.github.io)
+beside this repo, or point `ARCADE_LAUNCHER` at it.
+
+Playwright resolves from this repo's `node_modules` if present and the
+launcher's otherwise, so a machine that already has the launcher's browsers
+needs no second copy and no `npm install`. If you do install here, the pinned
+version matches the launcher's on purpose — see the note in `package.json`.
+
+---
+
 ## Build order (suggested)
 
 1. **Generator + solver.** Unique-solution generation with the four rules and

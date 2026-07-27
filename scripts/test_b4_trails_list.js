@@ -5,7 +5,7 @@
 // solving an out-of-order field marks only that field tended (no run
 // credit for the gauntlet); re-tapping a selected row falls back to the
 // pack's default flow; selection resets when switching packs.
-const { chromium } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
+const { chromium } = require("./lib/playwright");
 const BASE = "http://localhost:8934";
 
 const SOLS = {

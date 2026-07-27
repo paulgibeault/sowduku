@@ -3,7 +3,7 @@
 // today's field is *unsolved* (not just "never touched"), so a
 // touched-but-abandoned attempt doesn't lock a player out for the rest of
 // the day. Also spot-checks that the create sheet is genuinely tabless.
-const { chromium } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
+const { chromium } = require("./lib/playwright");
 const BASE = "http://localhost:8934";
 
 let pass = 0, fail = 0;

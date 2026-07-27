@@ -5,7 +5,7 @@
 // ends the whole run (not just the field), clearing the run increments the
 // cleared count (length read from the pack, never hardcoded), and standalone
 // practice on an individual field staying separate from run credit.
-const { chromium } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
+const { chromium } = require("./lib/playwright");
 const BASE = "http://localhost:8934";
 
 const SOLS = {

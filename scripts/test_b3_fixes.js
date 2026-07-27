@@ -1,7 +1,7 @@
 // Targeted checks for the two real bugs found in code review after the
 // initial B3 implementation: replayBoard() dropping campaign identity, and
 // "walk it again" (create sheet) ignoring a done pack's authored assist.
-const { chromium } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
+const { chromium } = require("./lib/playwright");
 const BASE = "http://localhost:8934";
 
 let pass = 0, fail = 0;

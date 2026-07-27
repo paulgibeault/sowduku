@@ -6,7 +6,7 @@
 // field membership + progress tracking stay independent, starring still
 // defaults to the last-used pack in exactly one tap, and the Trails sheet
 // picks up every player pack automatically.
-const { chromium } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
+const { chromium } = require("./lib/playwright");
 const BASE = "http://localhost:8934";
 const SOL_6S1 = [[0,4],[2,3],[3,1],[1,0],[4,5],[5,2]];
 const SOL_6S6 = [[2,4],[0,5],[5,3],[4,0],[3,2],[1,1]];

@@ -13,12 +13,12 @@
 // Staged like production: launcher root files at /, the game at /sowduku/,
 // because index.html loads /arcade-sdk.js and /arcade-audio.js root-relative.
 
-const { chromium } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
+const { chromium } = require("./lib/playwright");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-const LAUNCHER = "/Users/paulgibeault/work/paulgibeault.github.io";
+const { LAUNCHER } = require("./lib/launcher");
 const GAME = path.join(__dirname, "..");
 const PORT = 8937;
 

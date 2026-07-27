@@ -1,8 +1,9 @@
-name: Deploy Pages
+name: CI & Deploy Pages
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -10,23 +11,58 @@ permissions:
   pages: write
   id-token: write
 
+# Per-ref, so a PR run never cancels main's deploy.
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # The gate. A broken PR fails here and never reaches the deploy job.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The game is not self-contained: index.html loads /arcade-sdk.js and
+      # /arcade-audio.js from the launcher origin, and the SDK is what persists
+      # every save. The suites stage the launcher behind the game to match
+      # production — without it the board renders and nothing saves.
+      - name: Check out the arcade launcher (staged behind the game)
+        uses: actions/checkout@v4
+        with:
+          repository: paulgibeault/paulgibeault.github.io
+          path: .launcher
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install deps + browsers
+        run: |
+          npm install
+          npx playwright install --with-deps chromium webkit
+
+      # Discovery, not enumeration: runs every scripts/test_*.js, so a new
+      # suite is covered the moment it lands, with no edit to this file.
+      - name: Test tier (13 browser suites + the deploy-staging gate)
+        env:
+          ARCADE_LAUNCHER: ${{ github.workspace }}/.launcher
+        run: npm test
+
   deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The published file set lives in scripts/stage-site.js, and
+      # test_deploy_staging.js checks it against what index.html and sw.js
+      # actually ask for. Keep it there — a `cp` line here goes stale in silence.
       - name: Stage runtime files only
-        run: |
-          mkdir _site
-          cp index.html sowdoku.js campaigns.js sw.js _site/
-          cp -R assets _site/assets
+        run: node scripts/stage-site.js _site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

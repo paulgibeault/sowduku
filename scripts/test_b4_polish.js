@@ -1,5 +1,5 @@
 // B4 (play-test polish) coverage, one section per item as they land.
-const { chromium, webkit } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
+const { chromium, webkit } = require("./lib/playwright");
 const BASE = "http://localhost:8934";
 
 let pass = 0, fail = 0;

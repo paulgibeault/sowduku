@@ -7,7 +7,7 @@
 // field/trails/history) become fully live, and the veil doesn't pop back
 // just because game.solved/hearts-empty is still true. It DOES reappear
 // normally for the next game's own win/fail.
-const { chromium } = require("/Users/paulgibeault/work/paulgibeault.github.io/node_modules/playwright");
+const { chromium } = require("./lib/playwright");
 const BASE = "http://localhost:8934";
 const SOL_6S1 = [[0,4],[2,3],[3,1],[1,0],[4,5],[5,2]];
 const SOL_6S6 = [[2,4],[0,5],[5,3],[4,0],[3,2],[1,1]];
