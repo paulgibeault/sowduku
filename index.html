@@ -24,6 +24,15 @@
      so it resolves both in production and the local dev harness. -->
 <script src="/arcade-sdk.js"></script>
 <script>if (window.Arcade) Arcade.init({ gameId: "sowduku" });</script>
+<!-- Sound: the SDK's optional element library, then the game's own pack, then
+     the registration module. Root-relative like the SDK itself, and OPTIONAL —
+     on a stale cache (or standalone off the launcher origin) it simply 404s and
+     js/audio.js falls back to the pre-overhaul spec cues rather than silence.
+     All three must load before the game IIFE at the end of <body>, which asks
+     window.SowdokuAudio for its five play wrappers. -->
+<script src="/arcade-audio.js"></script>
+<script src="js/soundpack.js"></script>
+<script src="js/audio.js"></script>
 <style>
   /* self-hosted, variable-weight — Fraunces (headers) leans into the game's
      cozy, hand-tended feel; Inter (UI) stays quiet and legible everywhere
@@ -985,12 +994,19 @@
   function stakesAtLeast(level) { return STAKES_RANK[game.stakes] >= STAKES_RANK[level]; }
   function isSlow() { return game.stakes === "slow"; }
 
-  // ---- sound: a few quiet, synthesized cues — off by default. Now played
-  // through the SDK's managed WebAudio layer (Arcade.audio): the launcher owns
-  // the AudioContext, first-gesture unlock, master volume + global mute, and
-  // suspend/resume, so none of that plumbing is hand-rolled here anymore. The
-  // cue specs below port the old oscillator/noise parameters verbatim, so the
-  // thud, chime, snuffle, slip and fail still sound like themselves. ----
+  // ---- sound: five quiet cues — off by default. Registered and played by
+  // js/audio.js, which is loaded in <head> above; the design itself lives in
+  // js/soundpack.js and is documented in docs/audio-overhaul.md.
+  //
+  // The palette is deliberately *material*, not musical: this is a field of
+  // mud, straw and small warm animals, so every cue is either a surface
+  // yielding (mud, straw, wood) or the creature itself (breath, voice).
+  // Nothing is allowed to sound struck, metallic or bright.
+  //
+  // What stays here is the SETTING — the off-by-default on/off row in the ⚙
+  // menu — and nothing else. js/audio.js asks for it through setGate below, so
+  // this remains the single source of truth for whether sound is on. Volume
+  // and global mute are launcher-owned; the game grows no controls of its own.
   var SOUND_MODES = ["off", "on"];
   function loadSound() { var v = sget("sound"); return SOUND_MODES.indexOf(v) >= 0 ? v : "off"; }
   function saveSound(v) { sset("sound", v); }
@@ -1002,54 +1018,17 @@
   function savePenLabels(v) { sset("penLabels", v); }
   function penLetter(id) { return String.fromCharCode(65 + id); } // 0..9 -> A..J, covers every board size
 
-  // one play-site guard (A2): feature-detect the SDK audio API AND honour the
-  // in-game off-by-default sound setting. Volume + global mute are launcher-
-  // owned — the game grows no volume slider or mute button of its own (A3).
-  function sfx(name, opts) {
-    if (A && A.audio && soundOn()) A.audio.play(name, opts);
-  }
+  // js/audio.js registered the cues at load and owns every play-site guard —
+  // but the sound SETTING lives here, so hand it the reader. Everything below
+  // this line is a thin wrapper, and every existing call-site is unchanged.
+  var SFX = window.SowdokuAudio || null;
+  if (SFX) SFX.setGate(soundOn);
 
-  // register every cue once, right after Arcade.init (audio is purely local —
-  // no ready-gate needed). Each spec ports the old synth's type/freq/duration/
-  // gain verbatim; a quick attack + long release approximates the old
-  // exponential decay tails. Multi-note phrases are sequences whose `delay`
-  // reproduces the original per-note start offsets. The launcher-managed layer
-  // handles ctx/unlock/volume/suspend, so none of that lives here anymore.
-  if (A && A.audio) {
-    // a soft wooden thud — a piggy settling into its patch (150→65 Hz sine)
-    A.audio.cue("thud", { type: "sine", freq: 150, toFreq: 65, dur: 0.2, gain: 0.3, attack: 0.008, release: 0.19 });
-    // a brief, warm chime — a pen's found its one piggy (three sine notes, ~chord)
-    A.audio.cue("chime", [
-      { type: "sine", freq: 660,  dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53 },
-      { type: "sine", freq: 880,  dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53, delay: 0.03 },
-      { type: "sine", freq: 1100, dur: 0.55, gain: 0.1, attack: 0.02, release: 0.53, delay: 0.03 },
-    ]);
-    // a contented snuffle — the whole field's settled (three soft noise puffs)
-    A.audio.cue("snuffle", [
-      { type: "noise", dur: 0.14, gain: 0.18, attack: 0.03, release: 0.11 },
-      { type: "noise", dur: 0.14, gain: 0.18, attack: 0.03, release: 0.11, delay: 0.16 },
-      { type: "noise", dur: 0.14, gain: 0.18, attack: 0.03, release: 0.11, delay: 0.16 },
-    ]);
-    // a soft two-note dip — a slip (illegal/wrong placement); a gentle "no"
-    A.audio.cue("slip", [
-      { type: "triangle", freq: 220, dur: 0.18, gain: 0.15, attack: 0.012, release: 0.17 },
-      { type: "triangle", freq: 175, dur: 0.18, gain: 0.15, attack: 0.012, release: 0.17, delay: 0.09 },
-    ]);
-    // a slow, three-note descending phrase — hearts spent, field done for now
-    A.audio.cue("fail", [
-      { type: "sine", freq: 392, dur: 0.45, gain: 0.13, attack: 0.02, release: 0.43 },
-      { type: "sine", freq: 330, dur: 0.45, gain: 0.13, attack: 0.02, release: 0.43, delay: 0.15 },
-      { type: "sine", freq: 262, dur: 0.45, gain: 0.13, attack: 0.02, release: 0.43, delay: 0.15 },
-    ]);
-  }
-
-  // thin wrappers keep every existing call-site unchanged; each fires its cue
-  // through the single sfx() gate above.
-  function playThud()    { sfx("thud"); }
-  function playChime()   { sfx("chime"); }
-  function playSnuffle() { sfx("snuffle"); }
-  function playSlip()    { sfx("slip"); }
-  function playFail()    { sfx("fail"); }
+  function playThud()    { if (SFX) SFX.playThud(); }
+  function playChime()   { if (SFX) SFX.playChime(); }
+  function playSnuffle() { if (SFX) SFX.playSnuffle(); }
+  function playSlip()    { if (SFX) SFX.playSlip(); }
+  function playFail()    { if (SFX) SFX.playFail(); }
 
   // ---- generation with a small retry so we never hand back a null puzzle ----
   function makeBoard(size, reqDiff, seed) {
