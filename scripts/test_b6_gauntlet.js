@@ -125,8 +125,6 @@ async function run() {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    // honest stakes so a wrong-but-legal placement actually docks
-    await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest")));
     await page.click("#trailsBtn");
     await page.click('#tPack button[data-pack="gauntlet"]');
     await page.click("#tTend");
@@ -151,7 +149,6 @@ async function run() {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest")));
     await page.click("#trailsBtn");
     await page.click('#tPack button[data-pack="gauntlet"]');
     await page.click("#tTend");
@@ -161,8 +158,10 @@ async function run() {
     // its in-memory state from onSuspend, and that write lands on top of the
     // seeded one — so the reload always came back with a full three hearts and
     // the last-heart branch was never reached. Columns 0-2 of row 0 are all
-    // wrong against 7m-1 (whose row-0 solution is col6), and under honest
-    // stakes each wrong-but-legal placement docks one.
+    // wrong against 7m-1 (whose row-0 solution is col6). The gauntlet carries a
+    // minStakes floor of honest — its whole premise is a dwindling shared
+    // heart line, and its opening meadow could not dock at all without it —
+    // so each wrong-but-legal placement costs one.
     for (const c of [0, 1, 2]) {
       await page.click(`[data-r="0"][data-c="${c}"]`);
     }

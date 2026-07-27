@@ -78,10 +78,23 @@ fresh, full hearts and all.
 
 ### Stakes — how strictly a heart gets docked
 
-**Stakes** is one internal spectrum, from most to least forgiving — no
-player-facing dial anymore (it was, briefly; removed as one setting too
-many), just the rule underneath ordinary play plus the odd field that asks
-for more:
+**Stakes** is one spectrum, from most to least forgiving, and it rides the
+**difficulty slider** — it has no dial of its own. One notch decides both how
+knotty the layout is and what a mistake costs, because those are the same
+question asked twice, and asking it twice is how the game briefly ended up
+with a difficulty control that changed the puzzle and a strictness control
+that nothing could reach.
+
+| difficulty | stakes |
+| --- | --- |
+| sunbeam | slow |
+| meadow | gentle |
+| hilltop | honest |
+| crag | stern |
+
+The create sheet says what the notch costs, in the preview beside the board,
+so the second half of the bargain is visible before you tend the field rather
+than discovered three placements in. The tiers themselves:
 
 - **slow** — no hearts, no failure, just the ritual. Hearts disappear from the
   field entirely; nothing you do here can end a field early.
@@ -98,6 +111,16 @@ At most one heart is docked per gesture — a whole drawn-out drag or a single
 long-press never costs more than one, however many cells it touches. **The
 Wallow** pairs its single heart with stern stakes by default, so that one
 heart finally means what it says.
+
+Two things sit outside the mapping, both deliberately. **Assist** shades the
+cells a pen can no longer use, so at *gentle* — whose only cost is an outright
+illegal patch — it prevents the mistake rather than charging for it. From
+*honest* up that stops mattering: assist cannot tell you which of the legal
+patches is the right one, so a wrong guess costs a heart whether it is on or
+off. And a **run pack** may set a floor: the gauntlet lifts its opening Meadow
+to honest, because a run whose first field cannot cost a heart is not the
+single shared line of hearts it advertises. The same field tended on its own,
+outside the run, is still played at its band.
 
 ---
 
@@ -242,7 +265,7 @@ along in the launcher's cross-device save file for free:
 | `arcade.v1.sowduku.stats`       | Lifetime tallies: fields played/solved, slips, best ladder rung |
 | `arcade.v1.sowduku.curated`     | Hand-picked fields (by board code) worth keeping and replaying  |
 | `arcade.v1.sowduku.assist`      | Assist preference (on / off), persists across fields |
-| `arcade.v1.sowduku.stakes`      | Stakes preference (slow / gentle / honest / stern) — legacy, no live control writes it anymore, but a profile that saved one before still gets it back |
+| `arcade.v1.sowduku.stakes`      | Legacy stakes preference. Nothing writes or reads it: stakes now come from the field's difficulty band, which travels with the field in its board code. Old profiles may still have one saved; it is ignored |
 
 ```js
 Arcade.state.set('inProgress', JSON.stringify(board));   // autosave each move

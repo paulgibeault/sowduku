@@ -50,9 +50,9 @@ async function run() {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    // stakes has no live control anymore (B7.2) — seed the saved default directly
-    await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("slow")));
-    await tendAmble(page, "8m-1");
+    // Stakes ride the difficulty band now — a sunbeam field IS a slow field,
+    // so the band is how you ask for the tier.
+    await tendAmble(page, "8s-1");
     await page.click("#peekBtn");
     await page.waitForTimeout(200);
     const disabled = await page.getAttribute("#peekBtn", "disabled");

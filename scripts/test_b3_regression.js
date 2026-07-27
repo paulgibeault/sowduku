@@ -183,17 +183,25 @@ async function run() {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await gotoAndDismissIntro(page);
-    // stakes has no live control anymore (B7.2) — seed the saved default
-    // directly, then tend a known field with assist off
-    await page.evaluate(() => localStorage.setItem("arcade.v1.sowduku.stakes", JSON.stringify("honest")));
+    // Stakes ride the difficulty band now — there is no profile-wide setting
+    // to seed. A hilltop field IS an honest field, so asking for the tier
+    // means asking for the band.
     await page.click("#newBtn");
     await page.waitForSelector("#createBack:not([hidden])");
-    await page.fill("#cSeed", "6m-1"); // known intro-pack code; solution row0 is col 2
+    await page.fill("#cSeed", "6h-1"); // hilltop -> honest stakes
     await page.click('#cAssist button[data-assist="off"]');
     await page.click("#cTend");
     await page.waitForSelector(".board .cell");
+    const stakes = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress")).stakes);
+    ok(stakes === "honest", "a hilltop field is played at honest stakes, got " + stakes);
     const heartsBefore = await page.locator("#hearts img.heart:not(.lost)").count();
-    await page.click('[data-r="0"][data-c="0"]'); // legal but not the solution cell for row 0
+    // any column in row 0 other than the solution's is legal-but-wrong
+    const wrongCol = await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem("arcade.v1.sowduku.inProgress"));
+      return s.solution[0] === 0 ? 1 : 0;
+    });
+    await page.click(`[data-r="0"][data-c="${wrongCol}"]`);
     await page.waitForTimeout(300);
     const heartsAfter = await page.locator("#hearts img.heart:not(.lost)").count();
     ok(heartsAfter === heartsBefore - 1, "honest stakes docks exactly one heart for a wrong-but-legal placement, " + heartsBefore + " -> " + heartsAfter);

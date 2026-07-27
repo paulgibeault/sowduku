@@ -580,7 +580,7 @@
           <input type="range" id="cSizeSlider" min="6" max="10" step="1">
           <output id="cSizeOut">8×8</output>
         </div></div>
-      <div class="orow" id="cDiffRow"><span class="lab">difficulty</span>
+      <div class="orow" id="cDiffRow"><span class="lab" title="one notch sets both how knotty the field is and what a mistake costs you">difficulty</span>
         <div class="slider-row">
           <!-- 0-3: sunbeam..crag (real layout bands); 4: the wallow — a
                preset (1 heart, stern, assist off), not a fifth band. -->
@@ -604,6 +604,7 @@
           <div class="pband" id="cBand">—</div>
           <div class="bar pbar"><i id="cBar" style="width:0"></i></div>
           <div class="phint" id="cProfile">—</div>
+          <div class="phint" id="cStakes">—</div>
         </div>
       </div>
       <div class="sheet-actions">
@@ -705,6 +706,15 @@
           played with one heart, no assist, and every mark held to account.
           Toggle <b>misty</b> weather alongside any of these for pens that
           hide until their piggy settles.</p>
+        <p>The same notch decides what a mistake costs, so there’s only ever
+          one dial to think about. On <b>Sunbeam</b> nothing is at stake —
+          no hearts, no failing, just the ritual. <b>Meadow</b> spends a
+          heart when a patch breaks the rules outright. <b>Hilltop</b> also
+          spends one when a patch is perfectly legal but simply isn’t that
+          piggy’s own — the point where a guess starts costing something.
+          <b>Crag</b> adds fences: pencil one over a patch a piggy wanted and
+          that costs too. However knotty it gets, a single slip never takes
+          more than one heart.</p>
         <h3>Assist</h3>
         <img class="vvignette info-vignette" src="assets/illustration/info-assist.png" alt=""
              onerror="this.hidden=true">
@@ -844,7 +854,7 @@
               note: "One heart, no hand-holding, the knottiest fields, and every mark held to account. For a focused, unhurried sit." },
     campaign: { label: "trail",       hearts: 5,
               note: "A curated trail of fields, tended in order." },
-    gauntlet: { label: "the gauntlet", hearts: 3,
+    gauntlet: { label: "the gauntlet", hearts: 3, minStakes: "honest",
               note: "Three fields, one shared line of hearts, harder with every one. Run dry and the whole gauntlet ends — clear it and every heart you kept is a small triumph." },
   };
   function modeCfg(m) { return MODES[m] || MODES.amble; }
@@ -979,12 +989,54 @@
   // pointer gesture.
   var STAKES_MODES = ["slow", "gentle", "honest", "stern"];
   var STAKES_RANK = { slow: 0, gentle: 1, honest: 2, stern: 3 };
-  // B7.2 removed the ⚙ menu's stakes row (no more live control to change
-  // this), but a pre-B7.2 profile's saved choice still applies — this just
-  // reads it back. A fresh profile has nothing saved and stays "gentle".
-  function loadStakes() {
-    var v = sget("stakes");
-    return STAKES_MODES.indexOf(v) >= 0 ? v : "gentle";
+
+  // Stakes ride the difficulty slider. They are not a second setting: one
+  // notch decides both how knotty the layout is and how much a mistake costs,
+  // because those are the same question asked twice — "how hard do you want
+  // this to be?" — and asking it twice is how the game ended up with a
+  // difficulty control that changed the puzzle and a strictness control that
+  // nothing could reach.
+  //
+  // B7.2 removed the ⚙ menu's stakes row and left the tiers stranded: every
+  // fresh profile was pinned to "gentle", whose only cost is an illegal
+  // placement, which the default assist already prevents. So no field at any
+  // difficulty ever docked a heart. This is the mapping that reconnects them,
+  // and it lands where the slider was already heading — its top notch (the
+  // wallow) has always forced "stern".
+  //
+  //   sunbeam · slow    nothing is ever docked; the ritual, no failure state
+  //   meadow  · gentle  a rule broken against pigs already placed
+  //   hilltop · honest  + a pig that's legal now but not where it belongs,
+  //                     and starving a pen. The threshold where a wrong guess
+  //                     starts costing something even with assist on.
+  //   crag    · stern   + a hoofprint dropped on a cell that was correct
+  //
+  // The wallow keeps its own forced "stern" and stays distinct by its single
+  // heart and forced assist-off, so the ramp runs smoothly into it.
+  var BAND_STAKES = { sunbeam: "slow", meadow: "gentle", hilltop: "honest", crag: "stern" };
+  function stakesForBand(band) { return BAND_STAKES[band] || "gentle"; }
+  // What the notch costs you, in the player's terms rather than the tier's
+  // name — the create sheet says this out loud so the slider's second half of
+  // the bargain is visible before you tend the field, not discovered later.
+  var STAKES_NOTE = {
+    slow:   "no hearts at stake — wander freely",
+    gentle: "a patch that breaks the rules costs a heart",
+    honest: "a patch that isn’t the piggy’s own costs a heart",
+    stern:  "a wrong patch, or a fence over a right one, costs a heart",
+  };
+  function stakesNote(s) { return STAKES_NOTE[s] || STAKES_NOTE.gentle; }
+
+  // The stakes a field starts at: its band's, but never below a floor the mode
+  // insists on. Only the gauntlet sets one — its whole premise is a single
+  // dwindling line of hearts shared across three fields, and its opening field
+  // is a meadow, which under the band mapping alone could not cost a heart at
+  // all with assist on. A run you cannot fail on field 1 isn't the mode that
+  // was described. The floor is a minimum, not an override, so the pack's
+  // rising bands still carry it up to stern by the last field.
+  function defaultStakes(cfg, band) {
+    var s = stakesForBand(band);
+    var floor = cfg && cfg.minStakes;
+    return (floor && STAKES_RANK[s] < STAKES_RANK[floor]) ? floor : s;
   }
   function stakesAtLeast(level) { return STAKES_RANK[game.stakes] >= STAKES_RANK[level]; }
   function isSlow() { return game.stakes === "slow"; }
@@ -1068,13 +1120,14 @@
       hearts: opts.carryHearts != null ? opts.carryHearts : cfg.hearts,
       maxHearts: opts.carryMaxHearts != null ? opts.carryMaxHearts : cfg.hearts,
       assist: assist, lockedAssist: !!cfg.assist,
-      // stakes works the same way as assist above: a mode force (Wallow) or a
-      // replay/curated field's own recorded stakes both apply without
-      // becoming the new saved default. There's no live control left to
-      // change the default at all (B7.2 removed the ⚙ menu's stakes row —
-      // loadStakes() just returns whatever a pre-B7.2 profile had saved, or
-      // "gentle" for anyone new) but the machinery stays exactly as it was.
-      stakes: cfg.stakes || opts.forcedStakes || loadStakes(),
+      // stakes now come from the field's own difficulty band (see BAND_STAKES)
+      // rather than a saved profile setting, so the create sheet's one slider
+      // decides both. A mode force (the wallow) or a curated/replayed field's
+      // own recorded stakes still win over the band — those are authored
+      // choices about a specific field, and the band is only the default.
+      // There is nothing to save: the band travels with the field, in the
+      // board code itself.
+      stakes: cfg.stakes || opts.forcedStakes || defaultStakes(cfg, reqDiff),
       lockedStakes: !!cfg.stakes || opts.forcedStakes != null,
       solved: false, recorded: false, revealedSolution: false, ladderRung: opts.ladderRung || 0,
       campaignPack: opts.campaignPack || null, campaignCode: opts.campaignCode || null,
@@ -1323,12 +1376,22 @@
     var st = getStats();
     return (st.packCleared && st.packCleared[packId]) || 0;
   }
+  // A run field's stakes: the field's own authored value if it has one, else
+  // its band's, lifted to the run policy's floor if it sets one. Forced rather
+  // than left to derive, because a run is a policy applied to fields that also
+  // exist outside it — the same field tended standalone is played at its band,
+  // and only the run raises it.
+  function runStakes(pack, f) {
+    if (f.stakes) return f.stakes;
+    var floor = pack && pack.run && pack.run.minStakes;
+    return defaultStakes({ minStakes: floor }, f.reqDifficulty || f.band || "meadow");
+  }
   function beginPackRun(packId) {
     var pack = findPack(packId), fields = packFields(pack);
     if (!pack || !pack.run || !fields.length) return;
     var f = fields[0];
     beginGame({ mode: "campaign", size: f.size, difficulty: f.reqDifficulty || f.band || "meadow",
-                seed: f.seed, forcedAssist: f.assist, forcedStakes: f.stakes, forcedFog: f.fog,
+                seed: f.seed, forcedAssist: f.assist, forcedStakes: runStakes(pack, f), forcedFog: f.fog,
                 campaignPack: packId, campaignCode: f.code, gauntletStep: 0, inRun: true,
                 carryHearts: pack.run.hearts, carryMaxHearts: pack.run.hearts });
   }
@@ -1336,7 +1399,7 @@
   // so carrying its hearts forward reads the remaining count, not a fresh one.
   function advancePackRun(packId, f, stepIdx) {
     beginGame({ mode: "campaign", size: f.size, difficulty: f.reqDifficulty || f.band || "meadow",
-                seed: f.seed, forcedAssist: f.assist, forcedStakes: f.stakes, forcedFog: f.fog,
+                seed: f.seed, forcedAssist: f.assist, forcedStakes: runStakes(findPack(packId), f), forcedFog: f.fog,
                 campaignPack: packId, campaignCode: f.code, gauntletStep: stepIdx, inRun: true,
                 carryHearts: game.hearts, carryMaxHearts: game.maxHearts });
   }
@@ -1389,8 +1452,13 @@
         // a mode-forced stakes value (e.g. Wallow's "stern") still wins. A
         // forced/replayed stakes value (s.lockedStakes) is restored directly,
         // same reasoning as assist above — it may legitimately diverge from
-        // the live default, so re-deriving it from loadStakes() would lose it.
-        stakes: cfg.stakes || (s.lockedStakes && s.stakes != null ? s.stakes : (s.slow ? "slow" : loadStakes())),
+        // the band, so re-deriving it would lose it. Anything else is
+        // re-derived from the field's own band rather than restored, so a
+        // field saved under the old profile-wide default picks up the stakes
+        // its difficulty actually implies. The band cannot change under a
+        // field in progress, so this is stable across reloads.
+        stakes: cfg.stakes || (s.lockedStakes && s.stakes != null ? s.stakes
+                             : (s.slow ? "slow" : defaultStakes(cfg, s.reqDifficulty))),
         lockedStakes: !!cfg.stakes || !!s.lockedStakes,
         ladderRung: s.ladderRung || 0,
         // pre-pack saves never had campaignPack — every campaign field back
@@ -1485,7 +1553,9 @@
       moves: m.moves, placements: m.placements, mistakes: m.mistakes,
       hoofprints: m.hoofprints, clears: m.clears, hints: m.hints,
       assist: game.assist, // fixed per-field since it's a create-time choice, not a live toggle
-      stakes: game.lockedStakes ? game.stakes : loadStakes(),
+      // whatever this field was actually played at — locked or band-derived,
+      // it is fixed for the field's whole life, so there is nothing to re-read
+      stakes: game.stakes,
       fog: !!game.fog,
       solved: !!solved, placed: game.piggies.size, ladderRung: game.ladderRung || 0,
       campaignPack: game.campaignPack || null,
@@ -2610,6 +2680,10 @@
     document.getElementById("cProfile").textContent =
       "logic: " + (pr.l1 || 0) + " singles · " + (pr.l2 || 0) + " confinements · " +
       ((pr.l3 || 0) + (pr.l4 || 0)) + " deeper";
+    // the same slider decides strictness — say so, using the mode's forced
+    // stakes when it has one (the wallow) and the band's otherwise
+    var stk = modeCfg(cState.mode).stakes || stakesForBand(r.diff);
+    document.getElementById("cStakes").textContent = "hearts: " + stakesNote(stk);
   }
   function show(id, on) { document.getElementById(id).hidden = !on; }
 
