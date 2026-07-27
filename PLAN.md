@@ -402,6 +402,28 @@ integration, neither caused by the generation itself:
       manual oscillators. Part of the same PR, best solve time per board
       size was also added via `Arcade.records` (`best_time_6x6` …
       `best_time_10x10`), closing #3.
+      **Migration note (2026-07-27):** everything above describes spec cues —
+      one oscillator per voice into a gain envelope — and that synthesis is
+      gone. Both the original hand-rolled synth and the `Arcade.audio` port
+      of it were a chiptune synthesizer by construction, which is why two
+      rounds of re-tuning the numbers never got the palette closer to mud and
+      straw. Replaced with graph cues (SDK 3.6.0+): each cue is now a WebAudio
+      node graph built from physical gestures in the launcher's shared element
+      library, all feeding one convolution room so overlapping cues fuse into
+      a place — a small farmyard pen after rain — instead of stacking. Three
+      gestures the library lacked (`squelch`, `breath`, `grunt`) were added to
+      it rather than to this game, and shipped as SDK 3.9.0; no synthesis
+      lives here, only the design (`js/soundpack.js`). Same five cue names,
+      same call sites, same moments — and the ⚙ toggle is *still* unchanged,
+      now handed to `js/audio.js` via `setGate()` so this game keeps owning
+      the setting. `js/audio.js` registers graph cues when the element library
+      is present and falls back to the spec cues described above otherwise,
+      gated on the pack's actual element dependencies rather than a version
+      number: a stale service-worker cache can have `graph()` but lack
+      `squelch`, and a cue that half-plays then throws is worse than the old
+      sound. Designed against an offline-rendered audition WAV and approved by
+      ear before any of it was wired — full design rationale, the register
+      plan and the verification record are in `docs/audio-overhaul.md`.
 - [x] Colorblind support — an optional per-pen letter (⚙ menu, off by
       default, persisted): `A`–`J` covering every board size up to 10×10,
       appended as a small corner `<span>` (not `innerHTML`'d, so it never
