@@ -2,12 +2,18 @@
 // the network for anything else (e.g. the arcade SDK, which needs to be live
 // to see fresh cross-device state). Bump CACHE on any shell/asset change so
 // old installs pick up the new files instead of serving stale ones forever.
-const CACHE = "sowdoku-shell-v6";
+const CACHE = "sowdoku-shell-v7";
 const SHELL = [
   "./",
   "index.html",
   "sowdoku.js",
   "campaigns.js",
+  // Sound. The element library itself (/arcade-audio.js) is launcher-root and
+  // deliberately NOT cached here — same rule as /arcade-sdk.js below: this
+  // worker only owns files under its own scope. If it is unavailable, these
+  // two fall back to the pre-overhaul spec cues on their own.
+  "js/soundpack.js",
+  "js/audio.js",
   "assets/fonts/fraunces-variable.woff2",
   "assets/fonts/inter-variable.woff2",
   "assets/favicon/favicon.ico",
