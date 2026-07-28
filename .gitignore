@@ -13,3 +13,4 @@ dist/
 
 # os / editor cruft
 .DS_Store
+audio/out/

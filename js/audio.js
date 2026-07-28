@@ -5,7 +5,7 @@
  * A plain script, not an ES module, because the game itself is one inline IIFE
  * in index.html: this runs before it and hands it seven play wrappers on
  * `window.SowdokuAudio`. The <script> order in index.html is what guarantees
- * `Arcade.init()` and `window.SowDukuPack` have both already run by the time
+ * `Arcade.init()` and the pack registration have both already run by the time
  * this evaluates.
  *
  * Two registration paths live here:
@@ -69,7 +69,7 @@
     return (global.Arcade && global.Arcade.audio) ? global.Arcade.audio : null;
   };
   var pack = function () {
-    return global.SowDukuPack || null;
+    return global.ArcadeSoundPack || null;
   };
 
   // ─── the play wrappers (A2) ───────────────────────────────────────────────

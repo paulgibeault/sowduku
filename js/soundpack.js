@@ -59,6 +59,15 @@
   'use strict';
   const S = global.ArcadeAudioElements;
 
+  // Every cue here is built from the element library's gestures, so with the
+  // library absent — a stale service-worker cache, or running standalone off
+  // the launcher origin — there is nothing registrable and the game's audio
+  // module takes its fallback path. Bail before dereferencing S: this file is
+  // a plain script, and a throw here would surface as a page error even though
+  // the fallback itself works. Also covers an OLDER library that predates
+  // registerPack, which is the same stale-cache scenario one version on.
+  if (!S || typeof S.registerPack !== 'function') return;
+
   // Outdoors, close to soft ground. Mud and straw absorb; what little
   // reflects arrives fast, dark, and is gone in a fifth of a second. The
   // reverb's whole job is "outside", never a tail you could point to.
@@ -389,5 +398,8 @@
     },
   };
 
-  global.SowDukuPack = { name: 'sow-duku', ROOM, SENDS, CUES };
+  // Published under the framework's well-known handle (arcade-audio.js
+  // registerPack) so js/audio.js and the launcher's soundpack toolchain both
+  // reach it without either side knowing this game's name.
+  S.registerPack({ name: 'sow-duku', ROOM, SENDS, CUES });
 })(typeof window !== 'undefined' ? window : globalThis);

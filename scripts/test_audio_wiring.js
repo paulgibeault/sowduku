@@ -61,10 +61,10 @@ async function run() {
 
     const state = await page.evaluate(() => ({
       hasModule: !!window.SowdokuAudio,
-      hasPack: !!window.SowDukuPack,
+      hasPack: !!window.ArcadeSoundPack,
       hasElements: !!(window.ArcadeAudioElements),
       graphMode: window.SowdokuAudio ? window.SowdokuAudio.isGraphMode() : null,
-      packCues: window.SowDukuPack ? Object.keys(window.SowDukuPack.CUES) : [],
+      packCues: window.ArcadeSoundPack ? Object.keys(window.ArcadeSoundPack.CUES) : [],
       // the elements this pack is actually built from
       newElements: window.ArcadeAudioElements
         ? ["squelch", "breath", "grunt"].filter((n) => typeof window.ArcadeAudioElements[n] === "function")
@@ -72,7 +72,7 @@ async function run() {
     }));
 
     ok(state.hasModule, "window.SowdokuAudio is present");
-    ok(state.hasPack, "window.SowDukuPack is present");
+    ok(state.hasPack, "window.ArcadeSoundPack is present (registerPack ran)");
     ok(state.hasElements, "the shared element library loaded");
     ok(state.newElements.length === 3, "squelch, breath and grunt are all in the library");
     ok(state.graphMode === true, "GRAPH path taken (not the spec-cue fallback)");
