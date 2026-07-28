@@ -389,5 +389,8 @@
     },
   };
 
-  global.SowDukuPack = { name: 'sow-duku', ROOM, SENDS, CUES };
+  // Published under the framework's well-known handle (arcade-audio.js
+  // registerPack) so js/audio.js and the launcher's soundpack toolchain both
+  // reach it without either side knowing this game's name.
+  S.registerPack({ name: 'sow-duku', ROOM, SENDS, CUES });
 })(typeof window !== 'undefined' ? window : globalThis);
