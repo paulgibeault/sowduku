@@ -18,7 +18,7 @@ const ROOT = path.resolve(__dirname, "..");
 // Everything the deployed game needs, and nothing a player never fetches.
 // Whole directories are copied wholesale — a new asset or module lands on the
 // site by existing, not by being remembered here.
-const FILES = ["index.html", "sowdoku.js", "campaigns.js", "sw.js"];
+const FILES = ["index.html", "sowdoku.js", "campaigns.js", "sw.js", "icon.png"];
 const DIRS = ["assets", "js"];
 
 function stage(outDir) {
