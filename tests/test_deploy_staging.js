@@ -12,7 +12,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { stage, ROOT } = require("./stage-site");
+const { stage, ROOT } = require("../scripts/stage-site");
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {

@@ -14,3 +14,6 @@ dist/
 # os / editor cruft
 .DS_Store
 audio/out/
+
+# Local Claude Code tooling.
+.claude/
