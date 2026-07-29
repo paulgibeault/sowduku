@@ -71,7 +71,13 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("== syntax check ==");
+  // The fleet artifact gate (tools/verify-artifact.mjs, identical in every
+  // repo) — staged file set vs what index.html and sw.js actually ask for.
+  console.log("== deploy artifact ==");
+  execFileSync(process.execPath, [path.join(ROOT, "tools", "verify-artifact.mjs")],
+    { stdio: "inherit" });
+
+  console.log("\n== syntax check ==");
   for (const f of SYNTAX) {
     execFileSync(process.execPath, ["--check", path.join(ROOT, f)], { stdio: "inherit" });
     console.log("  ok - " + f);
