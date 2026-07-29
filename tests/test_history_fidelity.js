@@ -1,8 +1,8 @@
 // History/export fidelity: a starred (curated) field, a replayed history
 // card, and an exported pack JSON should all carry assist+stakes so the
 // exact run can be faithfully recreated later — not just which board it is.
-const { chromium } = require("./lib/playwright");
-const { BASE } = require("./lib/base");
+const { chromium } = require("../scripts/lib/playwright");
+const { BASE } = require("../scripts/lib/base");
 // The field to curate and replay. Hilltop, because stakes ride the difficulty
 // band now — a hilltop field IS an honest field, and honest is what this test
 // needs in order to prove a wrong-but-legal placement costs a heart.

@@ -1,6 +1,6 @@
 // B4 (play-test polish) coverage, one section per item as they land.
-const { chromium, webkit } = require("./lib/playwright");
-const { BASE } = require("./lib/base");
+const { chromium, webkit } = require("../scripts/lib/playwright");
+const { BASE } = require("../scripts/lib/base");
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {

@@ -5,8 +5,8 @@
 // ends the whole run (not just the field), clearing the run increments the
 // cleared count (length read from the pack, never hardcoded), and standalone
 // practice on an individual field staying separate from run credit.
-const { chromium } = require("./lib/playwright");
-const { BASE } = require("./lib/base");
+const { chromium } = require("../scripts/lib/playwright");
+const { BASE } = require("../scripts/lib/base");
 
 const SOLS = {
   "7m-1": [[0,6],[1,4],[2,1],[3,3],[4,0],[5,2],[6,5]],

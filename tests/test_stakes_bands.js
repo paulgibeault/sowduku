@@ -12,8 +12,8 @@
 // not merely by reading the stored value back — a stakes string in storage
 // proves nothing about whether a heart actually moves.
 
-const { chromium } = require("./lib/playwright");
-const { BASE } = require("./lib/base");
+const { chromium } = require("../scripts/lib/playwright");
+const { BASE } = require("../scripts/lib/base");
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {

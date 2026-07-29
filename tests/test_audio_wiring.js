@@ -15,8 +15,8 @@
 // launcher at /, this game's built artifact at /sowduku/), because the
 // silence case needs a server that can be told to withhold one file.
 
-const { chromium } = require("./lib/playwright");
-const { createServer } = require("./lib/serve");
+const { chromium } = require("../scripts/lib/playwright");
+const { createServer } = require("../scripts/lib/serve");
 
 // The optional element library, at the major-pinned path index.html loads.
 const AUDIO_LIB = "/sdk/v3/arcade-audio.js";

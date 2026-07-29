@@ -5,8 +5,8 @@
 // what B3's changes could plausibly have broken: assist save/forced/default
 // behavior, ladder/gauntlet start flows, plain amble persistence+restore,
 // and the daily/keyboard-shortcut paths.
-const { chromium } = require("./lib/playwright");
-const { BASE } = require("./lib/base");
+const { chromium } = require("../scripts/lib/playwright");
+const { BASE } = require("../scripts/lib/base");
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {

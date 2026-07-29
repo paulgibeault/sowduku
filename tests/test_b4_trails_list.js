@@ -5,8 +5,8 @@
 // solving an out-of-order field marks only that field tended (no run
 // credit for the gauntlet); re-tapping a selected row falls back to the
 // pack's default flow; selection resets when switching packs.
-const { chromium } = require("./lib/playwright");
-const { BASE } = require("./lib/base");
+const { chromium } = require("../scripts/lib/playwright");
+const { BASE } = require("../scripts/lib/base");
 
 const SOLS = {
   "6m-8z": [[4,5],[3,1],[2,3],[1,0],[0,4],[5,2]],

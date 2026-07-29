@@ -1,6 +1,6 @@
 // The whole test tier, in one command: `npm test`.
 //
-// Discovery, not enumeration — every scripts/test_*.js runs here, so a new
+// Discovery, not enumeration — every tests/test_*.js runs here, so a new
 // suite is covered by CI the moment it lands, with no workflow edit. Suites
 // are plain node scripts that exit non-zero on failure; this builds the
 // artifact, stages it the way the arcade serves it, runs the suites one at a
@@ -24,6 +24,9 @@ const { BASE, PORT } = require("./lib/base");
 
 const HERE = __dirname;
 const ROOT = path.resolve(HERE, "..");
+// Suites live in tests/ (the fleet layout); the helpers they share stay in
+// scripts/lib beside this runner.
+const TESTS = path.join(ROOT, "tests");
 
 // Shipped JS, checked before we spend a browser on it: a syntax error here
 // breaks the deployed game, and it's a second to catch.
@@ -54,7 +57,7 @@ async function reachable(url) {
 }
 
 function suites(filters) {
-  return fs.readdirSync(HERE)
+  return fs.readdirSync(TESTS)
     .filter((f) => f.startsWith("test_") && f.endsWith(".js"))
     .filter((f) => !filters.length || filters.some((s) => f.includes(s)))
     .sort();
@@ -103,7 +106,7 @@ async function main() {
   for (const f of files) {
     console.log(`\n===== ${f} `.padEnd(72, "="));
     const started = Date.now();
-    const code = await run(path.join(HERE, f));
+    const code = await run(path.join(TESTS, f));
     const secs = ((Date.now() - started) / 1000).toFixed(1);
     if (code !== 0) {
       failed.push(f);

@@ -3,9 +3,9 @@
 // `node scripts/test_b3_campaigns.js`. Not wired into any CI — this repo has
 // no committed test runner; recreated per B3's plan note that prior sessions'
 // Playwright scripts were session-scratch and never landed in the repo.
-const { chromium, webkit } = require("./lib/playwright");
+const { chromium, webkit } = require("../scripts/lib/playwright");
 
-const { BASE } = require("./lib/base");
+const { BASE } = require("../scripts/lib/base");
 
 // solver traces for the six intro-pack fields, captured by
 // scripts/verify_intro_seeds.js — each is a full list of the puzzle's
