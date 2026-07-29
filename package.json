@@ -1,9 +1,10 @@
 {
   "name": "sowduku-dev",
-  "private": true,
   "version": "0.0.0",
-  "description": "Dev tooling for Sow-duku. The game itself is plain static HTML/JS and ships without any of this; the manifest exists only so CI (and a fresh machine) can install Playwright and run the browser suites. Playwright is pinned exactly, not caret-ranged, so a local install lands on the same browser build the sibling launcher checkout already downloaded — a floating range installs a version whose browsers aren't in the shared ms-playwright cache, and every suite fails on a missing executable.",
-  "license": "Apache-2.0",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "node scripts/stage-site.js dist",
     "test": "node scripts/run-tests.js",
