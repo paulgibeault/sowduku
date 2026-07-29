@@ -2,17 +2,18 @@
 // phase 7). Three things decide whether this shipped correctly, and none of
 // them are visible from the rendered audition:
 //
-//   1. the game takes the GRAPH path in a real browser — not silently falling
-//      back to the archived spec cues, which would sound fine in isolation and
-//      be a total loss of the work
+//   1. the game takes the GRAPH path in a real browser — the pack is the
+//      sound, and there is nothing else to take
 //   2. every one of the seven cues plays from the live game without throwing,
 //      through the real call path (window.SowdokuAudio), at the real setting
-//   3. the FALLBACK path still works when the audio companion is unavailable
-//      — the stale-service-worker-cache case the two-path module exists for
+//   3. the SILENCE path holds when the audio companion is unavailable — the
+//      stale-service-worker-cache (or standalone) case. The chiptune fallback
+//      is retired fleet-wide: js/audio.js registers nothing, the game plays
+//      silence by design, and every wrapper must still be safe to call.
 //
 // Runs on its own port against the shared staged origin (lib/serve.js:
 // launcher at /, this game's built artifact at /sowduku/), because the
-// fallback case needs a server that can be told to withhold one file.
+// silence case needs a server that can be told to withhold one file.
 
 const { chromium } = require("./lib/playwright");
 const { createServer } = require("./lib/serve");
@@ -47,7 +48,7 @@ async function run() {
 
   // ---- the graph path, live in a real browser ----
   {
-    console.log("\n[graph path] the game registers the sound pack, not the fallback");
+    console.log("\n[graph path] the game registers the sound pack");
     const server = makeServer(false);
     await listen(server);
     const ctx = await browser.newContext();
@@ -75,7 +76,7 @@ async function run() {
     ok(state.hasPack, "window.ArcadeSoundPack is present (registerPack ran)");
     ok(state.hasElements, "the shared element library loaded");
     ok(state.newElements.length === 3, "squelch, breath and grunt are all in the library");
-    ok(state.graphMode === true, "GRAPH path taken (not the spec-cue fallback)");
+    ok(state.graphMode === true, "GRAPH path taken (the only path there is)");
     ok(
       CUES.every((c) => state.packCues.includes(c)) && state.packCues.length === CUES.length,
       "the pack defines exactly the cues the game calls"
@@ -174,9 +175,9 @@ async function run() {
     await close(server);
   }
 
-  // ---- the fallback path: the audio companion unavailable ----
+  // ---- the silence path: the audio companion unavailable ----
   {
-    console.log("\n[fallback path] stale cache — no element library, spec cues instead of silence");
+    console.log("\n[silence path] stale cache — no element library, nothing registered, nothing thrown");
     const server = makeServer(true);
     await listen(server);
     const ctx = await browser.newContext();
@@ -195,11 +196,14 @@ async function run() {
     }));
     ok(!state.hasElements, "the element library really is absent");
     ok(state.hasModule, "the audio module still loaded");
-    ok(state.graphMode === false, "FALLBACK path taken");
+    ok(state.graphMode === false, "graph path not taken — nothing registered, silence by design");
 
     const infoHidden2 = await page.getAttribute("#infoBack", "hidden");
     if (infoHidden2 === null) await page.click("#infoClose");
 
+    // Every wrapper still routes through Arcade.audio.play, which resolves the
+    // unregistered names to null and returns — the calls must be silent no-ops,
+    // never throws, because they sit on the input path.
     const played = await page.evaluate((cues) => {
       const a = window.Arcade.audio;
       const seen = [];
@@ -213,9 +217,9 @@ async function run() {
       return { seen, threw };
     }, CUES);
 
-    ok(played.threw.length === 0, "no wrapper threw on the fallback path");
-    ok(CUES.every((c) => played.seen.includes(c)), "all seven spec cues still play");
-    ok(errors.length === 0, "no page errors after playing on the fallback path");
+    ok(played.threw.length === 0, "no wrapper threw with nothing registered");
+    ok(CUES.every((c) => played.seen.includes(c)), "all seven wrappers still reach play() as safe no-ops");
+    ok(errors.length === 0, "no page errors after calling every wrapper on the silence path");
 
     await ctx.close();
     await close(server);
