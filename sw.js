@@ -1,22 +1,29 @@
 // Minimal offline shell — cache-first for the app's own files, straight to
 // the network for anything else (e.g. the arcade SDK, which needs to be live
-// to see fresh cross-device state). Bump CACHE on any shell/asset change so
-// old installs pick up the new files instead of serving stale ones forever.
+// to see fresh cross-device state).
 //
-// Every game and the launcher share ONE origin, which is what makes the two
+// Every game and the launcher share ONE origin, which is what makes the three
 // arcade rules (tools/templates/game-sw.js) load-bearing here: own nothing
-// outside /sowduku/, and never clean up anything that isn't ours.
+// outside /sowduku/, never clean up anything that isn't ours, and never
+// activate unannounced.
 //
-// v8: the shell list finally matches what ships — js/soundpack.js and
-// js/audio.js were precached but never published, and cache.addAll() is
-// all-or-nothing, so install() had been rejecting outright and no visitor
-// since the audio overhaul had an offline shell at all.
-// v9: sound pack v5.1 (the cozy/cute/fun redesign — seven cues, chime on the
-// win, sad trombone on the fail) touched index.html, js/soundpack.js and
-// js/audio.js, all of which are precached above this line.
-// v10: the chiptune fallback is retired fleet-wide — js/audio.js registers the
-// graph pack or nothing, and a stale cache plays silence by design.
-const CACHE = "sowduku-shell-v10";
+// The hand-bumped shell counter this file used to carry (v8 fixed a precache
+// list that had been rejecting install() outright since the audio overhaul; v9
+// carried sound pack v5.1; v10 retired the chiptune fallback) is gone. It was
+// reliable here only because someone remembered every time — and remembering
+// is exactly what failed elsewhere in the fleet, twice, shipping fixes that no
+// returning player ever executed. CI owns the version now.
+
+// Written by fleet CI on every deploy (fleet-ci.yml, "Bump patch version").
+// DO NOT EDIT BY HAND. Single quotes and no leading whitespace are required:
+// CI finds this line with `grep -q "^const APP_VERSION = '"` and rewrites it
+// with an anchored sed, so the quoting style that would match the rest of this
+// file would silently disable the rewrite. That is deliberate ugliness.
+const APP_VERSION = '0.0.0';
+
+// Prefixed so OURS below still matches, and so the old hand-numbered
+// "sowduku-shell-v10" cache is collected rather than orphaned.
+const CACHE = `sowduku-shell-v${APP_VERSION}`;
 // Caches this game has owned, across the sowdoku→sowduku spelling. Cleanup is
 // filtered to exactly these prefixes: caches.keys() returns every cache on the
 // origin — the launcher's and every sibling game's — so a bare "not the
@@ -69,7 +76,18 @@ self.addEventListener("install", (e) => {
         console.warn("[sw] precache skipped", asset, err && err.message))
     ))
   ));
-  self.skipWaiting();
+  // Deliberately NOT skipWaiting(). The new worker installs and waits; the
+  // launcher's update control offers the player a reload and then sends the
+  // message below once they accept. Activating unannounced swaps the cache
+  // under a running game — and this game is cache-first, so the swap decides
+  // which build every lazily-fetched asset comes from.
+});
+
+self.addEventListener("message", (e) => {
+  // Sent by the launcher's update control (menu → "Check for Updates", or the
+  // automatic prompt) once the player accepts the reload. Without this handler
+  // the worker above waits forever.
+  if (e.data && e.data.type === "arcade:sw.skipWaiting") self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {
