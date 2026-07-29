@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # version_bump pushes the bump commit back to main
   pages: write
   id-token: write
 
@@ -30,3 +30,7 @@ jobs:
     with:
       launcher: true
       browsers: chromium webkit
+      # sw.js derives CACHE from APP_VERSION, which this step rewrites.
+      # Without it the cache identity freezes and returning players never
+      # execute a deployed fix — the drift this repo used to hand-manage.
+      version_bump: true
