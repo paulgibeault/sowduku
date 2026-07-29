@@ -31,9 +31,10 @@
 <!-- Sound: the SDK's optional element library, then the game's own pack, then
      the registration module. Major-pinned and root-relative like the SDK
      itself, and OPTIONAL — on a stale cache (or standalone off the launcher
-     origin) it simply 404s and js/audio.js falls back to the pre-overhaul spec
-     cues rather than silence. All three must load before the game IIFE at the
-     end of <body>, which asks window.SowdokuAudio for its five play wrappers. -->
+     origin) it simply 404s, js/audio.js registers nothing and the game plays
+     silence, by design (the pack is the sound; there is no fallback). All
+     three must load before the game IIFE at the end of <body>, which asks
+     window.SowdokuAudio for its seven play wrappers. -->
 <script src="/sdk/v3/arcade-audio.js"></script>
 <script src="js/soundpack.js"></script>
 <script src="js/audio.js"></script>

@@ -14,7 +14,9 @@
 // v9: sound pack v5.1 (the cozy/cute/fun redesign — seven cues, chime on the
 // win, sad trombone on the fail) touched index.html, js/soundpack.js and
 // js/audio.js, all of which are precached above this line.
-const CACHE = "sowduku-shell-v9";
+// v10: the chiptune fallback is retired fleet-wide — js/audio.js registers the
+// graph pack or nothing, and a stale cache plays silence by design.
+const CACHE = "sowduku-shell-v10";
 // Caches this game has owned, across the sowdoku→sowduku spelling. Cleanup is
 // filtered to exactly these prefixes: caches.keys() returns every cache on the
 // origin — the launcher's and every sibling game's — so a bare "not the
@@ -29,7 +31,8 @@ const SHELL = [
   // root and deliberately NOT cached here — same rule as the SDK below: this
   // worker only owns files under its own scope, and the SDK reports a console
   // error when it finds launcher files in a game's cache. If it is
-  // unavailable, these two fall back to the spec cues on their own.
+  // unavailable, these two register nothing and the game plays silence — the
+  // deliberate stale-cache state, not an error (see js/audio.js).
   "js/soundpack.js",
   "js/audio.js",
   "assets/fonts/fraunces-variable.woff2",
