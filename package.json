@@ -6,7 +6,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "node scripts/stage-site.js dist",
+    "build": "node tools/stage.mjs dist",
     "test": "node scripts/run-tests.js",
     "acceptance": "node scripts/acceptance.js"
   },
