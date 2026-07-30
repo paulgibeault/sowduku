@@ -19,7 +19,7 @@
 // CI finds this line with `grep -q "^const APP_VERSION = '"` and rewrites it
 // with an anchored sed, so the quoting style that would match the rest of this
 // file would silently disable the rewrite. That is deliberate ugliness.
-const APP_VERSION = '0.0.2';
+const APP_VERSION = '0.0.3';
 
 // Prefixed so OURS below still matches, and so the old hand-numbered
 // "sowduku-shell-v10" cache is collected rather than orphaned.
