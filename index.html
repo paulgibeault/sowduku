@@ -21,21 +21,22 @@
 <meta name="twitter:description" content="A field of contented little piggies, and the quiet logic of giving each one its own patch of mud." />
 <meta name="twitter:image" content="assets/social/og-image.png" />
 <!-- Paul's Arcade SDK: same-origin storage, settings, lifecycle. Root-relative
-     so it resolves both in production and the local dev harness, and
-     MAJOR-PINNED (/sdk/v3/) rather than the evergreen /arcade-sdk.js alias —
-     the pin is what keeps a future v4 launcher deploy from bricking this game
-     before it has migrated. Feature compatibility inside a major is negotiated
-     at runtime by welcome.caps, never by the URL. -->
-<script src="/sdk/v3/arcade-sdk.js"></script>
+     so it resolves both in production and the local dev harness. EVERGREEN
+     (/arcade-sdk.js) — the deliberate fleet posture (#120/#108): every app
+     rides the newest major and the whole fleet is migrated together at each
+     major cut, rather than pinning /sdk/v<major>/ per app. Feature
+     compatibility inside a major is negotiated at runtime by welcome.caps,
+     never by the URL. -->
+<script src="/arcade-sdk.js"></script>
 <script>if (window.Arcade) Arcade.init({ gameId: "sowduku" });</script>
 <!-- Sound: the SDK's optional element library, then the game's own pack, then
-     the registration module. Major-pinned and root-relative like the SDK
+     the registration module. Evergreen and root-relative like the SDK
      itself, and OPTIONAL — on a stale cache (or standalone off the launcher
      origin) it simply 404s, js/audio.js registers nothing and the game plays
      silence, by design (the pack is the sound; there is no fallback). All
      three must load before the game IIFE at the end of <body>, which asks
      window.SowdokuAudio for its seven play wrappers. -->
-<script src="/sdk/v3/arcade-audio.js"></script>
+<script src="/arcade-audio.js"></script>
 <script src="js/soundpack.js"></script>
 <script src="js/audio.js"></script>
 <style>

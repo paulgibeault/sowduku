@@ -1,6 +1,6 @@
 // sow-duku sound pack — the game's own sound design.
 //
-// Loaded as a plain script after /sdk/v3/arcade-audio.js. js/audio.js (phase 5
+// Loaded as a plain script after /arcade-audio.js. js/audio.js (phase 5
 // of docs/audio-overhaul.md) registers everything here with Arcade.audio; the
 // launcher's tools/soundpack renderer loads this same file to produce audition
 // WAVs, so what gets approved by ear is what plays.

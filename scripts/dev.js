@@ -4,8 +4,8 @@
 //
 // This is the interactive sibling of run-tests.js: same staged origin from
 // lib/serve.js, so what you play is the built artifact behind the real
-// launcher — the launcher at `/`, the game at `/sowduku/`, the major-pinned
-// SDK at `/sdk/v3/`.
+// launcher — the launcher (and its root-relative SDK + audio companion)
+// at `/`, the game at `/sowduku/`.
 //
 // That layout is the whole reason this exists rather than `python -m
 // http.server`. Serving dist/ at the origin root would leave the SDK and the
@@ -17,9 +17,9 @@
 //
 //   SowdokuAudio.isGraphMode()      // must be true
 //
-// The framework's own dev.sh is not used here for the same reason: its
-// pinned-SDK glob currently misses /sdk/v3/arcade-audio.js, which is exactly
-// the file the sound pack needs.
+// The framework's own dev.sh is not used here for the same reason: it stages
+// a point-in-time copy rather than serving the launcher checkout in place
+// (see lib/serve.js's header for the full rationale).
 //
 // dist/ is rebuilt on start, so edits to js/soundpack.js are picked up by
 // restarting. Nothing is watched — the pack is not something you tweak by

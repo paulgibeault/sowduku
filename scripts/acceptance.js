@@ -9,9 +9,8 @@
 //
 // The doc's flow is `./dev.sh ../sow-duku` in one shell and the runner in
 // another. This does both in one process against the same staged origin
-// lib/serve.js gives the suites — which also sidesteps dev.sh's pinned-SDK
-// glob, which stages /sdk/v3/arcade-sdk.js but not the arcade-audio.js beside
-// it, so a game loading the documented audio path fails check 1 there.
+// lib/serve.js gives the suites — serving the launcher checkout in place, so
+// every root-relative launcher file the game loads resolves for real.
 
 const { execFileSync, spawn } = require("child_process");
 const path = require("path");
