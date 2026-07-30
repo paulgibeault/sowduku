@@ -26,7 +26,12 @@ function stage(outDir) {
   fs.mkdirSync(outDir, { recursive: true });
   for (const f of FILES) fs.copyFileSync(path.join(ROOT, f), path.join(outDir, f));
   for (const d of DIRS) {
-    fs.cpSync(path.join(ROOT, d), path.join(outDir, d), { recursive: true });
+    // Skip dotfiles: a recursive copy of assets/ was publishing .DS_Store to
+    // the shared origin. Nothing breaks, but it does not belong on the site.
+    fs.cpSync(path.join(ROOT, d), path.join(outDir, d), {
+      recursive: true,
+      filter: (src) => !path.basename(src).startsWith("."),
+    });
   }
   return outDir;
 }
