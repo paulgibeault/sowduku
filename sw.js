@@ -34,7 +34,7 @@ const SHELL = [
   "index.html",
   "sowdoku.js",
   "campaigns.js",
-  // Sound. The element library itself (/sdk/v3/arcade-audio.js) is launcher-
+  // Sound. The element library itself (/arcade-audio.js) is launcher-
   // root and deliberately NOT cached here — same rule as the SDK below: this
   // worker only owns files under its own scope, and the SDK reports a console
   // error when it finds launcher files in a game's cache. If it is

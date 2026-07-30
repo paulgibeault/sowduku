@@ -1,8 +1,8 @@
 // The staged origin the browser suites run against — production's layout,
 // not an approximation of it.
 //
-// In production the launcher and every game share ONE origin: the launcher at
-// `/`, this game at `/sowduku/`, the major-pinned SDK at `/sdk/v3/`. That
+// In production the launcher and every game share ONE origin: the launcher
+// (with its root-relative SDK + companions) at `/`, this game at `/sowduku/`. That
 // shape is not cosmetic — the service worker's scope guard, the manifest's
 // scope, and every root-relative script tag are all defined against it, and a
 // game served at the origin root exercises none of them.
@@ -18,8 +18,8 @@
 //
 // Why not the framework's own servers: dev.sh (GAME_INTEGRATION §12) is the
 // interactive harness and run-tests.js will happily reuse a session you
-// already have open — but it stages a point-in-time copy, and its pinned-SDK
-// glob currently misses /sdk/v3/arcade-audio.js. The launcher's hermetic
+// already have open — but it stages a point-in-time copy rather than serving
+// the launcher checkout in place. The launcher's hermetic
 // serveRepo() refuses to serve any path outside the launcher repo, so it
 // cannot host a game that lives in its own checkout.
 

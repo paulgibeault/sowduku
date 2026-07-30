@@ -5,7 +5,7 @@
 //
 //   1. own nothing outside /sowduku/ — a controlled page routes EVERY request
 //      through this worker, the SDK included, so the scope guard is what keeps
-//      /sdk/v3/arcade-sdk.js coming from the network
+//      /arcade-sdk.js coming from the network
 //   2. never clean up origin-wide — caches.keys() returns the launcher's caches
 //      and every sibling game's, so an unfiltered sweep in activate() wipes the
 //      whole arcade's offline support. This repo shipped that sweep, filtered
@@ -117,9 +117,9 @@ async function run() {
   ok(claims(handlers, `${O}/sowduku/index.html`), "serves our own page");
   ok(claims(handlers, `${O}/sowduku/js/audio.js`), "serves our own module");
   for (const foreign of [
-    `${O}/sdk/v3/arcade-sdk.js`,   // the SDK — the one that must never be ours
-    `${O}/sdk/v3/arcade-audio.js`,
-    `${O}/arcade-sdk.js`,          // the evergreen alias
+    `${O}/arcade-sdk.js`,          // the SDK — the one that must never be ours
+    `${O}/arcade-audio.js`,
+    `${O}/sdk/v3/arcade-sdk.js`,   // the major-pinned copies stay foreign too
     `${O}/index.html`,             // the launcher itself
     `${O}/hecknsic/index.html`,    // a sibling game
     "https://example.com/x.js",    // another origin

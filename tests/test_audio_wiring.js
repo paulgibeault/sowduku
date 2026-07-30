@@ -18,8 +18,8 @@
 const { chromium } = require("../scripts/lib/playwright");
 const { createServer } = require("../scripts/lib/serve");
 
-// The optional element library, at the major-pinned path index.html loads.
-const AUDIO_LIB = "/sdk/v3/arcade-audio.js";
+// The optional element library, at the evergreen path index.html loads.
+const AUDIO_LIB = "/arcade-audio.js";
 const PORT = 8937;
 
 let pass = 0, fail = 0;

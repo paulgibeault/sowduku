@@ -3,7 +3,7 @@
 # See GAME_INTEGRATION.md §13a.
 #
 # This app's suites stage the launcher-and-game origin (index.html loads
-# /sdk/v3/arcade-sdk.js root-relative; the SDK persists every save), so the
+# /arcade-sdk.js root-relative; the SDK persists every save), so the
 # pipeline checks the launcher out in-workspace (ARCADE_LAUNCHER) and runs
 # its GAME_INTEGRATION §13 acceptance after our own tests.
 name: CI & Deploy Pages
