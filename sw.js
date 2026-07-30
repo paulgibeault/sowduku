@@ -29,41 +29,20 @@ const CACHE = `sowduku-shell-v${APP_VERSION}`;
 // origin — the launcher's and every sibling game's — so a bare "not the
 // current one" filter deletes the whole arcade's offline support.
 const OURS = ["sowduku-", "sowdoku-"];
-const SHELL = [
-  "./",
-  "index.html",
-  "sowdoku.js",
-  "campaigns.js",
-  // Sound. The element library itself (/arcade-audio.js) is launcher-
-  // root and deliberately NOT cached here — same rule as the SDK below: this
-  // worker only owns files under its own scope, and the SDK reports a console
-  // error when it finds launcher files in a game's cache. If it is
-  // unavailable, these two register nothing and the game plays silence — the
-  // deliberate stale-cache state, not an error (see js/audio.js).
-  "js/soundpack.js",
-  "js/audio.js",
-  "assets/fonts/fraunces-variable.woff2",
-  "assets/fonts/inter-variable.woff2",
-  "assets/favicon/favicon.ico",
-  "assets/favicon/favicon-16x16.png",
-  "assets/favicon/favicon-32x32.png",
-  "assets/favicon/favicon-192x192.png",
-  "assets/favicon/favicon-512x512.png",
-  "assets/favicon/apple-touch-icon.png",
-  "assets/favicon/site.webmanifest",
-  "assets/logo/wordmark.png",
-  "assets/logo/mark-square.png",
-  "assets/piggy/settled.png",
-  "assets/piggy/unimpressed.png",
-  "assets/board/heart-full.png",
-  "assets/board/heart-empty.png",
-  "assets/board/hoofprint.png",
-  "assets/illustration/win-vignette.png",
-  "assets/illustration/fail-vignette.png",
-  "assets/illustration/misty-badge.png",
-  "assets/illustration/empty-history.png",
-  "assets/illustration/empty-curated.png",
+// Everything this game needs to boot offline — GENERATED, not maintained.
+// tools/stage.mjs rewrites the region below from the files the deploy actually
+// publishes (tools/inject-precache.mjs), so the list cannot drift from the
+// artifact and a content-hashed bundle name needs no hand edit. To leave a
+// file out, name it in PRECACHE_EXCLUDE in tools/stage.mjs — never here.
+//
+// What is checked in is a placeholder: service workers are off on loopback, so
+// a dev checkout never reads it.
+// arcade:precache-begin
+const ASSETS = [
+  './',
+  './index.html',
 ];
+// arcade:precache-end
 
 self.addEventListener("install", (e) => {
   // Per-asset add(), not addAll(): addAll rejects the WHOLE install if any one
@@ -71,7 +50,7 @@ self.addEventListener("install", (e) => {
   // every visitor their offline shell with nothing said. One gap should cost
   // one file and a console line. Same reasoning as the launcher's own worker.
   e.waitUntil(caches.open(CACHE).then((c) =>
-    Promise.all(SHELL.map((asset) =>
+    Promise.all(ASSETS.map((asset) =>
       c.add(asset).catch((err) =>
         console.warn("[sw] precache skipped", asset, err && err.message))
     ))
@@ -112,7 +91,7 @@ self.addEventListener("fetch", (e) => {
   if (!url.pathname.startsWith("/sowduku/")) return;
 
   e.respondWith(
-    caches.match(e.request).then((cached) => {
+    caches.match(e.request, { ignoreSearch: true }).then((cached) => {
       if (cached) return cached;
       return fetch(e.request).then((res) => {
         if (res.ok) {

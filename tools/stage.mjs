@@ -11,6 +11,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { injectPrecache } from "./inject-precache.mjs";
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -18,9 +19,23 @@ const stageSite = require(path.join(HERE, "..", "scripts", "stage-site.js"));
 
 export const ROOT = stageSite.ROOT;
 
+// Published, deliberately not precached. This is the only knob on the
+// generated list (tools/inject-precache.mjs), and it is reviewed rather than
+// silent: tools/verify-artifact.mjs fails the build on any published file that
+// is neither cached nor named here.
+//
+// The frozen chiptune archive, kept as provenance.
+export const PRECACHE_EXCLUDE = [
+  "audio/chiptune-archive.mjs",
+];
+
+
 export function stage(outDir) {
   const out = path.resolve(ROOT, outDir);
   stageSite.stage(out);
+  // Last, so it sees the finished artifact — the precache list is written from
+  // what is actually about to deploy, not from what anyone believes is.
+  injectPrecache(out, { exclude: PRECACHE_EXCLUDE });
   return { outDir: out };
 }
 
