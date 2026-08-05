@@ -1456,6 +1456,13 @@
   }
 
   // ---- persistence (in-progress field) ----
+  // Deliberately synchronous, despite serialising the whole field plus the
+  // undo stack. It is only ever called at the end of a completed action — a
+  // gesture, a keypress, a button — and once every six seconds by the tick, so
+  // it is not on any hot path; a drag pays for it once at pointerup, not once
+  // per cell. Coalescing it behind a timer was tried and reverted: it bought
+  // nothing measurable and cost the contract that the stored save is current
+  // the moment an action finishes, which several suites rightly rely on.
   function persist() {
     if (!game) return;
     sset("inProgress", {
@@ -2112,8 +2119,9 @@
     document.getElementById("peekCost").hidden = !peekCosts();
 
     // reflect current state inside the ⚙ menu
-    segOn("labelsSeg", "labels", loadPenLabels());
-    var penLabelsOn = loadPenLabels() === "on";
+    var penLabels = loadPenLabels();      // a storage read; render needs it twice, not two of them
+    segOn("labelsSeg", "labels", penLabels);
+    var penLabelsOn = penLabels === "on";
 
     // hearts (hidden at the "slow" stakes tier — no failure, so nothing to
     // count). Rendered into two spots — the header (desktop) and the status
