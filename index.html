@@ -774,10 +774,16 @@
     var side = Math.max(0, Math.floor(Math.min(w, h)));
     boardWrapEl.style.width = side + "px";
     boardWrapEl.style.height = side + "px";
+    invalidateBoardRect();   // pointer hit-testing measures this box; it just moved
   }
   sizeBoardWrap();
   if (window.ResizeObserver) new ResizeObserver(sizeBoardWrap).observe(boardAreaEl);
   else window.addEventListener("resize", sizeBoardWrap); // very old browsers
+  // Scrolling moves the board without resizing it, so neither branch above
+  // hears about it. Cheap to drop the cached rect and re-measure on the next
+  // gesture; capture:true so a scroll in any pane counts.
+  addEventListener("scroll", invalidateBoardRect, { passive: true, capture: true });
+  addEventListener("resize", invalidateBoardRect, { passive: true });
 
   // ---- Arcade platform bridge ----
   // Arcade.init() ran in <head>. The SDK gives same-origin storage, settings,
@@ -1935,10 +1941,30 @@
     }
   });
 
+  // Which cell is under a point, by arithmetic rather than by asking the DOM.
+  // elementFromPoint was the obvious way to do this (pointer capture is on
+  // .board, so e.target is always the board and can't be used), but it forces
+  // a synchronous layout on every pointermove — and paint-drag rebuilds the
+  // whole board between moves, so each read re-laid-out a subtree that had
+  // just been thrown away. That is the layout thrash, at up to 120 moves a
+  // second.
+  //
+  // The arithmetic is exact here, not an approximation: .board is a bare grid
+  // of `repeat(n, 1fr)` on both axes with no gap, no padding and no border
+  // (the padding is on .board-wrap, outside this rect), forced square, and
+  // cells are appended row-major. Sub-pixel track rounding can only disagree
+  // within a half-pixel of a cell edge, which no dragging finger can feel.
+  var boardRect = null;
+  function invalidateBoardRect() { boardRect = null; }
   function cellAt(x, y) {
-    var el = document.elementFromPoint(x, y);
-    var cell = el && el.closest ? el.closest(".cell") : null;
-    return cell ? { r: +cell.dataset.r, c: +cell.dataset.c } : null;
+    var n = game && game.puzzle ? game.puzzle.size : 0;
+    if (!n) return null;
+    if (!boardRect) boardRect = board.getBoundingClientRect();
+    if (!boardRect.width || !boardRect.height) return null;
+    var c = Math.floor((x - boardRect.left) / (boardRect.width / n));
+    var r = Math.floor((y - boardRect.top) / (boardRect.height / n));
+    if (r < 0 || c < 0 || r >= n || c >= n) return null;
+    return { r: r, c: c };
   }
   function locked() { return game.solved || (!isSlow() && game.hearts === 0); }
 
@@ -1962,16 +1988,15 @@
 
   board.addEventListener("pointermove", function (e) {
     if (!ps || e.pointerId !== ps.id || ps.longFired) return;
+    var cur = cellAt(e.clientX, e.clientY);      // once per move, not once per branch
     if (!ps.dragged) {
-      var here = cellAt(e.clientX, e.clientY);
       var moved = Math.abs(e.clientX - ps.x) > MOVE_PX || Math.abs(e.clientY - ps.y) > MOVE_PX;
-      var leftStart = here && (here.r !== ps.r || here.c !== ps.c);
+      var leftStart = cur && (cur.r !== ps.r || cur.c !== ps.c);
       if (!moved && !leftStart) return;
       ps.dragged = true; clearTimeout(ps.timer);
       ps.mode = game.hoofprints.has(key(ps.r, ps.c)) ? "off" : "on"; // paint direction set by start cell
       paintAt(ps.r, ps.c);
     }
-    var cur = cellAt(e.clientX, e.clientY);
     if (cur) paintAt(cur.r, cur.c);
   });
 
@@ -1980,7 +2005,12 @@
     if (ps.painted.has(k)) return; ps.painted.add(k);
     if (game.piggies.has(k)) return;            // drag never disturbs a piggy
     setHoofprint(r, c, ps.mode === "on");
-    haptic(3); render();
+    // The only caller that can fire many times between two frames: a fast drag
+    // crosses several cells per frame, and render() rebuilds the whole board
+    // each time. Marking stays per-cell (it decides hearts and sound); only
+    // the drawing is coalesced. Every other render() call site stays
+    // synchronous — they follow a single deliberate action.
+    haptic(3); scheduleRender();
   }
 
   function endPointer(e) {
@@ -2008,7 +2038,17 @@
   });
 
   // ---- render ----
+  // Coalesce repeated render() calls onto one frame. Only paint-drag uses it.
+  var renderRAF = 0;
+  function scheduleRender() {
+    if (renderRAF) return;
+    renderRAF = requestAnimationFrame(function () { renderRAF = 0; render(); });
+  }
+
   function render() {
+    // A synchronous render supersedes a queued one — otherwise the frame that
+    // lands just after pointerup would redraw the same board a second time.
+    if (renderRAF) { cancelAnimationFrame(renderRAF); renderRAF = 0; }
     var p = game.puzzle, n = p.size, reg = p.regions, fog = !!game.fog;
     document.getElementById("fieldChip").textContent = modeCfg(game.mode).label +
       (fog ? " · misty" : "") + " · " + n + "×" + n + " · " + (p.difficulty || "—");
