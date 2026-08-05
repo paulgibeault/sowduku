@@ -1102,6 +1102,31 @@
     return Sowdoku.generate({ size: size, seed: seed }); // last-ditch
   }
 
+  // makeBoard is the expensive call in this file: it generates, checks
+  // uniqueness and runs the human solver, up to six times over. A 10×10 costs
+  // a good fraction of a second on a desktop and more on a phone, and it is
+  // synchronous. The board is fully determined by (size, band, seed), so the
+  // same three arguments can only ever produce the same board — memoise it and
+  // a slider swept back and forth pays once per stop, not once per step. The
+  // cap keeps a long session from holding every board it ever previewed.
+  var boardCache = {}, boardCacheKeys = [];
+  function boardFor(size, diff, seed) {
+    var k = size + "|" + diff + "|" + seed;
+    if (!boardCache[k]) {
+      boardCache[k] = makeBoard(size, diff, seed);
+      if (boardCacheKeys.push(k) > 60) delete boardCache[boardCacheKeys.shift()];
+    }
+    return boardCache[k];
+  }
+
+  // Run after the browser has painted, not merely on the next frame: a rAF
+  // callback still runs before paint, so work parked there delays the very
+  // frame it was meant to let through.
+  function afterPaint(fn) {
+    var raf = window.requestAnimationFrame || function (f) { return setTimeout(f, 16); };
+    raf(function () { setTimeout(fn, 0); });
+  }
+
   var game = null; // see beginGame() for shape
 
   // ---- per-game metrics (quiet: no visible timer, honouring the brand) ----
@@ -2273,14 +2298,26 @@
   // shows the exact field a "next" button will start — the seed is locked in
   // by the caller *before* this renders, so the preview is never a lie about
   // what tapping through actually gives you.
+  // Generating the next field is the slowest thing the win/fail screen does,
+  // and it used to happen before the screen appeared — so finishing a 10×10
+  // meant staring at the finished board for a beat, wondering. The code and
+  // the panel cost nothing, so show those at once and fill in the board after
+  // the veil has painted.
+  var resultPreviewToken = 0;
   function showResultPreview(size, diff, seed) {
-    var pz = makeBoard(size, diff, seed);
-    renderMini(document.getElementById("vPreviewMini"), pz);
-    var aScore = Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
+    var token = ++resultPreviewToken;
     document.getElementById("vPreviewCode").textContent = boardCode(size, diff, seed);
-    document.getElementById("vPreviewBand").textContent = pz.difficulty + " · effort " + aScore + "/100";
-    document.getElementById("vPreviewBar").style.width = aScore + "%";
+    document.getElementById("vPreviewBand").textContent = "reading the field…";
+    document.getElementById("vPreviewBar").style.width = "0%";
     document.getElementById("vPreview").hidden = false;
+    afterPaint(function () {
+      if (token !== resultPreviewToken) return;   // a newer preview asked first
+      var pz = boardFor(size, diff, seed);
+      renderMini(document.getElementById("vPreviewMini"), pz);
+      var aScore = Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
+      document.getElementById("vPreviewBand").textContent = pz.difficulty + " · effort " + aScore + "/100";
+      document.getElementById("vPreviewBar").style.width = aScore + "%";
+    });
   }
   function hideResultPreview() { document.getElementById("vPreview").hidden = true; }
 
@@ -2722,6 +2759,13 @@
   }
 
   function updateCreate() {
+    var r = updateCreateChrome();
+    updateCreatePreview(r);
+  }
+
+  // Everything the sheet can say without generating a board. Cheap enough to
+  // run on every slider step.
+  function updateCreateChrome() {
     var r = resolveCreate();
     segOn("cFogSeg", "fog", cState.fog ? "on" : "off");
 
@@ -2733,22 +2777,36 @@
     document.getElementById("cModeNote").textContent = modeCfg(cState.mode).note;
     show("cAssistRow", cState.mode !== "wallow");
     document.getElementById("cTend").textContent = "tend this field";
+    document.getElementById("cCode").textContent = boardCode(r.size, r.diff, r.seed);
+    // the same slider decides strictness — say so, using the mode's forced
+    // stakes when it has one (the wallow) and the band's otherwise
+    var stk = modeCfg(cState.mode).stakes || stakesForBand(r.diff);
+    document.getElementById("cStakes").textContent = "hearts: " + stakesNote(stk);
+    return r;
+  }
 
-    // live preview + predicted difficulty — the actual board this will tend
-    var pz = makeBoard(r.size, r.diff, r.seed);
+  // The half that costs a board: the live preview and the predicted difficulty.
+  function updateCreatePreview(r) {
+    var pz = boardFor(r.size, r.diff, r.seed);
     renderMini(document.getElementById("cPreview"), pz);
     var aScore = Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
-    document.getElementById("cCode").textContent = boardCode(r.size, r.diff, r.seed);
     document.getElementById("cBand").textContent = pz.difficulty + (r.fog ? " · misty" : "") + " · effort " + aScore + "/100";
     document.getElementById("cBar").style.width = aScore + "%";
     var pr = pz.profile || {};
     document.getElementById("cProfile").textContent =
       "logic: " + (pr.l1 || 0) + " singles · " + (pr.l2 || 0) + " confinements · " +
       ((pr.l3 || 0) + (pr.l4 || 0)) + " deeper";
-    // the same slider decides strictness — say so, using the mode's forced
-    // stakes when it has one (the wallow) and the band's otherwise
-    var stk = modeCfg(cState.mode).stakes || stakesForBand(r.diff);
-    document.getElementById("cStakes").textContent = "hearts: " + stakesNote(stk);
+  }
+
+  // What a dragged slider calls. `input` fires once per integer step, so a
+  // sweep from 6×6 to 10×10 asked for five boards, largest last — most of a
+  // second of frozen UI, and four of those boards were never looked at. Say
+  // the new size and band immediately; generate once the slider settles.
+  var createPreviewTimer = 0;
+  function updateCreateSoon() {
+    var r = updateCreateChrome();
+    clearTimeout(createPreviewTimer);
+    createPreviewTimer = setTimeout(function () { updateCreatePreview(r); }, 140);
   }
   function show(id, on) { document.getElementById(id).hidden = !on; }
 
@@ -2777,13 +2835,13 @@
     updateCreate();
   };
   document.getElementById("cSizeSlider").oninput = function () {
-    cState.size = +this.value; updateCreate();
+    cState.size = +this.value; updateCreateSoon();
   };
   document.getElementById("cDiffSlider").oninput = function () {
     cState.diffIdx = +this.value;
     cState.diff = cState.diffIdx >= BAND_ORDER.length ? "crag" : BAND_ORDER[cState.diffIdx];
     cState.mode = resolveAmbleMode();
-    updateCreate();
+    updateCreateSoon();
   };
   document.getElementById("cAssist").onclick = function (e) {
     var b = e.target.closest("button[data-assist]"); if (!b) return;
@@ -3192,8 +3250,10 @@
   // ---- mini-boards, drained a few per frame ----
   // Each sample is regenerated from its code (size · band · seed round-trips to
   // the exact board). Generating runs the solver, so we spread the work across
-  // animation frames and memoize by board — a long list never blocks the open.
-  var miniQueue = [], miniCache = {}, miniDraining = false;
+  // animation frames — a long list never blocks the open. The memo now lives in
+  // boardFor(), shared with the create sheet and the win screen, so a field
+  // previewed in one place is free in the others.
+  var miniQueue = [], miniDraining = false;
   function releaseMinis() { miniQueue.length = 0; miniDraining = false; }
   function queueMini(el) { if (el) miniQueue.push(el); }
   function drainMinis() {
@@ -3211,9 +3271,7 @@
   function fillMini(el) {
     if (el.dataset.filled) return;
     el.dataset.filled = "1";
-    var k = el.dataset.size + "|" + el.dataset.diff + "|" + el.dataset.seed;
-    var pz = miniCache[k] || (miniCache[k] = makeBoard(+el.dataset.size, el.dataset.diff, +el.dataset.seed));
-    renderMini(el, pz);
+    renderMini(el, boardFor(+el.dataset.size, el.dataset.diff, +el.dataset.seed));
   }
 
   // a field's name is per pack-entry, not global — the same code can carry
