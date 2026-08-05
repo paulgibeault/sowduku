@@ -18,6 +18,7 @@
 
 const { execFileSync, spawn } = require("child_process");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { serve } = require("./lib/serve");
 const { BASE, PORT } = require("./lib/base");
@@ -31,6 +32,40 @@ const TESTS = path.join(ROOT, "tests");
 // Shipped JS, checked before we spend a browser on it: a syntax error here
 // breaks the deployed game, and it's a second to catch.
 const SYNTAX = ["sowdoku.js", "campaigns.js", "sw.js", "demo.js", "js/audio.js", "js/soundpack.js"];
+
+/**
+ * node --check every inline <script> in an HTML file.
+ *
+ * Reports the failing line as it falls in the HTML, not in the extracted
+ * fragment, so the number in the error is the number to open.
+ */
+function checkInlineScripts(htmlPath) {
+  const src = fs.readFileSync(htmlPath, "utf8");
+  const rel = path.relative(ROOT, htmlPath);
+  const re = /<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/gi;
+  let m, i = 0;
+  while ((m = re.exec(src))) {
+    const body = m[1];
+    const startLine = src.slice(0, m.index + m[0].indexOf(body)).split("\n").length;
+    const tmp = path.join(os.tmpdir(), `sowduku-inline-${process.pid}-${i}.js`);
+    // pad so --check's line numbers line up with the HTML's own
+    fs.writeFileSync(tmp, "\n".repeat(startLine - 1) + body);
+    try {
+      execFileSync(process.execPath, ["--check", tmp], { stdio: "pipe" });
+      console.log(`  ok - ${rel} inline script #${++i} (line ${startLine})`);
+    } catch (e) {
+      // Match on the basename, not the path we wrote: macOS reports the temp
+      // file through its realpath (/private/var/... for /var/...), so swapping
+      // the literal path leaves the "/private" stump behind.
+      const stem = path.basename(tmp).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const detail = (e.stderr || "").toString().replace(new RegExp("\\S*" + stem, "g"), rel);
+      console.error(`\n  FAIL - ${rel} inline script starting at line ${startLine}\n${detail}`);
+      process.exit(1);
+    } finally {
+      fs.rmSync(tmp, { force: true });
+    }
+  }
+}
 
 /**
  * Run one suite to completion, resolving to its exit code.
@@ -82,6 +117,11 @@ async function main() {
     execFileSync(process.execPath, ["--check", path.join(ROOT, f)], { stdio: "inherit" });
     console.log("  ok - " + f);
   }
+  // index.html's inline <script> is most of the game, and it was the one place
+  // a syntax error could not be caught here — it just made every browser suite
+  // time out, thirteen times thirty seconds, saying nothing about why. Check
+  // it the same way, against a temp file so --check has something to name.
+  checkInlineScripts(path.join(ROOT, "index.html"));
 
   console.log("\n== build ==");
   execFileSync(process.execPath, [path.join(HERE, "stage-site.js"), path.join(ROOT, "dist")],

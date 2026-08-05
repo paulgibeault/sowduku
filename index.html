@@ -678,7 +678,16 @@
       <h2>How to play</h2>
       <div class="info-body">
         <h3>The rules</h3>
-        <img class="vvignette info-vignette" src="assets/illustration/info-rules.png" alt=""
+        <!-- loading="lazy" is load-bearing on all four of these, not a habit:
+             this sheet is `hidden`, but `display:none` does not stop an eager
+             <img> from being fetched, so without it the browser pulls every
+             illustration on first paint for a panel most players never open.
+             They are also the files PRECACHE_EXCLUDE leaves out of the offline
+             shell (tools/stage.mjs) — deferred here, fetched on first open,
+             then kept in the service worker's unversioned asset cache.
+             width/height are the intrinsic sizes; CSS caps display at 15rem. -->
+        <img class="vvignette info-vignette" src="assets/illustration/info-rules.webp" alt=""
+             loading="lazy" decoding="async" width="530" height="528"
              onerror="this.hidden=true">
         <p>Settle exactly one piggy per row, per column, and per colored pen.
           A fourth rule gives Sowdoku its shape — <b>The Wallow Rule</b>: no
@@ -690,7 +699,8 @@
           field says otherwise (the Wallow, for one, holds every mark to
           closer account).</p>
         <h3>Controls</h3>
-        <img class="vvignette info-vignette" src="assets/illustration/info-controls.png" alt=""
+        <img class="vvignette info-vignette" src="assets/illustration/info-controls.webp" alt=""
+             loading="lazy" decoding="async" width="720" height="538"
              onerror="this.hidden=true">
         <p><b>Tap</b> a cell to settle a piggy — tap it again to lift it.
           <b>Long-press</b> (or <b>right-click</b>) fences off a cell with a
@@ -702,7 +712,8 @@
           keyboard, <b>arrow keys</b> move around the board, <b>Enter</b>
           settles or lifts a piggy, and <b>Space</b> marks a hoofprint.</p>
         <h3>Difficulty</h3>
-        <img class="vvignette info-vignette" src="assets/illustration/info-difficulty.png" alt=""
+        <img class="vvignette info-vignette" src="assets/illustration/info-difficulty.webp" alt=""
+             loading="lazy" decoding="async" width="720" height="392"
              onerror="this.hidden=true">
         <p>Four bands, each asking a little more of the same rules:
           <b>Sunbeam</b> (forced singles), <b>Meadow</b> (a few
@@ -722,7 +733,8 @@
           that costs too. However knotty it gets, a single slip never takes
           more than one heart.</p>
         <h3>Assist</h3>
-        <img class="vvignette info-vignette" src="assets/illustration/info-assist.png" alt=""
+        <img class="vvignette info-vignette" src="assets/illustration/info-assist.webp" alt=""
+             loading="lazy" decoding="async" width="720" height="401"
              onerror="this.hidden=true">
         <p>Chosen once, when you tend a field (in the ✚ create sheet), not a
           mid-game toggle. <b>On</b> softly shades cells a pen can no longer
@@ -762,10 +774,16 @@
     var side = Math.max(0, Math.floor(Math.min(w, h)));
     boardWrapEl.style.width = side + "px";
     boardWrapEl.style.height = side + "px";
+    invalidateBoardRect();   // pointer hit-testing measures this box; it just moved
   }
   sizeBoardWrap();
   if (window.ResizeObserver) new ResizeObserver(sizeBoardWrap).observe(boardAreaEl);
   else window.addEventListener("resize", sizeBoardWrap); // very old browsers
+  // Scrolling moves the board without resizing it, so neither branch above
+  // hears about it. Cheap to drop the cached rect and re-measure on the next
+  // gesture; capture:true so a scroll in any pane counts.
+  addEventListener("scroll", invalidateBoardRect, { passive: true, capture: true });
+  addEventListener("resize", invalidateBoardRect, { passive: true });
 
   // ---- Arcade platform bridge ----
   // Arcade.init() ran in <head>. The SDK gives same-origin storage, settings,
@@ -1082,6 +1100,31 @@
       if (p) { p.reqSeed = seed; return p; }
     }
     return Sowdoku.generate({ size: size, seed: seed }); // last-ditch
+  }
+
+  // makeBoard is the expensive call in this file: it generates, checks
+  // uniqueness and runs the human solver, up to six times over. A 10×10 costs
+  // a good fraction of a second on a desktop and more on a phone, and it is
+  // synchronous. The board is fully determined by (size, band, seed), so the
+  // same three arguments can only ever produce the same board — memoise it and
+  // a slider swept back and forth pays once per stop, not once per step. The
+  // cap keeps a long session from holding every board it ever previewed.
+  var boardCache = {}, boardCacheKeys = [];
+  function boardFor(size, diff, seed) {
+    var k = size + "|" + diff + "|" + seed;
+    if (!boardCache[k]) {
+      boardCache[k] = makeBoard(size, diff, seed);
+      if (boardCacheKeys.push(k) > 60) delete boardCache[boardCacheKeys.shift()];
+    }
+    return boardCache[k];
+  }
+
+  // Run after the browser has painted, not merely on the next frame: a rAF
+  // callback still runs before paint, so work parked there delays the very
+  // frame it was meant to let through.
+  function afterPaint(fn) {
+    var raf = window.requestAnimationFrame || function (f) { return setTimeout(f, 16); };
+    raf(function () { setTimeout(fn, 0); });
   }
 
   var game = null; // see beginGame() for shape
@@ -1413,6 +1456,13 @@
   }
 
   // ---- persistence (in-progress field) ----
+  // Deliberately synchronous, despite serialising the whole field plus the
+  // undo stack. It is only ever called at the end of a completed action — a
+  // gesture, a keypress, a button — and once every six seconds by the tick, so
+  // it is not on any hot path; a drag pays for it once at pointerup, not once
+  // per cell. Coalescing it behind a timer was tried and reverted: it bought
+  // nothing measurable and cost the contract that the stored save is current
+  // the moment an action finishes, which several suites rightly rely on.
   function persist() {
     if (!game) return;
     sset("inProgress", {
@@ -1923,10 +1973,30 @@
     }
   });
 
+  // Which cell is under a point, by arithmetic rather than by asking the DOM.
+  // elementFromPoint was the obvious way to do this (pointer capture is on
+  // .board, so e.target is always the board and can't be used), but it forces
+  // a synchronous layout on every pointermove — and paint-drag rebuilds the
+  // whole board between moves, so each read re-laid-out a subtree that had
+  // just been thrown away. That is the layout thrash, at up to 120 moves a
+  // second.
+  //
+  // The arithmetic is exact here, not an approximation: .board is a bare grid
+  // of `repeat(n, 1fr)` on both axes with no gap, no padding and no border
+  // (the padding is on .board-wrap, outside this rect), forced square, and
+  // cells are appended row-major. Sub-pixel track rounding can only disagree
+  // within a half-pixel of a cell edge, which no dragging finger can feel.
+  var boardRect = null;
+  function invalidateBoardRect() { boardRect = null; }
   function cellAt(x, y) {
-    var el = document.elementFromPoint(x, y);
-    var cell = el && el.closest ? el.closest(".cell") : null;
-    return cell ? { r: +cell.dataset.r, c: +cell.dataset.c } : null;
+    var n = game && game.puzzle ? game.puzzle.size : 0;
+    if (!n) return null;
+    if (!boardRect) boardRect = board.getBoundingClientRect();
+    if (!boardRect.width || !boardRect.height) return null;
+    var c = Math.floor((x - boardRect.left) / (boardRect.width / n));
+    var r = Math.floor((y - boardRect.top) / (boardRect.height / n));
+    if (r < 0 || c < 0 || r >= n || c >= n) return null;
+    return { r: r, c: c };
   }
   function locked() { return game.solved || (!isSlow() && game.hearts === 0); }
 
@@ -1950,16 +2020,15 @@
 
   board.addEventListener("pointermove", function (e) {
     if (!ps || e.pointerId !== ps.id || ps.longFired) return;
+    var cur = cellAt(e.clientX, e.clientY);      // once per move, not once per branch
     if (!ps.dragged) {
-      var here = cellAt(e.clientX, e.clientY);
       var moved = Math.abs(e.clientX - ps.x) > MOVE_PX || Math.abs(e.clientY - ps.y) > MOVE_PX;
-      var leftStart = here && (here.r !== ps.r || here.c !== ps.c);
+      var leftStart = cur && (cur.r !== ps.r || cur.c !== ps.c);
       if (!moved && !leftStart) return;
       ps.dragged = true; clearTimeout(ps.timer);
       ps.mode = game.hoofprints.has(key(ps.r, ps.c)) ? "off" : "on"; // paint direction set by start cell
       paintAt(ps.r, ps.c);
     }
-    var cur = cellAt(e.clientX, e.clientY);
     if (cur) paintAt(cur.r, cur.c);
   });
 
@@ -1968,7 +2037,12 @@
     if (ps.painted.has(k)) return; ps.painted.add(k);
     if (game.piggies.has(k)) return;            // drag never disturbs a piggy
     setHoofprint(r, c, ps.mode === "on");
-    haptic(3); render();
+    // The only caller that can fire many times between two frames: a fast drag
+    // crosses several cells per frame, and render() rebuilds the whole board
+    // each time. Marking stays per-cell (it decides hearts and sound); only
+    // the drawing is coalesced. Every other render() call site stays
+    // synchronous — they follow a single deliberate action.
+    haptic(3); scheduleRender();
   }
 
   function endPointer(e) {
@@ -1996,7 +2070,17 @@
   });
 
   // ---- render ----
+  // Coalesce repeated render() calls onto one frame. Only paint-drag uses it.
+  var renderRAF = 0;
+  function scheduleRender() {
+    if (renderRAF) return;
+    renderRAF = requestAnimationFrame(function () { renderRAF = 0; render(); });
+  }
+
   function render() {
+    // A synchronous render supersedes a queued one — otherwise the frame that
+    // lands just after pointerup would redraw the same board a second time.
+    if (renderRAF) { cancelAnimationFrame(renderRAF); renderRAF = 0; }
     var p = game.puzzle, n = p.size, reg = p.regions, fog = !!game.fog;
     document.getElementById("fieldChip").textContent = modeCfg(game.mode).label +
       (fog ? " · misty" : "") + " · " + n + "×" + n + " · " + (p.difficulty || "—");
@@ -2035,8 +2119,9 @@
     document.getElementById("peekCost").hidden = !peekCosts();
 
     // reflect current state inside the ⚙ menu
-    segOn("labelsSeg", "labels", loadPenLabels());
-    var penLabelsOn = loadPenLabels() === "on";
+    var penLabels = loadPenLabels();      // a storage read; render needs it twice, not two of them
+    segOn("labelsSeg", "labels", penLabels);
+    var penLabelsOn = penLabels === "on";
 
     // hearts (hidden at the "slow" stakes tier — no failure, so nothing to
     // count). Rendered into two spots — the header (desktop) and the status
@@ -2221,14 +2306,26 @@
   // shows the exact field a "next" button will start — the seed is locked in
   // by the caller *before* this renders, so the preview is never a lie about
   // what tapping through actually gives you.
+  // Generating the next field is the slowest thing the win/fail screen does,
+  // and it used to happen before the screen appeared — so finishing a 10×10
+  // meant staring at the finished board for a beat, wondering. The code and
+  // the panel cost nothing, so show those at once and fill in the board after
+  // the veil has painted.
+  var resultPreviewToken = 0;
   function showResultPreview(size, diff, seed) {
-    var pz = makeBoard(size, diff, seed);
-    renderMini(document.getElementById("vPreviewMini"), pz);
-    var aScore = Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
+    var token = ++resultPreviewToken;
     document.getElementById("vPreviewCode").textContent = boardCode(size, diff, seed);
-    document.getElementById("vPreviewBand").textContent = pz.difficulty + " · effort " + aScore + "/100";
-    document.getElementById("vPreviewBar").style.width = aScore + "%";
+    document.getElementById("vPreviewBand").textContent = "reading the field…";
+    document.getElementById("vPreviewBar").style.width = "0%";
     document.getElementById("vPreview").hidden = false;
+    afterPaint(function () {
+      if (token !== resultPreviewToken) return;   // a newer preview asked first
+      var pz = boardFor(size, diff, seed);
+      renderMini(document.getElementById("vPreviewMini"), pz);
+      var aScore = Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
+      document.getElementById("vPreviewBand").textContent = pz.difficulty + " · effort " + aScore + "/100";
+      document.getElementById("vPreviewBar").style.width = aScore + "%";
+    });
   }
   function hideResultPreview() { document.getElementById("vPreview").hidden = true; }
 
@@ -2670,6 +2767,13 @@
   }
 
   function updateCreate() {
+    var r = updateCreateChrome();
+    updateCreatePreview(r);
+  }
+
+  // Everything the sheet can say without generating a board. Cheap enough to
+  // run on every slider step.
+  function updateCreateChrome() {
     var r = resolveCreate();
     segOn("cFogSeg", "fog", cState.fog ? "on" : "off");
 
@@ -2681,22 +2785,36 @@
     document.getElementById("cModeNote").textContent = modeCfg(cState.mode).note;
     show("cAssistRow", cState.mode !== "wallow");
     document.getElementById("cTend").textContent = "tend this field";
+    document.getElementById("cCode").textContent = boardCode(r.size, r.diff, r.seed);
+    // the same slider decides strictness — say so, using the mode's forced
+    // stakes when it has one (the wallow) and the band's otherwise
+    var stk = modeCfg(cState.mode).stakes || stakesForBand(r.diff);
+    document.getElementById("cStakes").textContent = "hearts: " + stakesNote(stk);
+    return r;
+  }
 
-    // live preview + predicted difficulty — the actual board this will tend
-    var pz = makeBoard(r.size, r.diff, r.seed);
+  // The half that costs a board: the live preview and the predicted difficulty.
+  function updateCreatePreview(r) {
+    var pz = boardFor(r.size, r.diff, r.seed);
     renderMini(document.getElementById("cPreview"), pz);
     var aScore = Sowdoku.humanScore(pz.size, pz.profile, pz.difficulty);
-    document.getElementById("cCode").textContent = boardCode(r.size, r.diff, r.seed);
     document.getElementById("cBand").textContent = pz.difficulty + (r.fog ? " · misty" : "") + " · effort " + aScore + "/100";
     document.getElementById("cBar").style.width = aScore + "%";
     var pr = pz.profile || {};
     document.getElementById("cProfile").textContent =
       "logic: " + (pr.l1 || 0) + " singles · " + (pr.l2 || 0) + " confinements · " +
       ((pr.l3 || 0) + (pr.l4 || 0)) + " deeper";
-    // the same slider decides strictness — say so, using the mode's forced
-    // stakes when it has one (the wallow) and the band's otherwise
-    var stk = modeCfg(cState.mode).stakes || stakesForBand(r.diff);
-    document.getElementById("cStakes").textContent = "hearts: " + stakesNote(stk);
+  }
+
+  // What a dragged slider calls. `input` fires once per integer step, so a
+  // sweep from 6×6 to 10×10 asked for five boards, largest last — most of a
+  // second of frozen UI, and four of those boards were never looked at. Say
+  // the new size and band immediately; generate once the slider settles.
+  var createPreviewTimer = 0;
+  function updateCreateSoon() {
+    var r = updateCreateChrome();
+    clearTimeout(createPreviewTimer);
+    createPreviewTimer = setTimeout(function () { updateCreatePreview(r); }, 140);
   }
   function show(id, on) { document.getElementById(id).hidden = !on; }
 
@@ -2725,13 +2843,13 @@
     updateCreate();
   };
   document.getElementById("cSizeSlider").oninput = function () {
-    cState.size = +this.value; updateCreate();
+    cState.size = +this.value; updateCreateSoon();
   };
   document.getElementById("cDiffSlider").oninput = function () {
     cState.diffIdx = +this.value;
     cState.diff = cState.diffIdx >= BAND_ORDER.length ? "crag" : BAND_ORDER[cState.diffIdx];
     cState.mode = resolveAmbleMode();
-    updateCreate();
+    updateCreateSoon();
   };
   document.getElementById("cAssist").onclick = function (e) {
     var b = e.target.closest("button[data-assist]"); if (!b) return;
@@ -3140,8 +3258,10 @@
   // ---- mini-boards, drained a few per frame ----
   // Each sample is regenerated from its code (size · band · seed round-trips to
   // the exact board). Generating runs the solver, so we spread the work across
-  // animation frames and memoize by board — a long list never blocks the open.
-  var miniQueue = [], miniCache = {}, miniDraining = false;
+  // animation frames — a long list never blocks the open. The memo now lives in
+  // boardFor(), shared with the create sheet and the win screen, so a field
+  // previewed in one place is free in the others.
+  var miniQueue = [], miniDraining = false;
   function releaseMinis() { miniQueue.length = 0; miniDraining = false; }
   function queueMini(el) { if (el) miniQueue.push(el); }
   function drainMinis() {
@@ -3159,9 +3279,7 @@
   function fillMini(el) {
     if (el.dataset.filled) return;
     el.dataset.filled = "1";
-    var k = el.dataset.size + "|" + el.dataset.diff + "|" + el.dataset.seed;
-    var pz = miniCache[k] || (miniCache[k] = makeBoard(+el.dataset.size, el.dataset.diff, +el.dataset.seed));
-    renderMini(el, pz);
+    renderMini(el, boardFor(+el.dataset.size, el.dataset.diff, +el.dataset.seed));
   }
 
   // a field's name is per pack-entry, not global — the same code can carry

@@ -185,8 +185,12 @@ slot as the win vignette. Shared across all fail paths, gauntlet included.
 > style as the rest of the set.
 
 ### Info sheet illustrations — **planned, prompts only (B7.4)**
-`assets/illustration/info-rules.png`, `info-controls.png`,
-`info-difficulty.png`, `info-assist.png` — one per remaining section of the
+`assets/illustration/info-rules.webp`, `info-controls.webp`,
+`info-difficulty.webp`, `info-assist.webp` — WebP, capped at 720px wide and
+left out of the precache (see `PRECACHE_EXCLUDE` in `tools/stage.mjs`), because
+as full-size PNGs they were 3.2 MB of a 4.8 MB offline shell. Regenerate at the
+same cap; a redraw needs a new filename, since the service worker's asset cache
+has no other way to notice. One per remaining section of the
 "how to play" sheet (Rules, Controls, Difficulty, Assist; Stakes was folded
 into Rules' own paragraph in B7.2 and no longer has a section of its own).
 Same slot pattern as the win/fail vignette (`.vvignette`, wide-and-short,
