@@ -24,9 +24,21 @@ export const ROOT = stageSite.ROOT;
 // silent: tools/verify-artifact.mjs fails the build on any published file that
 // is neither cached nor named here.
 //
-// The frozen chiptune archive, kept as provenance.
 export const PRECACHE_EXCLUDE = [
+  // The frozen chiptune archive, kept as provenance.
   "audio/chiptune-archive.mjs",
+  // The four "How to play" illustrations. The whole offline shell is fetched
+  // on install and again on every CI version bump, and these were most of it —
+  // 3.2 MB of a 4.8 MB artifact, for one sheet many players never open. They
+  // are fetched on first open instead and kept in the worker's unversioned
+  // asset cache, which survives the bump (ASSET_CACHE in sw.js). Named one by
+  // one rather than excluding assets/illustration/: the vignettes and
+  // empty-state art in that directory are small and appear mid-game, so they
+  // belong in the shell.
+  "assets/illustration/info-rules.webp",
+  "assets/illustration/info-controls.webp",
+  "assets/illustration/info-difficulty.webp",
+  "assets/illustration/info-assist.webp",
 ];
 
 

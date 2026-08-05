@@ -678,7 +678,16 @@
       <h2>How to play</h2>
       <div class="info-body">
         <h3>The rules</h3>
-        <img class="vvignette info-vignette" src="assets/illustration/info-rules.png" alt=""
+        <!-- loading="lazy" is load-bearing on all four of these, not a habit:
+             this sheet is `hidden`, but `display:none` does not stop an eager
+             <img> from being fetched, so without it the browser pulls every
+             illustration on first paint for a panel most players never open.
+             They are also the files PRECACHE_EXCLUDE leaves out of the offline
+             shell (tools/stage.mjs) — deferred here, fetched on first open,
+             then kept in the service worker's unversioned asset cache.
+             width/height are the intrinsic sizes; CSS caps display at 15rem. -->
+        <img class="vvignette info-vignette" src="assets/illustration/info-rules.webp" alt=""
+             loading="lazy" decoding="async" width="530" height="528"
              onerror="this.hidden=true">
         <p>Settle exactly one piggy per row, per column, and per colored pen.
           A fourth rule gives Sowdoku its shape — <b>The Wallow Rule</b>: no
@@ -690,7 +699,8 @@
           field says otherwise (the Wallow, for one, holds every mark to
           closer account).</p>
         <h3>Controls</h3>
-        <img class="vvignette info-vignette" src="assets/illustration/info-controls.png" alt=""
+        <img class="vvignette info-vignette" src="assets/illustration/info-controls.webp" alt=""
+             loading="lazy" decoding="async" width="720" height="538"
              onerror="this.hidden=true">
         <p><b>Tap</b> a cell to settle a piggy — tap it again to lift it.
           <b>Long-press</b> (or <b>right-click</b>) fences off a cell with a
@@ -702,7 +712,8 @@
           keyboard, <b>arrow keys</b> move around the board, <b>Enter</b>
           settles or lifts a piggy, and <b>Space</b> marks a hoofprint.</p>
         <h3>Difficulty</h3>
-        <img class="vvignette info-vignette" src="assets/illustration/info-difficulty.png" alt=""
+        <img class="vvignette info-vignette" src="assets/illustration/info-difficulty.webp" alt=""
+             loading="lazy" decoding="async" width="720" height="392"
              onerror="this.hidden=true">
         <p>Four bands, each asking a little more of the same rules:
           <b>Sunbeam</b> (forced singles), <b>Meadow</b> (a few
@@ -722,7 +733,8 @@
           that costs too. However knotty it gets, a single slip never takes
           more than one heart.</p>
         <h3>Assist</h3>
-        <img class="vvignette info-vignette" src="assets/illustration/info-assist.png" alt=""
+        <img class="vvignette info-vignette" src="assets/illustration/info-assist.webp" alt=""
+             loading="lazy" decoding="async" width="720" height="401"
              onerror="this.hidden=true">
         <p>Chosen once, when you tend a field (in the ✚ create sheet), not a
           mid-game toggle. <b>On</b> softly shades cells a pen can no longer

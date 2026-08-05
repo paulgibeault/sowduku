@@ -24,6 +24,17 @@ const APP_VERSION = '0.0.4';
 // Prefixed so OURS below still matches, and so the old hand-numbered
 // "sowduku-shell-v10" cache is collected rather than orphaned.
 const CACHE = `sowduku-shell-v${APP_VERSION}`;
+// Deliberately NOT versioned, and that is the whole point of it. CACHE is
+// renamed by every CI deploy, so anything living there is re-downloaded on
+// every bump — fine for the shell, ruinous for the big illustrations, which is
+// what made a four-deploy week feel like a 4.8 MB week to returning players.
+// Images the shell does not precache (PRECACHE_EXCLUDE in tools/stage.mjs) are
+// filled in here on first view instead, and survive the bump.
+//
+// The tradeoff is that nothing evicts an entry here on its own. To change one
+// of those images, rename the file — a query string will not do it, the fetch
+// handler matches with ignoreSearch. To flush the lot, bump this to -v2.
+const ASSET_CACHE = "sowduku-assets-v1";
 // Caches this game has owned, across the sowdoku→sowduku spelling. Cleanup is
 // filtered to exactly these prefixes: caches.keys() returns every cache on the
 // origin — the launcher's and every sibling game's — so a bare "not the
@@ -74,7 +85,7 @@ self.addEventListener("activate", (e) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((k) => k !== CACHE && OURS.some((p) => k.startsWith(p)))
+          .filter((k) => k !== CACHE && k !== ASSET_CACHE && OURS.some((p) => k.startsWith(p)))
           .map((k) => caches.delete(k))
       )
     )
@@ -96,7 +107,14 @@ self.addEventListener("fetch", (e) => {
       return fetch(e.request).then((res) => {
         if (res.ok) {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy));
+          // Images go to the cache that outlives the deploy; everything else
+          // stays version-scoped. Narrow on purpose: a precache add() that
+          // 404s leaves a code file to be filled in here instead, and this
+          // worker is cache-first — parking that in an unversioned cache
+          // would serve one build's script forever. A stale drawing is a
+          // cosmetic bug, stale code is an unfixable one.
+          const target = e.request.destination === "image" ? ASSET_CACHE : CACHE;
+          caches.open(target).then((c) => c.put(e.request, copy));
         }
         return res;
       }).catch(() => cached);
