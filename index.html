@@ -163,21 +163,39 @@
   /* a "starved" pen — no piggy placed and every cell ruled out, so it can never
      be filled: the field is stuck. Unlike an ordinary ruled-out cell that fades
      into parchment, a starved pen keeps a warm blush and a soft outline so the
-     colour in trouble pops out at a glance. Back up and look again. */
+     colour in trouble pops out at a glance. Back up and look again.
+
+     The blush pulses a few times and then simply stays put — never `infinite`
+     (GAME_INTEGRATION §6d: a visible-but-idle board has to let the display
+     pipeline reach 0 fps, and a looping pulse is a rAF loop that never stops).
+     `--arcade-pulse-count` is the launcher's budget — 3 normally, 1 under
+     power saver — and the var() fallback keeps 3 on any SDK that doesn't
+     define it. The keyframes dip and come back to full, so the resting state
+     IS the full-strength blush + outline: when the motion ends the "this pen
+     is stuck" read is still there, unchanged (and the cell's aria-label says
+     it in words either way). Board renders rebuild the cells, so the pulse
+     re-runs on the next state change — motion where it's earned. */
   .cell.starved::after { content: ""; position: absolute; inset: 0; pointer-events: none;
     box-shadow: inset 0 0 0 2px rgba(207,138,126,.7);
-    background: rgba(207,138,126,.24); animation: starvedpulse 1.4s ease infinite; }
-  @keyframes starvedpulse { 0%,100%{opacity:.6;} 50%{opacity:1;} }
+    background: rgba(207,138,126,.24); animation: starvedpulse 1.4s ease;
+    animation-iteration-count: var(--arcade-pulse-count, 3); }
+  @keyframes starvedpulse { 0%,100%{opacity:1;} 50%{opacity:.55;} }
 
   /* misty-morning fog: a pen keeps its colour hidden until its piggy settles */
   .cell.fog { color: transparent; }
   .cell.fog::before { content: ""; position: absolute; inset: 0; pointer-events: none;
     background: repeating-linear-gradient(115deg, rgba(255,255,255,.35) 0 8px, rgba(231,223,207,.35) 8px 18px); }
 
-  /* a gentle "peek" — the next forced piggy, glowing softly for a moment */
+  /* a gentle "peek" — the next forced piggy, glowing softly for a moment.
+     Bounded like the starved blush above (§6d) and for the same reason: the
+     ring breathes a few times to catch the eye, then rests as a plain static
+     ring around the hinted cell. The hint stays legible for as long as it's
+     the live hint — the player paid a heart for it — it just stops costing
+     frames once it's been noticed. */
   .cell.peek::after { content: ""; position: absolute; inset: 2px; border-radius: .3rem; pointer-events: none;
-    box-shadow: inset 0 0 0 3px rgba(201,139,134,.85); animation: peekpulse 1.1s ease infinite; }
-  @keyframes peekpulse { 0%,100%{opacity:.35;} 50%{opacity:1;} }
+    box-shadow: inset 0 0 0 3px rgba(201,139,134,.85); animation: peekpulse 1.1s ease;
+    animation-iteration-count: var(--arcade-pulse-count, 3); }
+  @keyframes peekpulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }
 
   /* a pen is "done" the instant its one piggy settles — every cell of that
      pen gets a single soft sheen sweeping across it, the little "this patch
@@ -468,6 +486,13 @@
     #heartsNearBoard { display: flex; margin-left: auto; }
   }
 
+  /* belt and braces for reduced motion: framed, the SDK's own kill-switch rule
+     already collapses every animation to one instant frame (so a bounded pulse
+     is observed as 1 iteration at .001ms, not 0 — animationstart still fires,
+     nothing here hangs off that); this covers standalone play, where there's no
+     SDK to inject it. Killing the animation leaves each effect at its base
+     opacity, which is exactly the resting treatment above — the blush, the
+     ring, and the settled piggy all still read. */
   @media (prefers-reduced-motion: reduce) {
     .cell.placed svg.pig, .cell.placed img.pig, .cell.bad, .cell.peek::after, .cell.starved::after, .cell.pen-shimmer::before { animation: none; }
     .veil .card { animation: none; opacity: 1; transform: none; }
@@ -1728,7 +1753,33 @@
   }
 
   // ---- quiet play-time accrual (visible only in history, never as a timer) ----
-  var lastTick = Date.now(), tickN = 0, suspended = false, tickTimer = null;
+  // Nothing on screen ticks — this only accrues playMs and flushes a save every
+  // ~6s, so its whole cost is a periodic main-thread wake-up. Under the
+  // launcher's power saver we stretch the cadence rather than keep waking once
+  // a second; the accrual is dt-based, so a slower tick accrues the same total.
+  var TICK_MS = 1000, TICK_MS_SAVING = 5000, SAVE_AFTER_MS = 6000;
+  var lastTick = Date.now(), sinceSave = 0, suspended = false;
+  var tickTimer = null, tickEvery = 0;
+
+  // A pre-3.13 SDK has no powerSaver() at all and calling it throws — inside an
+  // onSettingsChange handler that would be a throw on every launcher settings
+  // write, not just at startup. Guarded, an older SDK simply reads "not saving".
+  function powerSaving() {
+    try { return !!(A && A.settings && A.settings.powerSaver && A.settings.powerSaver()); }
+    catch (e) { return false; }
+  }
+
+  // Arcade.session.setInterval freezes while the game is suspended and re-arms
+  // on resume, which is the manual clear/restart pair this used to carry. Fall
+  // back to a plain interval when there's no SDK (standalone off the launcher
+  // origin, or a stale cache) — then the suspend/resume legs below do it by hand.
+  var sessionTimers = !!(A && A.session && A.session.setInterval);
+  function everyMs(fn, ms) {
+    if (sessionTimers) return A.session.setInterval(fn, ms);
+    var id = setInterval(fn, ms);
+    return { cancel: function () { clearInterval(id); } };
+  }
+
   function flushTick() {
     var now = Date.now(), dt = now - lastTick; lastTick = now;
     if (!suspended && game && game.metrics && game.metrics.firstMoveAt && !game.solved && !game.recorded &&
@@ -1736,9 +1787,22 @@
       game.metrics.playMs += dt;
     }
   }
+  function stopTickTimer() {
+    if (tickTimer) tickTimer.cancel();
+    tickTimer = null; tickEvery = 0;
+  }
   function startTickTimer() {
-    if (tickTimer) return;
-    tickTimer = setInterval(function () { flushTick(); if (game && !game.recorded && (++tickN % 6 === 0)) persist(); }, 1000);
+    var ms = powerSaving() ? TICK_MS_SAVING : TICK_MS;
+    if (tickTimer && tickEvery === ms) return;
+    stopTickTimer();
+    tickEvery = ms;
+    tickTimer = everyMs(function () {
+      flushTick();
+      if (game && !game.recorded) {
+        sinceSave += ms;
+        if (sinceSave >= SAVE_AFTER_MS) { sinceSave = 0; persist(); }
+      }
+    }, ms);
   }
   startTickTimer();
   document.addEventListener("visibilitychange", function () { lastTick = Date.now(); });
@@ -1749,11 +1813,16 @@
       persist();
       // audio suspend/resume is launcher-managed now (Arcade.audio) — the SDK
       // suspends its own ctx on the same lifecycle hook, so nothing to do here.
-      clearInterval(tickTimer); tickTimer = null;
+      if (!sessionTimers) stopTickTimer();
     });
   }
   if (A && A.onResume) {
     A.onResume(function () { suspended = false; lastTick = Date.now(); startTickTimer(); });
+  }
+  // power saver can be flipped mid-session from the launcher menu; re-arm at
+  // the new cadence (a no-op when the cadence hasn't actually changed).
+  if (A && A.onSettingsChange) {
+    A.onSettingsChange(function () { if (!suspended) startTickTimer(); });
   }
 
   // ---- helpers ----
