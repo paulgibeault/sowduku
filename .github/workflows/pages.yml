@@ -39,3 +39,5 @@ jobs:
       # Without it the cache identity freezes and returning players never
       # execute a deployed fix — the drift this repo used to hand-manage.
       version_bump: true
+      # Publish the game's offline pack so the launcher can run it with no network.
+      offline_pack: true
